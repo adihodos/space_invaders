@@ -1,7 +1,7 @@
-
 use std::cmp::PartialEq;
 use std::cmp::PartialOrd;
 use std::ops::Add;
+
 #[derive(Copy, Clone, Debug)]
 pub struct TVec2<T>
 where
@@ -18,10 +18,27 @@ where
   pub fn new(x: T, y: T) -> Self {
     TVec2 { x, y }
   }
+
+  pub fn as_slice(&self) -> &[T] {
+    unsafe { std::slice::from_raw_parts(self as *const Self as *const T, 2) }
+  }
+
+  pub fn as_slice_mut(&mut self) -> &mut [T] {
+    unsafe { std::slice::from_raw_parts_mut(self as *mut Self as *mut T, 2) }
+  }
 }
 
 pub type Vec2F32 = TVec2<f32>;
 pub type Vec2I16 = TVec2<i16>;
+
+
+pub fn saturate(x: f32) -> f32 {
+  (x.min(1_f32)).max(0_f32)
+}
+
+pub fn clamp(minval: f32, x: f32, maxval: f32) -> f32 {
+  minval.max(x).min(maxval)
+}
 
 #[derive(Copy, Clone, Debug)]
 pub struct TColorRGBA<T>
@@ -42,6 +59,16 @@ where
     TColorRGBA { r, g, b, a }
   }
 
+  pub fn from(c: &[T]) -> Self {
+    assert!(c.len() == 4);
+    TColorRGBA {
+      r: c[0],
+      g: c[1],
+      b: c[2],
+      a: c[3],
+    }
+  }
+
   pub fn as_slice(&self) -> &[T] {
     unsafe { std::slice::from_raw_parts(self as *const TColorRGBA<T> as *const T, 4) }
   }
@@ -49,6 +76,23 @@ where
 
 pub type RGBAColor = TColorRGBA<u8>;
 pub type RGBAColorF32 = TColorRGBA<f32>;
+
+pub fn rgba_color_f32_to_rgba_color(c: RGBAColorF32) -> RGBAColor {
+  RGBAColor::new(
+    (saturate(c.r) * 255_f32) as u8,
+    (saturate(c.g) * 255_f32) as u8,
+    (saturate(c.b) * 255_f32) as u8,
+    (saturate(c.a) * 255_f32) as u8,
+  )
+}
+
+pub fn rgba_color_to_u32(c: RGBAColor) -> u32 {
+  let mut out = c.r as u32;
+  out |= (c.g as u32) << 8;
+  out |= (c.b as u32) << 16;
+  out |= (c.a as u32) << 24;
+  return out;
+}
 
 #[derive(Copy, Clone, Debug)]
 pub struct TRectangle<T>
@@ -95,7 +139,7 @@ where
 pub type RectangleI16 = TRectangle<i16>;
 pub type RectangleF32 = TRectangle<f32>;
 
-#[derive(Copy, Debug, Clone)]
+#[derive(Copy, Debug, Clone, PartialEq)]
 pub enum GenericHandle {
   Ptr(usize),
   Id(i32),
@@ -119,15 +163,15 @@ pub struct DrawNullTexture {
 
 #[derive(Debug, Clone)]
 pub struct ConvertConfig {
-  global_alpha : f32,
-  line_aa : AntialiasingType,
-  shape_aa : AntialiasingType,
-  circle_segment_count : u32,
-  arc_segment_count : u32,
-  curve_segment_count : u32,
-  null : DrawNullTexture,
-  vertex_layout : Vec<i32>,
-
+  pub global_alpha: f32,
+  pub line_aa: AntialiasingType,
+  pub shape_aa: AntialiasingType,
+  pub circle_segment_count: u32,
+  pub arc_segment_count: u32,
+  pub curve_segment_count: u32,
+  pub null: DrawNullTexture,
+  pub vertex_layout: Vec<DrawVertexLayoutElement>,
+  pub vertex_size: usize,
 }
 
 #[derive(Copy, Debug, Clone)]
@@ -143,10 +187,61 @@ pub struct VertexPTC {
   pub color: RGBAColorF32,
 }
 
+impl std::default::Default for VertexPTC {
+  fn default() -> Self {
+    VertexPTC {
+      pos: Vec2F32::new(0_f32, 0_f32),
+      texcoords: Vec2F32::new(0_f32, 0_f32),
+      color: RGBAColorF32::new(0_f32, 0_f32, 0_f32, 1_f32),
+    }
+  }
+}
+
 #[derive(Copy, Debug, Clone)]
 pub enum AntialiasingType {
   Off,
   On,
+}
+
+#[derive(Copy, Debug, Clone, PartialEq, Eq)]
+pub enum DrawVertexLayoutAttribute {
+  Position,
+  Color,
+  Texcoord,
+  // Count,
+}
+
+#[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd)]
+pub enum DrawVertexLayoutFormat {
+  Schar,
+  Sshort,
+  Sint,
+  Uchar,
+  Ushort,
+  Uint,
+  Float,
+  Double,
+  FormatColorBegin,
+  R8G8B8,
+  R16G15B16,
+  R32G32B32,
+  R8G8B8A8,
+  B8G8R8A8,
+  R16G15B16A16,
+  R32G32B32A32,
+  R32G32B32A32_Float,
+  R32G32B32A32_Double,
+  RGB32,
+  RGBA32,
+  FormatColorEnd,
+  FormatCount,
+}
+
+#[derive(Copy, Debug, Clone)]
+pub struct DrawVertexLayoutElement {
+  pub attribute: DrawVertexLayoutAttribute,
+  pub format: DrawVertexLayoutFormat,
+  pub offset: usize,
 }
 
 

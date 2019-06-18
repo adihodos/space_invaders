@@ -1,5 +1,6 @@
 pub mod types;
 pub mod commands;
+pub mod vertex_output;
 
 #[cfg(test)]
 mod tests {
