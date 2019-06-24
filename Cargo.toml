@@ -5,3 +5,6 @@ authors = ["Adrian Hodos <adi.hodos@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+num-traits = "0.2"
+glfw = "0.29"
+gl = "0.10.0"

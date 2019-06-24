@@ -1,7 +1,9 @@
-use super::types::{
-  AntialiasingType, GenericHandle, Image, PlaceholderType, RGBAColor, RectangleF32, UserFont,
-  Vec2F32, Vec2I16, VertexPTC,
+use crate::types::{
+   RGBAColor, RectangleF32, UserFont,
+   Vec2I16,
 };
+
+use super::image::*;
 
 #[derive(Copy, Clone, Debug)]
 pub struct CmdScissor {
@@ -161,6 +163,7 @@ pub struct CmdText {
 
 #[derive(Debug, Clone)]
 pub enum Command {
+  Nop,
   Scissor(CmdScissor),
   Line(CmdLine),
   Curve(CmdCurve),
