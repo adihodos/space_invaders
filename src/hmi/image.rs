@@ -1,10 +1,5 @@
-use crate::types::RectangleF32;
-
-#[derive(Copy, Debug, Clone, PartialEq)]
-pub enum GenericHandle {
-    Ptr(usize),
-    Id(u32),
-}
+use crate::math::rectangle::RectangleF32;
+use crate::hmi::base::GenericHandle;
 
 #[derive(Copy, Debug, Clone)]
 pub struct Image {

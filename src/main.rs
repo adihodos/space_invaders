@@ -1,19 +1,21 @@
-pub mod buffer;
-pub mod commands;
-pub mod render_gl;
-pub mod types;
-pub mod vertex_output;
 
-pub mod image;
+mod hmi;
+mod math;
+mod render_gl;
 
-extern crate gl;
-extern crate glfw;
+use crate::math::{
+    rgb::RGBAColor,
+    vec2::{Vec2F32, Vec2I16},
+    vertex_types::VertexPTC,
+};
 
-use commands::*;
-use image::*;
-use vertex_output::*;
-use crate::types::{VertexPTC, RGBAColor, Vec2I16, DrawNullTexture, Vec2F32, AntialiasingType, ConvertConfig};
-
+use crate::hmi::{
+    base::{AntialiasingType, ConvertConfig, DrawNullTexture, GenericHandle},
+    commands::{
+        CmdArc, CmdCircle, CmdCircleFilled, CmdPolygon, CmdPolyline, CmdTriangleFilled, Command,
+    },
+    vertex_output::{DrawCommand, DrawIndexType, DrawList},
+};
 
 use glfw::{Action, Context, Key, WindowHint};
 
