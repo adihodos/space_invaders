@@ -1,6 +1,6 @@
 use crate::math::{
   rectangle::RectangleF32,
-  rgb::{RGBAColor, RGBAColorF32},
+  colors::{RGBAColor, RGBAColorF32},
   vec2::{normalize, Vec2F32},
   vertex_types::VertexPTC,
 };
@@ -161,7 +161,7 @@ impl<'a> DrawList<'a> {
       return;
     }
 
-    let color = RGBAColor::new(
+    let color = RGBAColor::new_with_alpha(
       color.r,
       color.g,
       color.b,
@@ -176,7 +176,7 @@ impl<'a> DrawList<'a> {
 
     let thick_line = thickness > 1_f32;
     let col = RGBAColorF32::from(color);
-    let col_trans = RGBAColorF32::new(col.r, col.g, col.b, 0_f32);
+    let col_trans = RGBAColorF32::new_with_alpha(col.r, col.g, col.b, 0_f32);
 
     //
     // aliased only for now

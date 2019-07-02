@@ -4,7 +4,7 @@ mod math;
 mod render_gl;
 
 use crate::math::{
-    rgb::RGBAColor,
+    colors::{HslColor, HsvColor, RGBAColor, RGBAColorF32, XyzColor},
     vec2::{Vec2F32, Vec2I16},
     vertex_types::VertexPTC,
 };
@@ -50,6 +50,10 @@ fn ortho_symm(right : f32, top : f32, near : f32, far : f32) -> Vec<f32> {
 }
 
 fn main() {
+    // let hsv = HsvColor::new(300_f32, 80_f32, 100_f32);
+    // println!("{:?}", hsv);
+    // println!("{:?}", hsv.as_slice());
+
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
     glfw.window_hint(WindowHint::OpenGlForwardCompat(true));
     glfw.window_hint(WindowHint::OpenGlProfile(glfw::OpenGlProfileHint::Core));
@@ -123,7 +127,16 @@ fn main() {
 
     unsafe {
         gl::Viewport(0, 0, 900, 700);
-        gl::ClearColor(0.3, 0.3, 0.5, 1.0);
+        let cc = 
+        //RGBAColorF32::from_html("#ff6600ff").unwrap();
+        // RGBAColorF32::from(HslColor::new(360_f32, 0.70_f32, 0.50_f32));
+        RGBAColorF32::from(HsvColor::new(217f32, 87f32, 46f32));
+
+        println!("{:?}", cc);
+        // println!("{}", 7.4 % 6.0);
+
+        // RGBAColorF32::new(0.85f32, 0.15f32, 0.15f32);
+        gl::ClearColor(cc.r, cc.g, cc.b, cc.a);
     }
 
     let world_view_prof_mtx = orthographic_projection(0_f32, 0_f32, 900_f32, 700_f32, 0_f32, 1_f32);
@@ -183,7 +196,7 @@ fn main() {
         // };
 
          CmdPolygon {
-            color: RGBAColor::new(0, 255, 255, 255),
+            color: RGBAColor::new(0, 255, 255),
             points: polygon_pts.clone(),
        line_thickness: 2,
     };
@@ -192,7 +205,7 @@ fn main() {
 
 
     let cmd_polyline = CmdPolyline {
-        color: RGBAColor::new(255, 0, 0, 255),
+        color: RGBAColor::new(255, 0, 0),
         line_thickness: 2,
         points: polygon_pts
             .iter()
@@ -208,7 +221,7 @@ fn main() {
         y: 400,
         w: 300,
         h: 300,
-        color: RGBAColor::new(128, 255, 64, 255),
+        color: RGBAColor::new(128, 255, 64),
     };
     commands.push(Command::CircleFilled(cmd_circle));
 
@@ -218,7 +231,7 @@ fn main() {
         line_thickness: 2,
         w: 100,
         h: 100,
-        color: RGBAColor::new(64, 128, 255, 255),
+        color: RGBAColor::new(64, 128, 255),
     };
     commands.push(Command::Circle(cmd_circle));
 
@@ -227,7 +240,7 @@ fn main() {
         a: Vec2I16::new(0, 500),
         b: Vec2I16::new(200, 100),
         c: Vec2I16::new(400, 500),
-        color: RGBAColor::new(0, 255, 0, 255),
+        color: RGBAColor::new(0, 255, 0),
     };
     commands.push(Command::TriangleFilled(triangle));
 
@@ -237,7 +250,7 @@ fn main() {
         r: 100,
         line_thickness: 3,
         a: [0_f32, -std::f32::consts::PI],
-        color: RGBAColor::new(255, 64, 32, 255),
+        color: RGBAColor::new(255, 64, 32),
     };
     commands.push(Command::Arc(cmd_arc));
 

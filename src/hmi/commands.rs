@@ -2,7 +2,7 @@ use crate::math::{
   vec2::{
     Vec2I16
   },
-  rgb::{RGBAColor},
+  colors::{RGBAColor},
   rectangle::{RectangleF32}
 };
 

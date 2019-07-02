@@ -1,7 +1,4 @@
-use crate::math::{
-  vec2::Vec2F32,
-  rgb::RGBAColorF32,
-};
+use crate::math::{colors::RGBAColorF32, vec2::Vec2F32};
 
 #[derive(Copy, Debug, Clone)]
 pub struct VertexPTC {
@@ -15,7 +12,7 @@ impl std::default::Default for VertexPTC {
     VertexPTC {
       pos: Vec2F32::new(0_f32, 0_f32),
       texcoords: Vec2F32::new(0_f32, 0_f32),
-      color: RGBAColorF32::new(0_f32, 0_f32, 0_f32, 1_f32),
+      color: RGBAColorF32::new(0_f32, 0_f32, 0_f32),
     }
   }
 }
