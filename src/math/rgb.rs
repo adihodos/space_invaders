@@ -75,3 +75,4 @@ pub fn rgba_color_to_u32(c: RGBAColor) -> u32 {
   out |= (c.a as u32) << 24;
   return out;
 }
+
