@@ -1,10 +1,11 @@
 [package]
-name = "simple_ui"
-version = "0.1.0"
-authors = ["Adrian Hodos <adi.hodos@gmail.com>"]
-edition = "2018"
+    name = "simple_ui"
+    version = "0.1.0"
+    authors = ["Adrian Hodos <adi.hodos@gmail.com>"]
+    edition = "2018"
 
 [dependencies]
-num-traits = "0.2"
-glfw = "0.29"
-gl = "0.10.0"
+    num-traits = "0.2"
+    glfw = "0.29"
+    gl = "0.10.0"
+    libc = "0.2"
