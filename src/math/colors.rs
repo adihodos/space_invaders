@@ -21,13 +21,14 @@ fn color_u32_to_color_f32(c: u32) -> (f32, f32, f32, f32) {
 
 pub trait NumColorComponent<ComponentType = Self> {
   fn alpha_max() -> ComponentType;
-  fn from_u32(val: u32) -> (ComponentType, ComponentType, ComponentType, ComponentType);
+  fn from_u32(
+    val: u32,
+  ) -> (ComponentType, ComponentType, ComponentType, ComponentType);
 }
 
 macro_rules! define_color_component {
   ($cctype:ty, $alpha_max:expr, $conv_expr:expr) => {
     impl NumColorComponent for $cctype {
-
       fn alpha_max() -> $cctype {
         $alpha_max
       }
@@ -71,11 +72,13 @@ where
       return Err("empty input string");
     }
 
-    let s = if s.starts_with('#') { &s[1..] } else { s };
+    let s = if s.starts_with('#') { &s[1 ..] } else { s };
 
     let len_content = s.len();
     if !(len_content == 6 || len_content == 8) {
-      return Err("wrong component count (either 6 or 8 hex color values expected)");
+      return Err(
+        "wrong component count (either 6 or 8 hex color values expected)",
+      );
     }
 
     u32::from_str_radix(s, 16)
@@ -93,7 +96,9 @@ where
   }
 
   pub fn as_slice(&self) -> &[T] {
-    unsafe { std::slice::from_raw_parts(self as *const TColorRGBA<T> as *const T, 4) }
+    unsafe {
+      std::slice::from_raw_parts(self as *const TColorRGBA<T> as *const T, 4)
+    }
   }
 
   pub fn as_slice_mut(&mut self) -> &mut [T] {
@@ -163,7 +168,12 @@ impl std::convert::From<RGBAColorF32> for u32 {
 
 impl<T> std::ops::AddAssign for TColorRGBA<T>
 where
-  T: Copy + Clone + std::fmt::Debug + Num + NumColorComponent + std::ops::AddAssign,
+  T: Copy
+    + Clone
+    + std::fmt::Debug
+    + Num
+    + NumColorComponent
+    + std::ops::AddAssign,
 {
   fn add_assign(&mut self, rhs: Self) {
     self
@@ -176,7 +186,12 @@ where
 
 impl<T> std::ops::SubAssign for TColorRGBA<T>
 where
-  T: Copy + Clone + std::fmt::Debug + Num + NumColorComponent + std::ops::SubAssign,
+  T: Copy
+    + Clone
+    + std::fmt::Debug
+    + Num
+    + NumColorComponent
+    + std::ops::SubAssign,
 {
   fn sub_assign(&mut self, rhs: Self) {
     self
@@ -189,7 +204,12 @@ where
 
 impl<T> std::ops::MulAssign for TColorRGBA<T>
 where
-  T: Copy + Clone + std::fmt::Debug + Num + NumColorComponent + std::ops::MulAssign,
+  T: Copy
+    + Clone
+    + std::fmt::Debug
+    + Num
+    + NumColorComponent
+    + std::ops::MulAssign,
 {
   fn mul_assign(&mut self, rhs: Self) {
     self
@@ -202,7 +222,12 @@ where
 
 impl<T> std::ops::MulAssign<T> for TColorRGBA<T>
 where
-  T: Copy + Clone + std::fmt::Debug + Num + NumColorComponent + std::ops::MulAssign,
+  T: Copy
+    + Clone
+    + std::fmt::Debug
+    + Num
+    + NumColorComponent
+    + std::ops::MulAssign,
 {
   fn mul_assign(&mut self, k: T) {
     self.as_slice_mut().iter_mut().for_each(|s| *s *= k);
@@ -211,7 +236,12 @@ where
 
 impl<T> std::ops::DivAssign for TColorRGBA<T>
 where
-  T: Copy + Clone + std::fmt::Debug + Num + NumColorComponent + std::ops::DivAssign,
+  T: Copy
+    + Clone
+    + std::fmt::Debug
+    + Num
+    + NumColorComponent
+    + std::ops::DivAssign,
 {
   fn div_assign(&mut self, rhs: Self) {
     self
@@ -224,7 +254,12 @@ where
 
 impl<T> std::ops::DivAssign<T> for TColorRGBA<T>
 where
-  T: Copy + Clone + std::fmt::Debug + Num + NumColorComponent + std::ops::DivAssign,
+  T: Copy
+    + Clone
+    + std::fmt::Debug
+    + Num
+    + NumColorComponent
+    + std::ops::DivAssign,
 {
   fn div_assign(&mut self, k: T) {
     self.as_slice_mut().iter_mut().for_each(|s| *s /= k);
@@ -242,6 +277,7 @@ where
     + std::ops::AddAssign,
 {
   type Output = Self;
+
   fn add(self, rhs: TColorRGBA<T>) -> Self::Output {
     let mut result = self;
     result += rhs;
@@ -260,6 +296,7 @@ where
     + std::ops::SubAssign,
 {
   type Output = Self;
+
   fn sub(self, rhs: TColorRGBA<T>) -> Self::Output {
     let mut result = self;
     result -= rhs;
@@ -278,6 +315,7 @@ where
     + std::ops::MulAssign,
 {
   type Output = Self;
+
   fn mul(self, rhs: TColorRGBA<T>) -> Self::Output {
     let mut result = self;
     result *= rhs;
@@ -296,6 +334,7 @@ where
     + std::ops::MulAssign,
 {
   type Output = Self;
+
   fn mul(self, rhs: T) -> Self::Output {
     let mut result = self;
     result *= rhs;
@@ -314,6 +353,7 @@ where
     + std::ops::DivAssign,
 {
   type Output = Self;
+
   fn div(self, rhs: TColorRGBA<T>) -> Self::Output {
     let mut result = self;
     result /= rhs;
@@ -332,6 +372,7 @@ where
     + std::ops::DivAssign,
 {
   type Output = Self;
+
   fn div(self, rhs: T) -> Self::Output {
     let mut result = self;
     result /= rhs;
@@ -382,7 +423,6 @@ mod tests {
 
   #[test]
   fn test_conversion_from_html() {
-
     assert_eq!(
       RGBAColor::from_html("7fdc34"),
       Ok(RGBAColor::new_with_alpha(127, 220, 52, 255))

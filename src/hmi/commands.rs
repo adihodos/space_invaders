@@ -1,15 +1,6 @@
-use crate::math::{
-  vec2::{
-    Vec2I16
-  },
-  colors::{RGBAColor},
-  rectangle::{RectangleF32}
-};
+use crate::math::{colors::RGBAColor, rectangle::RectangleF32, vec2::Vec2I16};
 
-use crate::hmi::{
-  image::Image,
-  base::UserFont,
-};
+use crate::hmi::{base::UserFont, image::Image};
 
 #[derive(Copy, Clone, Debug)]
 pub struct CmdScissor {
@@ -22,149 +13,149 @@ pub struct CmdScissor {
 #[derive(Copy, Clone, Debug)]
 pub struct CmdLine {
   pub line_thickness: u16,
-  pub begin: Vec2I16,
-  pub end: Vec2I16,
-  pub color: RGBAColor,
+  pub begin:          Vec2I16,
+  pub end:            Vec2I16,
+  pub color:          RGBAColor,
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct CmdCurve {
   pub line_thickness: u16,
-  pub begin: Vec2I16,
-  pub end: Vec2I16,
-  pub ctrl: [Vec2I16; 2],
-  pub color: RGBAColor,
+  pub begin:          Vec2I16,
+  pub end:            Vec2I16,
+  pub ctrl:           [Vec2I16; 2],
+  pub color:          RGBAColor,
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct CmdRect {
-  pub rounding: u16,
+  pub rounding:       u16,
   pub line_thickness: u16,
-  pub x: i16,
-  pub y: i16,
-  pub w: u16,
-  pub h: u16,
-  pub color: RGBAColor,
+  pub x:              i16,
+  pub y:              i16,
+  pub w:              u16,
+  pub h:              u16,
+  pub color:          RGBAColor,
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct CmdRectFilled {
   pub rounding: u16,
-  pub x: i16,
-  pub y: i16,
-  pub w: u16,
-  pub h: u16,
-  pub color: RGBAColor,
+  pub x:        i16,
+  pub y:        i16,
+  pub w:        u16,
+  pub h:        u16,
+  pub color:    RGBAColor,
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct CmdRectMulticolor {
-  pub x: i16,
-  pub y: i16,
-  pub w: u16,
-  pub h: u16,
-  pub left: RGBAColor,
-  pub top: RGBAColor,
+  pub x:      i16,
+  pub y:      i16,
+  pub w:      u16,
+  pub h:      u16,
+  pub left:   RGBAColor,
+  pub top:    RGBAColor,
   pub bottom: RGBAColor,
-  pub right: RGBAColor,
+  pub right:  RGBAColor,
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct CmdTriangle {
   pub line_thickness: u16,
-  pub a: Vec2I16,
-  pub b: Vec2I16,
-  pub c: Vec2I16,
-  pub color: RGBAColor,
+  pub a:              Vec2I16,
+  pub b:              Vec2I16,
+  pub c:              Vec2I16,
+  pub color:          RGBAColor,
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct CmdTriangleFilled {
-  pub a: Vec2I16,
-  pub b: Vec2I16,
-  pub c: Vec2I16,
+  pub a:     Vec2I16,
+  pub b:     Vec2I16,
+  pub c:     Vec2I16,
   pub color: RGBAColor,
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct CmdCircle {
-  pub x: i16,
-  pub y: i16,
+  pub x:              i16,
+  pub y:              i16,
   pub line_thickness: u16,
-  pub w: u16,
-  pub h: u16,
-  pub color: RGBAColor,
+  pub w:              u16,
+  pub h:              u16,
+  pub color:          RGBAColor,
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct CmdCircleFilled {
-  pub x: i16,
-  pub y: i16,
-  pub w: u16,
-  pub h: u16,
+  pub x:     i16,
+  pub y:     i16,
+  pub w:     u16,
+  pub h:     u16,
   pub color: RGBAColor,
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct CmdArc {
-  pub cx: i16,
-  pub cy: i16,
-  pub r: u16,
+  pub cx:             i16,
+  pub cy:             i16,
+  pub r:              u16,
   pub line_thickness: u16,
-  pub a: [f32; 2],
-  pub color: RGBAColor,
+  pub a:              [f32; 2],
+  pub color:          RGBAColor,
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct CmdArcFilled {
-  pub cx: i16,
-  pub cy: i16,
-  pub r: u16,
-  pub a: [f32; 2],
+  pub cx:    i16,
+  pub cy:    i16,
+  pub r:     u16,
+  pub a:     [f32; 2],
   pub color: RGBAColor,
 }
 
 #[derive(Clone, Debug)]
 pub struct CmdPolygon {
-  pub color: RGBAColor,
+  pub color:          RGBAColor,
   pub line_thickness: u16,
-  pub points: Vec<Vec2I16>,
+  pub points:         Vec<Vec2I16>,
 }
 
 #[derive(Clone, Debug)]
 pub struct CmdPolygonFilled {
-  pub color: RGBAColor,
+  pub color:  RGBAColor,
   pub points: Vec<Vec2I16>,
 }
 
 #[derive(Clone, Debug)]
 pub struct CmdPolyline {
-  pub color: RGBAColor,
+  pub color:          RGBAColor,
   pub line_thickness: u16,
-  pub points: Vec<Vec2I16>,
+  pub points:         Vec<Vec2I16>,
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct CmdImage {
-  pub x: i16,
-  pub y: i16,
-  pub w: u16,
-  pub h: u16,
-  pub img: Image,
+  pub x:     i16,
+  pub y:     i16,
+  pub w:     u16,
+  pub h:     u16,
+  pub img:   Image,
   pub color: RGBAColor,
 }
 
 #[derive(Clone, Debug)]
 pub struct CmdText {
-  pub font: UserFont,
+  pub font:       UserFont,
   pub background: RGBAColor,
   pub foreground: RGBAColor,
-  pub x: i16,
-  pub y: i16,
-  pub w: u16,
-  pub h: u16,
-  pub height: f32,
-  pub text: String,
+  pub x:          i16,
+  pub y:          i16,
+  pub w:          u16,
+  pub h:          u16,
+  pub height:     f32,
+  pub text:       String,
 }
 
 #[derive(Debug, Clone)]
@@ -196,7 +187,10 @@ pub struct CommandBuffer {
 }
 
 impl CommandBuffer {
-  pub fn new(clip: Option<RectangleF32>, min_buffer_size: usize) -> CommandBuffer {
+  pub fn new(
+    clip: Option<RectangleF32>,
+    min_buffer_size: usize,
+  ) -> CommandBuffer {
     CommandBuffer {
       clip,
       base: Vec::with_capacity(min_buffer_size),
@@ -256,7 +250,11 @@ impl CommandBuffer {
     line_thickness: f32,
     color: RGBAColor,
   ) {
-    if color.a == 0 || rect.w == 0_f32 || rect.h == 0_f32 || line_thickness <= 0_f32 {
+    if color.a == 0
+      || rect.w == 0_f32
+      || rect.h == 0_f32
+      || line_thickness <= 0_f32
+    {
       return;
     }
 
@@ -280,7 +278,12 @@ impl CommandBuffer {
     self.base.push(Command::Rect(cmd));
   }
 
-  pub fn stroke_circle(&mut self, r: RectangleF32, line_thickness: f32, color: RGBAColor) {
+  pub fn stroke_circle(
+    &mut self,
+    r: RectangleF32,
+    line_thickness: f32,
+    color: RGBAColor,
+  ) {
     if r.w == 0_f32 || r.h == 0_f32 || line_thickness <= 0_f32 {
       return;
     }
@@ -363,7 +366,12 @@ impl CommandBuffer {
     self.base.push(Command::Triangle(cmd));
   }
 
-  pub fn stroke_polyline(&mut self, points: &[f32], line_thickness: f32, color: RGBAColor) {
+  pub fn stroke_polyline(
+    &mut self,
+    points: &[f32],
+    line_thickness: f32,
+    color: RGBAColor,
+  ) {
     if color.a == 0 || line_thickness <= 0_f32 {
       return;
     }
@@ -382,7 +390,12 @@ impl CommandBuffer {
     self.base.push(Command::Polyline(cmd));
   }
 
-  pub fn stroke_polygon(&mut self, points: &[f32], line_thickness: f32, color: RGBAColor) {
+  pub fn stroke_polygon(
+    &mut self,
+    points: &[f32],
+    line_thickness: f32,
+    color: RGBAColor,
+  ) {
     if color.a == 0 || line_thickness <= 0_f32 {
       return;
     }
@@ -401,7 +414,12 @@ impl CommandBuffer {
     self.base.push(Command::Polygon(cmd));
   }
 
-  pub fn fill_rect(&mut self, rect: RectangleF32, rounding: f32, color: RGBAColor) {
+  pub fn fill_rect(
+    &mut self,
+    rect: RectangleF32,
+    rounding: f32,
+    color: RGBAColor,
+  ) {
     if color.a == 0 || rect.w == 0_f32 || rect.h == 0_f32 {
       return;
     }

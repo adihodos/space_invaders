@@ -50,7 +50,7 @@ where
   fn alloc_elements(&mut self, count: usize) -> &mut [Self::Element] {
     let start_idx = self.mem.len();
     self.mem.resize_with(start_idx + count, || T::default());
-    &mut self.mem[start_idx..]
+    &mut self.mem[start_idx ..]
   }
 
   fn clear(&mut self) {
@@ -115,7 +115,10 @@ where
     let start_idx = self.len;
     self.len += count;
     unsafe {
-      std::slice::from_raw_parts_mut(self.ptr.offset(start_idx as isize), self.len - start_idx)
+      std::slice::from_raw_parts_mut(
+        self.ptr.offset(start_idx as isize),
+        self.len - start_idx,
+      )
     }
   }
 
@@ -153,7 +156,7 @@ mod tests {
 
     {
       let mut new_slice = dyb.alloc_elements(5);
-      (0..5).for_each(|idx| {
+      (0 .. 5).for_each(|idx| {
         let src = idx as i32 * 4;
         unsafe {
           std::ptr::copy_nonoverlapping(

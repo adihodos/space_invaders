@@ -2,29 +2,29 @@ use crate::math::vec2::Vec2F32;
 
 #[derive(Copy, Debug, Clone, PartialEq)]
 pub enum GenericHandle {
-    Ptr(usize),
-    Id(u32),
+  Ptr(usize),
+  Id(u32),
 }
 
 #[derive(Copy, Debug, Clone)]
 pub struct DrawNullTexture {
-  ///<! texture handle to a texture containing a white pixel
+  /// <! texture handle to a texture containing a white pixel
   pub texture: GenericHandle,
-  ///<! Coordinates of the white pixel in the above texture
+  /// <! Coordinates of the white pixel in the above texture
   pub uv: Vec2F32,
 }
 
 #[derive(Debug, Clone)]
 pub struct ConvertConfig {
-  pub global_alpha: f32,
-  pub line_aa: AntialiasingType,
-  pub shape_aa: AntialiasingType,
+  pub global_alpha:         f32,
+  pub line_aa:              AntialiasingType,
+  pub shape_aa:             AntialiasingType,
   pub circle_segment_count: u32,
-  pub arc_segment_count: u32,
-  pub curve_segment_count: u32,
-  pub null: DrawNullTexture,
-  pub vertex_layout: Vec<DrawVertexLayoutElement>,
-  pub vertex_size: usize,
+  pub arc_segment_count:    u32,
+  pub curve_segment_count:  u32,
+  pub null:                 DrawNullTexture,
+  pub vertex_layout:        Vec<DrawVertexLayoutElement>,
+  pub vertex_size:          usize,
 }
 
 #[derive(Copy, Debug, Clone)]
@@ -75,6 +75,6 @@ pub enum DrawVertexLayoutFormat {
 #[derive(Copy, Debug, Clone)]
 pub struct DrawVertexLayoutElement {
   pub attribute: DrawVertexLayoutAttribute,
-  pub format: DrawVertexLayoutFormat,
-  pub offset: usize,
+  pub format:    DrawVertexLayoutFormat,
+  pub offset:    usize,
 }

@@ -1,8 +1,4 @@
-use std::{
-    ops::{
-        Add
-    }
-};
+use std::ops::Add;
 
 #[derive(Copy, Clone, Debug)]
 pub struct TRectangle<T>
@@ -42,7 +38,10 @@ where
   where
     T: Add<Output = T> + PartialEq + PartialOrd,
   {
-    x >= self.x && x <= (self.x + self.w) && y >= self.y && y <= (self.y + self.h)
+    x >= self.x
+      && x <= (self.x + self.w)
+      && y >= self.y
+      && y <= (self.y + self.h)
   }
 }
 

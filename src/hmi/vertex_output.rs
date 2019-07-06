@@ -1,6 +1,6 @@
 use crate::math::{
-  rectangle::RectangleF32,
   colors::{RGBAColor, RGBAColorF32},
+  rectangle::RectangleF32,
   vec2::{normalize, Vec2F32},
   vertex_types::VertexPTC,
 };
@@ -22,21 +22,21 @@ pub enum DrawListStroke {
 #[derive(Copy, Debug, Clone)]
 pub struct DrawCommand {
   pub element_count: u32,
-  pub clip_rect: RectangleF32,
-  pub texture: GenericHandle,
+  pub clip_rect:     RectangleF32,
+  pub texture:       GenericHandle,
 }
 
 #[derive(Debug)]
 pub struct DrawList<'a> {
-  clip_rect: RectangleF32,
+  clip_rect:  RectangleF32,
   circle_vtx: Vec<Vec2F32>,
-  config: ConvertConfig,
-  buffer: &'a mut Vec<DrawCommand>,
-  vertices: &'a mut Vec<VertexPTC>,
-  elements: &'a mut Vec<DrawIndexType>,
-  path: std::cell::RefCell<Vec<Vec2F32>>,
-  line_aa: AntialiasingType,
-  shape_aa: AntialiasingType,
+  config:     ConvertConfig,
+  buffer:     &'a mut Vec<DrawCommand>,
+  vertices:   &'a mut Vec<VertexPTC>,
+  elements:   &'a mut Vec<DrawIndexType>,
+  path:       std::cell::RefCell<Vec<Vec2F32>>,
+  line_aa:    AntialiasingType,
+  shape_aa:   AntialiasingType,
 }
 
 impl<'a> DrawList<'a> {
@@ -56,9 +56,10 @@ impl<'a> DrawList<'a> {
 
     DrawList {
       clip_rect: Self::null_rectangle(),
-      circle_vtx: (0..GEN_CIRCLE_VERTICES_COUNT)
+      circle_vtx: (0 .. GEN_CIRCLE_VERTICES_COUNT)
         .map(|idx| {
-          let a = idx as f32 / (GEN_CIRCLE_VERTICES_COUNT as f32 * 2_f32 * std::f32::consts::PI);
+          let a = idx as f32
+            / (GEN_CIRCLE_VERTICES_COUNT as f32 * 2_f32 * std::f32::consts::PI);
           Vec2F32::new(a.cos(), a.sin())
         })
         .collect(),
@@ -178,12 +179,11 @@ impl<'a> DrawList<'a> {
     let col = RGBAColorF32::from(color);
     let col_trans = RGBAColorF32::new_with_alpha(col.r, col.g, col.b, 0_f32);
 
-    //
     // aliased only for now
 
     // let vtx_count = count * 4;
 
-    (0..count).for_each(|i1| {
+    (0 .. count).for_each(|i1| {
       let uv = self.config.null.uv;
       let i2 = if (i1 + 1) == points.len() { 0 } else { i1 + 1 };
 
@@ -211,18 +211,16 @@ impl<'a> DrawList<'a> {
           .push(Self::draw_vertex(&self.config, pos, uv, col));
       });
 
-      [0, 1, 2, 0, 2, 3]
-        .into_iter()
-        .for_each(|&offset| self.elements.push((idx + offset) as DrawIndexType));
+      [0, 1, 2, 0, 2, 3].into_iter().for_each(|&offset| {
+        self.elements.push((idx + offset) as DrawIndexType)
+      });
 
-      //
       // update element count for the current draw command
       let element_count = self.elements.len() as u32;
       self.buffer.last_mut().and_then(|cmd| {
         cmd.element_count = element_count;
         Some(())
       });
-
     });
   }
 
@@ -254,7 +252,7 @@ impl<'a> DrawList<'a> {
       ));
     });
 
-    (2..points.len()).into_iter().for_each(|offset| {
+    (2 .. points.len()).into_iter().for_each(|offset| {
       self.elements.push(idx as DrawIndexType);
       self.elements.push((idx + offset - 1) as DrawIndexType);
       self.elements.push((idx + offset) as DrawIndexType);
@@ -287,24 +285,37 @@ impl<'a> DrawList<'a> {
     self.path.borrow_mut().push(pos);
   }
 
-  fn path_arc_to_fast(&mut self, center: Vec2F32, radius: f32, a_min: i32, a_max: i32) {
+  fn path_arc_to_fast(
+    &mut self,
+    center: Vec2F32,
+    radius: f32,
+    a_min: i32,
+    a_max: i32,
+  ) {
     if a_min > a_max {
       return;
     }
 
-    (a_min..a_max + 1).into_iter().for_each(|a| {
+    (a_min .. a_max + 1).into_iter().for_each(|a| {
       let c = self.circle_vtx[(a as usize) % self.circle_vtx.len()];
       self.path_line_to(center + c * radius);
     });
   }
 
-  fn path_arc_to(&mut self, center: Vec2F32, radius: f32, a_min: f32, a_max: f32, segments: u32) {
+  fn path_arc_to(
+    &mut self,
+    center: Vec2F32,
+    radius: f32,
+    a_min: f32,
+    a_max: f32,
+    segments: u32,
+  ) {
     if radius == 0_f32 {
       return;
     }
 
-    // This algorithm for arc drawing relies on these two trigonometric identities[1]:
-    //       sin(a + b) = sin(a) * cos(b) + cos(a) * sin(b)
+    // This algorithm for arc drawing relies on these two trigonometric
+    // identities[1]:       sin(a + b) = sin(a) * cos(b) + cos(a) * sin(b)
     //       cos(a + b) = cos(a) * cos(b) - sin(a) * sin(b)
 
     //   Two coordinates (x, y) of a point on a circle centered on
@@ -326,7 +337,7 @@ impl<'a> DrawList<'a> {
     let cos_d = d_angle.cos();
 
     let mut c = Vec2F32::new(a_min.cos() * radius, a_min.sin() * radius);
-    (0..segments + 1).for_each(|_| {
+    (0 .. segments + 1).for_each(|_| {
       let vertex = center + c;
       self.path_line_to(vertex);
 
@@ -365,7 +376,13 @@ impl<'a> DrawList<'a> {
     }
   }
 
-  fn path_curve_to(&mut self, p2: Vec2F32, p3: Vec2F32, p4: Vec2F32, segments: u32) {
+  fn path_curve_to(
+    &mut self,
+    p2: Vec2F32,
+    p3: Vec2F32,
+    p4: Vec2F32,
+    segments: u32,
+  ) {
     if self.path.borrow().is_empty() {
       return;
     }
@@ -374,7 +391,7 @@ impl<'a> DrawList<'a> {
     let p1 = *self.path.borrow().last().unwrap();
     let t_step = 1_f32 / segments as f32;
 
-    (1..segments + 1).for_each(|i_step| {
+    (1 .. segments + 1).for_each(|i_step| {
       let t = t_step * i_step as f32;
       let u = 1_f32 - t;
       let w1 = u * u * u;
@@ -392,12 +409,29 @@ impl<'a> DrawList<'a> {
     self.fill_poly_convex(&path, color, self.config.shape_aa);
   }
 
-  fn path_stroke(&mut self, color: RGBAColor, path_type: DrawListStroke, thickness: f32) {
+  fn path_stroke(
+    &mut self,
+    color: RGBAColor,
+    path_type: DrawListStroke,
+    thickness: f32,
+  ) {
     let path = self.path.replace(vec![]);
-    self.stroke_poly_line(&path, color, path_type, thickness, self.config.line_aa);
+    self.stroke_poly_line(
+      &path,
+      color,
+      path_type,
+      thickness,
+      self.config.line_aa,
+    );
   }
 
-  fn stroke_line(&mut self, a: Vec2F32, b: Vec2F32, col: RGBAColor, thickness: f32) {
+  fn stroke_line(
+    &mut self,
+    a: Vec2F32,
+    b: Vec2F32,
+    col: RGBAColor,
+    thickness: f32,
+  ) {
     if col.a == 0 {
       return;
     }
@@ -434,7 +468,13 @@ impl<'a> DrawList<'a> {
     self.path_fill(col);
   }
 
-  fn stroke_rect(&mut self, rect: RectangleF32, col: RGBAColor, rounding: f32, thickness: f32) {
+  fn stroke_rect(
+    &mut self,
+    rect: RectangleF32,
+    col: RGBAColor,
+    rounding: f32,
+    thickness: f32,
+  ) {
     if col.a == 0 {
       return;
     }
@@ -517,7 +557,13 @@ impl<'a> DrawList<'a> {
     self.path_stroke(col, DrawListStroke::Closed, thickness);
   }
 
-  fn fill_triangle(&mut self, a: Vec2F32, b: Vec2F32, c: Vec2F32, col: RGBAColor) {
+  fn fill_triangle(
+    &mut self,
+    a: Vec2F32,
+    b: Vec2F32,
+    c: Vec2F32,
+    col: RGBAColor,
+  ) {
     if col.a == 0 {
       return;
     }
@@ -528,12 +574,20 @@ impl<'a> DrawList<'a> {
     self.path_fill(col);
   }
 
-  fn fill_circle(&mut self, center: Vec2F32, radius: f32, col: RGBAColor, segments: u32) {
+  fn fill_circle(
+    &mut self,
+    center: Vec2F32,
+    radius: f32,
+    col: RGBAColor,
+    segments: u32,
+  ) {
     if col.a == 0 {
       return;
     }
 
-    let a_max = std::f32::consts::PI * 2_f32 * ((segments as f32 - 1_f32) / segments as f32);
+    let a_max = std::f32::consts::PI
+      * 2_f32
+      * ((segments as f32 - 1_f32) / segments as f32);
     self.path_arc_to(center, radius, 0_f32, a_max, segments);
     self.path_fill(col);
   }
@@ -550,7 +604,9 @@ impl<'a> DrawList<'a> {
       return;
     }
 
-    let a_max = std::f32::consts::PI * 2_f32 * ((segments as f32 - 1_f32) / segments as f32);
+    let a_max = std::f32::consts::PI
+      * 2_f32
+      * ((segments as f32 - 1_f32) / segments as f32);
     self.path_arc_to(center, radius, 0_f32, a_max, segments);
     self.path_stroke(col, DrawListStroke::Closed, thickness);
   }
@@ -574,7 +630,14 @@ impl<'a> DrawList<'a> {
     self.path_stroke(col, DrawListStroke::Open, thickness);
   }
 
-  fn push_rect_uv(&mut self, a: Vec2F32, c: Vec2F32, uva: Vec2F32, uvc: Vec2F32, color: RGBAColor) {
+  fn push_rect_uv(
+    &mut self,
+    a: Vec2F32,
+    c: Vec2F32,
+    uva: Vec2F32,
+    uvc: Vec2F32,
+    color: RGBAColor,
+  ) {
     let col = RGBAColorF32::from(color);
     let uvb = Vec2F32::new(uvc.x, uva.y);
     let uvd = Vec2F32::new(uva.x, uvc.y);
@@ -603,10 +666,14 @@ impl<'a> DrawList<'a> {
     });
   }
 
-  fn add_image(&mut self, texture: Image, rect: RectangleF32, color: RGBAColor) {
+  fn add_image(
+    &mut self,
+    texture: Image,
+    rect: RectangleF32,
+    color: RGBAColor,
+  ) {
     self.push_image(texture.handle);
     if texture.is_subimage() {
-      //
       // add the region inside of the texture
       let uv = [
         Vec2F32::new(
@@ -708,7 +775,10 @@ impl<'a> DrawList<'a> {
 
       Command::Circle(ref c) => {
         self.stroke_circle(
-          Vec2F32::new(c.x as f32 + (c.w / 2) as f32, c.y as f32 + (c.h / 2) as f32),
+          Vec2F32::new(
+            c.x as f32 + (c.w / 2) as f32,
+            c.y as f32 + (c.h / 2) as f32,
+          ),
           (c.w / 2) as f32,
           c.color,
           self.config.circle_segment_count,
@@ -718,7 +788,10 @@ impl<'a> DrawList<'a> {
 
       Command::CircleFilled(ref c) => {
         self.fill_circle(
-          Vec2F32::new(c.x as f32 + (c.w / 2) as f32, c.y as f32 + (c.h / 2) as f32),
+          Vec2F32::new(
+            c.x as f32 + (c.w / 2) as f32,
+            c.y as f32 + (c.h / 2) as f32,
+          ),
           (c.w / 2) as f32,
           c.color,
           self.config.circle_segment_count,
@@ -734,7 +807,11 @@ impl<'a> DrawList<'a> {
           a.a[1],
           self.config.arc_segment_count,
         );
-        self.path_stroke(a.color, DrawListStroke::Closed, a.line_thickness as f32);
+        self.path_stroke(
+          a.color,
+          DrawListStroke::Closed,
+          a.line_thickness as f32,
+        );
       }
 
       Command::ArcFilled(ref a) => {
@@ -773,7 +850,11 @@ impl<'a> DrawList<'a> {
           let pnt = Vec2F32::new(p.x as f32, p.y as f32);
           self.path_line_to(pnt);
         });
-        self.path_stroke(p.color, DrawListStroke::Closed, p.line_thickness as f32);
+        self.path_stroke(
+          p.color,
+          DrawListStroke::Closed,
+          p.line_thickness as f32,
+        );
       }
 
       Command::PolygonFilled(ref p) => {
@@ -790,7 +871,11 @@ impl<'a> DrawList<'a> {
           let pnt = Vec2F32::new(p.x as f32, p.y as f32);
           self.path_line_to(pnt);
         });
-        self.path_stroke(p.color, DrawListStroke::Open, p.line_thickness as f32);
+        self.path_stroke(
+          p.color,
+          DrawListStroke::Open,
+          p.line_thickness as f32,
+        );
       }
 
       Command::Image(ref i) => {

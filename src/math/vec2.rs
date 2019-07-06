@@ -1,7 +1,8 @@
 use num_traits::{Float, Num};
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use std::ops::{
+  Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign,
+};
 
-///
 /// \brief  Two component vector.
 #[derive(Copy, Clone, Debug)]
 pub struct TVec2<T> {
@@ -50,7 +51,6 @@ where
   }
 }
 
-///
 /// \brief  Negation operator.
 impl<T> Neg for TVec2<T>
 where
@@ -63,7 +63,6 @@ where
   }
 }
 
-///
 /// \brief  Self-assign addition operator.
 impl<T> AddAssign for TVec2<T>
 where
@@ -75,7 +74,6 @@ where
   }
 }
 
-///
 /// \brief  Addition operator.
 impl<T> Add for TVec2<T>
 where
@@ -88,19 +86,18 @@ where
   }
 }
 
-///
 /// \brief  Substraction operation.
 impl<T> Sub for TVec2<T>
 where
   T: Copy + Clone + std::fmt::Debug + Num + Sub<Output = T>,
 {
   type Output = Self;
+
   fn sub(self, rhs: Self) -> Self::Output {
     Self::new(self.x - rhs.x, self.y - rhs.y)
   }
 }
 
-///
 /// \brief  Self-assign substraction.
 impl<T> SubAssign for TVec2<T>
 where
@@ -112,7 +109,6 @@ where
   }
 }
 
-///
 /// \brief Multiplication with scalar.
 impl<T> Mul<T> for TVec2<T>
 where
@@ -125,7 +121,6 @@ where
   }
 }
 
-///
 /// \brief Macro to generate scalar with TVec2 multiplication
 macro_rules! scalar_multiply_tvec2 {
   ($stype:ty) => {
@@ -150,7 +145,6 @@ scalar_multiply_tvec2!(u64);
 scalar_multiply_tvec2!(f32);
 scalar_multiply_tvec2!(f64);
 
-///
 /// \brief Self-assign scalar multiplication.
 impl<T> MulAssign<T> for TVec2<T>
 where
@@ -162,7 +156,6 @@ where
   }
 }
 
-///
 /// \brief Component-wise multiplication
 impl<T> Mul for TVec2<T>
 where
@@ -175,7 +168,6 @@ where
   }
 }
 
-///
 /// \brief Component-wise self-assign multiplication
 impl<T> MulAssign for TVec2<T>
 where
@@ -187,7 +179,6 @@ where
   }
 }
 
-///
 /// \brief Division by scalar.
 impl<T> Div<T> for TVec2<T>
 where
@@ -200,7 +191,6 @@ where
   }
 }
 
-///
 /// \brief Component-wise division by another TVec2
 impl<T> Div for TVec2<T>
 where
@@ -213,20 +203,17 @@ where
   }
 }
 
-///
 /// \brief Self-assign division by scalar.
 impl<T> DivAssign<T> for TVec2<T>
 where
   T: Copy + Clone + std::fmt::Debug + Num + DivAssign,
 {
-
   fn div_assign(&mut self, scalar: T) {
     self.x /= scalar;
     self.y /= scalar;
   }
 }
 
-///
 /// \brief Self-assign division by another TVec2.
 impl<T> DivAssign for TVec2<T>
 where
@@ -238,10 +225,8 @@ where
   }
 }
 
-///
 /// @{ Operations on TVec2
 
-///
 /// \brief  Normalizes the input vector.
 pub fn normalize<T>(a: TVec2<T>) -> TVec2<T>
 where
@@ -262,7 +247,6 @@ where
   a.square_len() == T::one()
 }
 
-///
 /// \brief  The dot product of two vectors.
 pub fn dot<T>(a: TVec2<T>, b: TVec2<T>) -> T
 where
@@ -271,8 +255,8 @@ where
   a.x * b.x + a.y * b.y
 }
 
-///
-/// \brief  Returns a vector that is perpendicular to the input vector by applying a CCW PI/2 rotation.
+/// \brief  Returns a vector that is perpendicular to the input vector by
+/// applying a CCW PI/2 rotation.
 pub fn perp_vec<T>(a: TVec2<T>) -> TVec2<T>
 where
   T: Copy + Clone + std::fmt::Debug + Num + Neg<Output = T>,
@@ -280,9 +264,8 @@ where
   TVec2::new(-a.y, a.x)
 }
 
-///
-/// \brief  Returns the perp product of two vectors. Given the vectors a and b, the formula for the
-/// perp product is dot(a, perp(b))
+/// \brief  Returns the perp product of two vectors. Given the vectors a and b,
+/// the formula for the perp product is dot(a, perp(b))
 pub fn perp<T>(a: TVec2<T>, b: TVec2<T>) -> T
 where
   T: Copy + Clone + std::fmt::Debug + Num + Neg<Output = T>,
@@ -297,7 +280,6 @@ where
   dot(a, b).is_zero()
 }
 
-///
 /// @}
 
 pub type Vec2I8 = TVec2<i8>;
