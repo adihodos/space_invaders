@@ -53,7 +53,6 @@ fn ortho_symm(right : f32, top : f32, near : f32, far : f32) -> Vec<f32> {
 }
 
 fn main() {
-
   let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
   glfw.window_hint(WindowHint::OpenGlForwardCompat(true));
   glfw.window_hint(WindowHint::OpenGlProfile(glfw::OpenGlProfileHint::Core));
@@ -149,7 +148,7 @@ fn main() {
 
   let null_tex = DrawNullTexture {
     texture: GenericHandle::Id(white_pixel_tex),
-    uv: Vec2F32::new(0_f32, 0_f32),
+    uv:      Vec2F32::new(0_f32, 0_f32),
   };
 
   let mut buff_vertices = Vec::<VertexPTC>::new();
@@ -157,15 +156,15 @@ fn main() {
   let mut buff_draw_commands = Vec::<DrawCommand>::new();
 
   let convert_cfg = ConvertConfig {
-    global_alpha: 1_f32,
-    line_aa: AntialiasingType::On,
-    shape_aa: AntialiasingType::On,
+    global_alpha:         1_f32,
+    line_aa:              AntialiasingType::On,
+    shape_aa:             AntialiasingType::On,
     circle_segment_count: 22,
-    arc_segment_count: 22,
-    curve_segment_count: 22,
-    null: null_tex,
-    vertex_layout: vec![],
-    vertex_size: std::mem::size_of::<VertexPTC>(),
+    arc_segment_count:    22,
+    curve_segment_count:  22,
+    null:                 null_tex,
+    vertex_layout:        vec![],
+    vertex_size:          std::mem::size_of::<VertexPTC>(),
   };
 
   let mut drawlist = DrawList::new(
@@ -202,9 +201,9 @@ fn main() {
   commands.push(Command::Polygon(cmd_polygon));
 
   let cmd_polyline = CmdPolyline {
-    color: RGBAColor::new(255, 0, 0),
+    color:          RGBAColor::new(255, 0, 0),
     line_thickness: 2,
-    points: polygon_pts
+    points:         polygon_pts
       .iter()
       .map(|v| *v + Vec2I16::new(400, 300))
       .collect(),
@@ -213,39 +212,39 @@ fn main() {
 
   // does not work yet!! fix !
   let cmd_circle = CmdCircleFilled {
-    x: 400,
-    y: 400,
-    w: 300,
-    h: 300,
+    x:     400,
+    y:     400,
+    w:     300,
+    h:     300,
     color: RGBAColor::new(128, 255, 64),
   };
   commands.push(Command::CircleFilled(cmd_circle));
 
   let cmd_circle = CmdCircle {
-    x: 400,
-    y: 400,
+    x:              400,
+    y:              400,
     line_thickness: 2,
-    w: 100,
-    h: 100,
-    color: RGBAColor::new(64, 128, 255),
+    w:              100,
+    h:              100,
+    color:          RGBAColor::new(64, 128, 255),
   };
   commands.push(Command::Circle(cmd_circle));
 
   let triangle = CmdTriangleFilled {
-    a: Vec2I16::new(0, 500),
-    b: Vec2I16::new(200, 100),
-    c: Vec2I16::new(400, 500),
+    a:     Vec2I16::new(0, 500),
+    b:     Vec2I16::new(200, 100),
+    c:     Vec2I16::new(400, 500),
     color: RGBAColor::new(0, 255, 0),
   };
   commands.push(Command::TriangleFilled(triangle));
 
   let cmd_arc = CmdArc {
-    cx: 400,
-    cy: 100,
-    r: 100,
+    cx:             400,
+    cy:             100,
+    r:              100,
     line_thickness: 3,
-    a: [0_f32, -std::f32::consts::PI],
-    color: RGBAColor::new(255, 64, 32),
+    a:              [0_f32, -std::f32::consts::PI],
+    color:          RGBAColor::new(255, 64, 32),
   };
   commands.push(Command::Arc(cmd_arc));
 

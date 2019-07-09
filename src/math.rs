@@ -5,3 +5,4 @@ pub mod vec2;
 pub mod vertex_types;
 
 pub mod color_conversion;
+pub mod minmax;

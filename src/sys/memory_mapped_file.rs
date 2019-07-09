@@ -63,8 +63,8 @@ mod unix {
   /// A file mapped into the memory of the process. Contents can be accessed as
   /// a byte slice.
   pub struct MemoryMappedFile {
-    memory: UniqueResource<MemoryMappingDeleter>,
-    bytes: usize,
+    memory:      UniqueResource<MemoryMappingDeleter>,
+    bytes:       usize,
     file_handle: UniqueResource<OSFileDeleter>,
   }
 
@@ -106,8 +106,8 @@ mod unix {
                 .ok_or(Error::last_os_error())
                 .and_then(|ummap| {
                   Ok(MemoryMappedFile {
-                    memory: ummap,
-                    bytes: metadata.len() as usize,
+                    memory:      ummap,
+                    bytes:       metadata.len() as usize,
                     file_handle: ufd,
                   })
                 })
@@ -141,8 +141,7 @@ pub use self::unix::MemoryMappedFile;
 mod tests {
   use super::*;
 
-  use std::{ffi::CStr, os::raw::c_char};
-  use std::{fs::File, io::prelude::*, path::Path};
+  use std::{ffi::CStr, fs::File, io::prelude::*, os::raw::c_char, path::Path};
 
   #[test]
   fn test_memory_mapped_file() {
