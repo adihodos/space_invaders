@@ -5,7 +5,7 @@ use crate::{
     freetype2::*,
     rendered_glyphs_store::{RenderedGlyph, RenderedGlyphsStore},
   },
-  math::{rectangle::RectangleI32, vec2::Vec2F32},
+  math::{colors::RGBAColor, rectangle::RectangleI32, vec2::Vec2F32},
   sys::{
     memory_mapped_file::MemoryMappedFile,
     unique_resource::{ResourceDeleter, UniqueResource},
@@ -477,18 +477,123 @@ pub enum TTFDataSource {
   OwnedBytes(Vec<u8>),
 }
 
+struct BakedGlyph {
+  // index in the font table
+  font:   u32,
+  bbox:   RectangleI32,
+  pixels: Vec<u8>,
+}
+
 pub struct FontAtlas {
   glyphs:        HashMap<u32, Vec<FontGlyph>>,
-  glyphs_pixels: HashMap<u32, Vec<u8>>,
+  baked_glyphs:  Vec<BakedGlyph>,
+  glyphs_pixels: Vec<RGBAColor>,
   fonts:         Vec<Font>,
-  faces:         Vec<FaceMetrics>,
+  faces:         Vec<FontMetrics>,
   configs:       Vec<FontConfig>,
   stroker:       UniqueResource<FreetypeStrokerHandle>,
   lib:           UniqueResource<FreetypeLibraryHandle>,
 }
 
+/// Pack the baked glyphs into a rectangular texture
+fn pack_rects(rects: &mut [BakedGlyph]) -> (u32, u32, f32) {
+  let (area, max_width) = rects.iter().fold((0, 0), |acc, r| {
+    (acc.0 + r.bbox.w * r.bbox.h, acc.1.max(r.bbox.w))
+  });
+
+  rects.sort_by(|glyph_a, glyph_b| glyph_b.bbox.h.cmp(&glyph_a.bbox.h));
+
+  let start_with =
+    (max_width as f32).max(((area as f32) / 0.95f32).sqrt().ceil());
+  let mut spaces =
+    vec![RectangleI32::new(0, 0, start_with as i32, std::i32::MAX)];
+
+  let mut width = 0u32;
+  let mut height = 0u32;
+
+  (0 .. rects.len()).for_each(|idx_box| {
+    (0 .. spaces.len()).rev().any(|i| {
+      // look for empty spaces that can accomodate the current box
+      if rects[idx_box].bbox.w > spaces[i].w
+        || rects[idx_box].bbox.h > spaces[i].h
+      {
+        return false;
+      }
+
+      // found the space; add the box to its top-left corner
+      // |-------|-------|
+      // |  box  |       |
+      // |_______|       |
+      // |         space |
+      // |_______________|
+
+      rects[idx_box].bbox.x = spaces[i].x;
+      rects[idx_box].bbox.y = spaces[i].y;
+
+      width =
+        width.max(rects[idx_box].bbox.x as u32 + rects[idx_box].bbox.w as u32);
+      height =
+        height.max(rects[idx_box].bbox.y as u32 + rects[idx_box].bbox.h as u32);
+
+      if rects[idx_box].bbox.w == spaces[i].w
+        && rects[idx_box].bbox.h == spaces[i].h
+      {
+        // space matches the box exactly, remove it
+        let last = spaces.pop().unwrap();
+        if i < spaces.len() {
+          spaces[i] = last;
+        }
+      } else if rects[idx_box].bbox.h == spaces[i].h {
+        // space matches the box width; update it accordingly
+        // |---------------|
+        // |      box      |
+        // |_______________|
+        // | updated space |
+        // |_______________|
+        spaces[i].x += rects[idx_box].bbox.w;
+        spaces[i].w -= rects[idx_box].bbox.w;
+      } else if rects[idx_box].bbox.w == spaces[i].w {
+        // space matches the box width; update it accordingly
+        // |---------------|
+        // |      box      |
+        // |_______________|
+        // | updated space |
+        // |_______________|
+        spaces[i].y += rects[idx_box].bbox.h;
+        spaces[i].h -= rects[idx_box].bbox.h;
+      } else {
+        // otherwise the box splits the space into two spaces
+        // |-------|-----------|
+        // |  box  | new space |
+        // |_______|___________|
+        // | updated space     |
+        // |___________________|
+        spaces.push(RectangleI32::new(
+          spaces[i].x + rects[idx_box].bbox.w,
+          spaces[i].y,
+          spaces[i].w - rects[idx_box].bbox.w,
+          rects[idx_box].bbox.h,
+        ));
+        spaces[i].y += rects[idx_box].bbox.h;
+        spaces[i].h -= rects[idx_box].bbox.h;
+      }
+
+      true
+    });
+  });
+
+  (width, height, (area as f32 / (width * height) as f32))
+}
+
 impl FontAtlas {
   const DPI: u32 = 300;
+
+  pub fn build(&mut self) {
+    // compute image size
+    let mut atlas_render_data = Vec::<BakedGlyph>::new();
+    let mut glyph_sheets = vec![GlyphSheet::new(0, 1024, 1024, 0)];
+    let mut current_glyph_sheet_idx = glyph_sheets.len() - 1;
+  }
 
   pub fn new() -> Option<FontAtlas> {
     UniqueResource::<FreetypeLibraryHandle>::from_handle({
@@ -560,7 +665,7 @@ impl FontAtlas {
       let pixel_size = font.size as i32 * FontAtlas::DPI as i32 / 72;
       let units_per_em = unsafe { (**face.handle()).units_per_EM as i32 };
 
-      let face = FontMetrics {
+      let face_metrics = FontMetrics {
         size:                font.size,
         height:              unsafe {
           (**face.handle()).height as i32 * pixel_size / units_per_em
@@ -587,6 +692,56 @@ impl FontAtlas {
             / units_per_em
         } as f32,
       };
+
+      font.glyph_range.iter().for_each(|glyphrange| {
+        (glyphrange.start as u32 .. glyphrange.end as u32).for_each(
+          |codepoint| {
+            let ft_glyph_index = unsafe {
+              FT_Get_Char_Index(*face.handle(), codepoint as FT_ULong)
+            };
+            if ft_glyph_index == 0 {
+              return;
+            }
+
+            let load_result = unsafe {
+              FT_Load_Glyph(*face.handle(), ft_glyph_index, FT_LOAD_DEFAULT)
+            };
+            if load_result != 0 {
+              return;
+            }
+
+            let g = unsafe { (**face.handle()).glyph };
+            let glyph_format = unsafe { (*g).format };
+            if glyph_format != FT_GLYPH_FORMAT_OUTLINE {
+              return;
+            }
+
+            let bearing_y = unsafe {
+              ((*(**face.handle()).glyph).metrics.horiBearingY >> 6) as i32
+            };
+
+            let glyph_cpy = unsafe {
+              let mut glyph_cpy: FT_Glyph = std::ptr::null_mut();
+              let load_result = FT_Get_Glyph(g, &mut glyph_cpy as *mut _);
+              glyph_cpy
+            };
+
+            if glyph_cpy.is_null() {
+              return;
+            }
+
+            let glyph_spans = unsafe {
+              let mut glyph_spans = Vec::<Span>::new();
+              Span::render_spans(
+                *self.lib.handle(),
+                &mut (*g).outline,
+                &mut glyph_spans,
+              );
+              glyph_spans
+            };
+          },
+        );
+      });
 
       None
     })

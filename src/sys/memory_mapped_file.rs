@@ -1,16 +1,18 @@
 #![allow(dead_code)]
 
+use crate::sys::unique_resource::UniqueResource;
+use std::path::Path;
+
 #[cfg(unix)]
 mod unix {
-  use crate::sys::unique_resource::{ResourceDeleter, UniqueResource};
+  use crate::sys::unique_resource::ResourceDeleter;
 
-  use libc::{
-    c_int, c_void, close, mmap, munmap, open, MAP_PRIVATE, O_RDONLY, PROT_READ,
-  };
+  use libc::{c_int, c_void, close, munmap};
+
   use std::{ffi::CString, path::Path, ptr::null_mut};
 
   #[derive(Default)]
-  struct OSFileDeleter {}
+  pub struct OSFileDeleter {}
 
   impl ResourceDeleter for OSFileDeleter {
     type Handle = c_int;
@@ -30,7 +32,7 @@ mod unix {
     }
   }
 
-  struct MemoryMappingDeleter {
+  pub struct MemoryMappingDeleter {
     size: usize,
   }
 
@@ -59,83 +61,229 @@ mod unix {
       }
     }
   }
+} // mod unix
 
-  /// A file mapped into the memory of the process. Contents can be accessed as
-  /// a byte slice.
-  pub struct MemoryMappedFile {
-    memory:      UniqueResource<MemoryMappingDeleter>,
-    bytes:       usize,
-    file_handle: UniqueResource<OSFileDeleter>,
+#[cfg(windows)]
+mod win32 {
+  use std::os::windows::prelude::*;
+  use std::ptr::{null, null_mut};
+
+  use winapi::{
+    shared::minwindef::LPVOID,
+    um::handleapi::{CloseHandle, INVALID_HANDLE_VALUE},
+    um::memoryapi::UnmapViewOfFile,
+    um::winnt::HANDLE,
+  };
+
+  use crate::sys::unique_resource::ResourceDeleter;
+
+  pub fn win_str(s: &str) -> Vec<u16> {
+    std::ffi::OsStr::new(s)
+      .encode_wide()
+      .chain(std::iter::once(0))
+      .collect()
   }
 
-  impl MemoryMappedFile {
-    // Construct by mapping the specified file into memory
-    pub fn new(path: &Path) -> std::io::Result<MemoryMappedFile> {
-      let metadata = std::fs::metadata(path)?;
+  pub fn path_to_win_str(p: &std::path::Path) -> Vec<u16> {
+    p.as_os_str()
+      .encode_wide()
+      .chain(std::iter::once(0))
+      .collect()
+  }
 
-      use std::io::{Error, ErrorKind};
+  #[derive(Default)]
+  pub struct MemoryMappingDeleter {}
 
-      path
-        .to_str()
-        .ok_or(Error::new(ErrorKind::InvalidData, "plm"))
-        .and_then(|str_path| {
-          // convert path to C-string
-          CString::new(str_path.as_bytes())
-            .map_err(|_| Error::new(ErrorKind::InvalidData, "plm"))
-            .and_then(|cstr_path| {
-              // open file
-              UniqueResource::<OSFileDeleter>::from_handle(unsafe {
-                open(cstr_path.as_c_str().as_ptr(), O_RDONLY)
-              })
-              .ok_or(Error::last_os_error())
-              .and_then(|ufd| {
-                // map into memory
-                UniqueResource::<MemoryMappingDeleter>::from_state_handle(
-                  unsafe {
-                    mmap(
-                      null_mut(),
-                      metadata.len() as usize,
-                      PROT_READ,
-                      MAP_PRIVATE,
-                      *ufd.handle(),
-                      0,
-                    )
-                  },
-                  MemoryMappingDeleter::new(metadata.len() as usize),
-                )
-                .ok_or(Error::last_os_error())
-                .and_then(|ummap| {
-                  Ok(MemoryMappedFile {
-                    memory:      ummap,
-                    bytes:       metadata.len() as usize,
-                    file_handle: ufd,
-                  })
-                })
-              })
-            })
-        })
+  impl ResourceDeleter for MemoryMappingDeleter {
+    type Handle = LPVOID;
+
+    fn is_null(res: &Self::Handle) -> bool {
+      *res == Self::null()
     }
 
-    /// Returns the length in bytes of the file that was mapped in memory.
-    pub fn len(&self) -> usize {
-      self.bytes
+    fn null() -> Self::Handle {
+      unsafe { std::ptr::null_mut() }
     }
 
-    /// Returns a slice spanning the contents of the file that was mapped in
-    /// memory
-    pub fn as_slice(&self) -> &[u8] {
+    fn delete(&mut self, res: &mut Self::Handle) {
       unsafe {
-        std::slice::from_raw_parts(
-          *self.memory.handle() as *const u8,
-          self.bytes,
-        )
+        UnmapViewOfFile(*res);
       }
     }
   }
-}
+
+  #[derive(Default)]
+  pub struct OSFileDeleter {}
+
+  impl ResourceDeleter for OSFileDeleter {
+    type Handle = HANDLE;
+
+    fn is_null(res: &Self::Handle) -> bool {
+      *res == Self::null()
+    }
+
+    fn null() -> Self::Handle {
+      INVALID_HANDLE_VALUE
+    }
+
+    fn delete(&mut self, res: &mut Self::Handle) {
+      unsafe {
+        CloseHandle(*res);
+      }
+    }
+  }
+} // mod win32
 
 #[cfg(unix)]
-pub use self::unix::MemoryMappedFile;
+type MemoryMappingDeleter =
+  crate::sys::memory_mapped_file::unix::MemoryMappingDeleter;
+#[cfg(unix)]
+type OSFileDeleter = crate::sys::memory_mapped_file::unix::OSFileDeleter;
+#[cfg(windows)]
+type MemoryMappingDeleter =
+  crate::sys::memory_mapped_file::win32::MemoryMappingDeleter;
+#[cfg(windows)]
+type OSFileDeleter = crate::sys::memory_mapped_file::win32::OSFileDeleter;
+
+/// A file mapped into the memory of the process. Contents can be accessed as
+/// a byte slice. Read-only access.
+pub struct MemoryMappedFile {
+  /// starting address where file was mapped in memory
+  memory: UniqueResource<MemoryMappingDeleter>,
+  /// handle to the file
+  file_handle: UniqueResource<OSFileDeleter>,
+  /// length in bytes of the mapping
+  bytes: usize,
+}
+
+impl MemoryMappedFile {
+  // Construct by mapping the specified file into memory
+  #[cfg(unix)]
+  pub fn new(path: &Path) -> std::io::Result<MemoryMappedFile> {
+    use libc::{mmap, open, MAP_PRIVATE, O_RDONLY, PROT_READ};
+    use std::io::{Error, ErrorKind};
+
+    let metadata = std::fs::metadata(path)?;
+
+    path
+      .to_str()
+      .ok_or(Error::new(ErrorKind::InvalidData, "plm"))
+      .and_then(|str_path| {
+        // convert path to C-string
+        CString::new(str_path.as_bytes())
+          .map_err(|_| Error::new(ErrorKind::InvalidData, "plm"))
+          .and_then(|cstr_path| {
+            // open file
+            UniqueResource::<OSFileDeleter>::from_handle(unsafe {
+              open(cstr_path.as_c_str().as_ptr(), O_RDONLY)
+            })
+            .ok_or(Error::last_os_error())
+            .and_then(|ufd| {
+              // map into memory
+              UniqueResource::<MemoryMappingDeleter>::from_state_handle(
+                unsafe {
+                  mmap(
+                    null_mut(),
+                    metadata.len() as usize,
+                    PROT_READ,
+                    MAP_PRIVATE,
+                    *ufd.handle(),
+                    0,
+                  )
+                },
+                MemoryMappingDeleter::new(metadata.len() as usize),
+              )
+              .ok_or(Error::last_os_error())
+              .and_then(|ummap| {
+                Ok(MemoryMappedFile {
+                  memory: ummap,
+                  file_handle: ufd,
+                  bytes: metadata.len() as usize,
+                })
+              })
+            })
+          })
+      })
+  }
+
+  /// Construct by mapping the specified file into memory
+  #[cfg(windows)]
+  pub fn new(path: &Path) -> std::io::Result<MemoryMappedFile> {
+    use std::io::{Error, ErrorKind};
+    use std::ptr::null_mut;
+    use winapi::{
+      um::fileapi::{CreateFileW, OPEN_EXISTING},
+      um::memoryapi::{CreateFileMappingW, MapViewOfFile, FILE_MAP_READ},
+      um::winnt::{
+        FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, GENERIC_READ, GENERIC_WRITE,
+        PAGE_READONLY,
+      },
+    };
+
+    let metadata = std::fs::metadata(path)?;
+
+    let win_path = crate::sys::memory_mapped_file::win32::path_to_win_str(path);
+    UniqueResource::<OSFileDeleter>::from_handle(unsafe {
+      CreateFileW(
+        win_path.as_ptr(),
+        GENERIC_READ | GENERIC_WRITE,
+        FILE_SHARE_READ,
+        null_mut(),
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        null_mut(),
+      )
+    })
+    .ok_or(Error::last_os_error())
+    .and_then(|file_handle| {
+      let file_mapping = unsafe {
+        CreateFileMappingW(
+          *file_handle.handle(),
+          null_mut(),
+          PAGE_READONLY,
+          0,
+          0,
+          null_mut(),
+        )
+      };
+
+      if file_mapping.is_null() {
+        return Err(Error::last_os_error());
+      }
+
+      UniqueResource::<MemoryMappingDeleter>::from_handle(unsafe {
+        MapViewOfFile(
+          *file_handle.handle(),
+          FILE_MAP_READ,
+          0,
+          0,
+          metadata.len() as usize,
+        )
+      })
+      .ok_or(Error::last_os_error())
+      .and_then(|memory| {
+        Ok(MemoryMappedFile {
+          memory,
+          file_handle,
+          bytes: metadata.len() as usize,
+        })
+      })
+    })
+  }
+
+  /// Returns the length in bytes of the file that was mapped in memory.
+  pub fn len(&self) -> usize {
+    self.bytes
+  }
+
+  /// Returns a slice spanning the contents of the file that was mapped in
+  /// memory
+  pub fn as_slice(&self) -> &[u8] {
+    unsafe {
+      std::slice::from_raw_parts(*self.memory.handle() as *const u8, self.bytes)
+    }
+  }
+}
 
 #[cfg(test)]
 mod tests {
