@@ -18,7 +18,9 @@ use crate::hmi::{
   vertex_output::{DrawCommand, DrawIndexType, DrawList},
 };
 
-use crate::sys::memory_mapped_file::MemoryMappedFile;
+use crate::{
+  hmi::text_engine::FontAtlas, sys::memory_mapped_file::MemoryMappedFile,
+};
 
 use glfw::{Action, Context, Key, WindowHint};
 
@@ -50,6 +52,43 @@ fn ortho_symm(right : f32, top : f32, near : f32, far : f32) -> Vec<f32> {
       0_f32, 0_f32, -2_f32 / (far - near), -(far + near) / (far - near),
       0_f32, 0_f32, 0_f32, 1_f32
     ]
+}
+
+fn write_atlas_png(width: u32, height: u32, pixels: &[RGBAColor]) {
+  // For reading and opening files
+  use std::{fs::File, io::BufWriter, path::Path};
+  // To use encoder.set()
+  use png::HasParameters;
+
+  let path = Path::new(r"packed_rects.png");
+  let file = File::create(path).unwrap();
+  let ref mut w = BufWriter::new(file);
+
+  let mut encoder = png::Encoder::new(w, width, height); // Width is 2 pixels and height is 1.
+  encoder.set(png::ColorType::RGBA).set(png::BitDepth::Eight);
+  let mut writer = encoder.write_header().unwrap();
+
+  let pixels_bytes_slice = unsafe {
+    std::slice::from_raw_parts(
+      pixels.as_ptr() as *const u8,
+      std::mem::size_of_val(pixels),
+    )
+  };
+
+  writer.write_image_data(pixels_bytes_slice).unwrap();
+}
+
+fn test_font_atlas() {
+  use crate::hmi::text_engine::{Font, FontAtlas, FontConfig, TTFDataSource};
+  use std::path::Path;
+
+  let cfg = FontConfig::new(14.0f32);
+  let mut atlas = FontAtlas::new().unwrap();
+  let f01 = atlas
+    .add_font(&cfg, TTFDataSource::File(Path::new("test.ttf")))
+    .unwrap();
+
+  let (width, height, pixels) = atlas.build();
 }
 
 fn main() {

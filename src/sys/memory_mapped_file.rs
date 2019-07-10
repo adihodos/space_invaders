@@ -37,7 +37,7 @@ mod unix {
   }
 
   impl MemoryMappingDeleter {
-    fn new(size: usize) -> Self {
+    pub fn new(size: usize) -> Self {
       Self { size }
     }
   }
@@ -65,14 +65,18 @@ mod unix {
 
 #[cfg(windows)]
 mod win32 {
-  use std::os::windows::prelude::*;
-  use std::ptr::{null, null_mut};
+  use std::{
+    os::windows::prelude::*,
+    ptr::{null, null_mut},
+  };
 
   use winapi::{
     shared::minwindef::LPVOID,
-    um::handleapi::{CloseHandle, INVALID_HANDLE_VALUE},
-    um::memoryapi::UnmapViewOfFile,
-    um::winnt::HANDLE,
+    um::{
+      handleapi::{CloseHandle, INVALID_HANDLE_VALUE},
+      memoryapi::UnmapViewOfFile,
+      winnt::HANDLE,
+    },
   };
 
   use crate::sys::unique_resource::ResourceDeleter;
@@ -161,7 +165,11 @@ impl MemoryMappedFile {
   #[cfg(unix)]
   pub fn new(path: &Path) -> std::io::Result<MemoryMappedFile> {
     use libc::{mmap, open, MAP_PRIVATE, O_RDONLY, PROT_READ};
-    use std::io::{Error, ErrorKind};
+    use std::{
+      ffi::CString,
+      io::{Error, ErrorKind},
+      ptr::null_mut,
+    };
 
     let metadata = std::fs::metadata(path)?;
 
@@ -196,9 +204,9 @@ impl MemoryMappedFile {
               .ok_or(Error::last_os_error())
               .and_then(|ummap| {
                 Ok(MemoryMappedFile {
-                  memory: ummap,
+                  memory:      ummap,
                   file_handle: ufd,
-                  bytes: metadata.len() as usize,
+                  bytes:       metadata.len() as usize,
                 })
               })
             })
@@ -209,12 +217,14 @@ impl MemoryMappedFile {
   /// Construct by mapping the specified file into memory
   #[cfg(windows)]
   pub fn new(path: &Path) -> std::io::Result<MemoryMappedFile> {
-    use std::io::{Error, ErrorKind};
-    use std::ptr::null_mut;
-    use winapi::{
-      um::fileapi::{CreateFileW, OPEN_EXISTING},
-      um::memoryapi::{CreateFileMappingW, MapViewOfFile, FILE_MAP_READ},
-      um::winnt::{
+    use std::{
+      io::{Error, ErrorKind},
+      ptr::null_mut,
+    };
+    use winapi::um::{
+      fileapi::{CreateFileW, OPEN_EXISTING},
+      memoryapi::{CreateFileMappingW, MapViewOfFile, FILE_MAP_READ},
+      winnt::{
         FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, GENERIC_READ, GENERIC_WRITE,
         PAGE_READONLY,
       },

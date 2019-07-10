@@ -84,6 +84,30 @@ impl Span {
       RectangleI32::union(&current_bbox, &span_bbox)
     })
   }
+
+  fn convert_to_pixels(spans: &[Span]) -> (RectangleI32, Vec<RGBAColor>) {
+    let glyph_bbox = Span::bounding_box(&spans);
+    let img_width = glyph_bbox.w;
+    let img_height = glyph_bbox.h;
+
+    // copy spans to scratch buffer
+
+    let mut glyph_pixels =
+      vec![RGBAColor::new(0, 0, 0); (img_width * img_height) as usize];
+
+    spans.iter().for_each(|span| {
+      for x in 0 .. span.width {
+        let dst_idx = ((img_height - 1 - (span.y - glyph_bbox.y)) * img_width
+          + span.x
+          - glyph_bbox.x
+          + x) as usize;
+        glyph_pixels[dst_idx] =
+          RGBAColor::new_with_alpha(255, 255, 255, span.coverage as u8);
+      }
+    });
+
+    (glyph_bbox, glyph_pixels)
+  }
 }
 
 impl ::std::default::Default for Span {
@@ -417,6 +441,50 @@ pub struct FontMetrics {
   pub underline_thickness: f32,
 }
 
+impl FontMetrics {
+  /// Extracts face metrics from a Freetype FT_Face handle.
+  fn extract(face: FT_Face, font_size: f32, dpi: u32) -> FontMetrics {
+    unsafe {
+      FT_Set_Char_Size(
+        face,
+        (font_size as i32 * 64) as FT_F26Dot6,
+        0,
+        dpi,
+        dpi,
+      );
+    }
+
+    let pixel_size = font_size as i32 * dpi as i32 / 72;
+    let units_per_em = unsafe { (*face).units_per_EM as i32 };
+
+    FontMetrics {
+      size:                font_size,
+      height:              unsafe {
+        (*face).height as i32 * pixel_size / units_per_em
+      } as f32,
+      ascender:            unsafe {
+        (*face).ascender.abs() as i32 * pixel_size / units_per_em
+      } as f32,
+      descender:           unsafe {
+        (*face).descender.abs() as i32 * pixel_size / units_per_em
+      } as f32,
+      max_advance_width:   unsafe {
+        (*face).max_advance_width as i32 * pixel_size / units_per_em
+      } as f32,
+      max_advance_height:  unsafe {
+        (*face).max_advance_height as i32 * pixel_size / units_per_em
+      } as f32,
+      underline_pos:       unsafe {
+        (*face).underline_position as i32 * pixel_size / units_per_em
+      } as f32,
+      underline_thickness: unsafe {
+        (*face).underline_thickness as i32 * pixel_size / units_per_em
+      } as f32,
+    }
+  }
+}
+
+#[derive(Copy, Clone, Debug)]
 pub struct Font {
   scale:     f32,
   glyph_tbl: u32,
@@ -424,18 +492,18 @@ pub struct Font {
 }
 
 pub struct FontGlyph {
-  codepoint: char,
-  xadvance:  f32,
-  x0:        f32,
-  y0:        f32,
-  x1:        f32,
-  y1:        f32,
-  w:         f32,
-  h:         f32,
-  u0:        f32,
-  v0:        f32,
-  u1:        f32,
-  v1:        f32,
+  codepoint:       u32,
+  xadvance:        f32,
+  bearing_y:       f32,
+  bbox:            RectangleI32,
+  uv_top_left:     Vec2F32,
+  uv_bottom_right: Vec2F32,
+  /* x0:        f32,
+   * y0:        f32,
+   * x1:        f32,
+   * y1:        f32,
+   * w:         f32,
+   * h:         f32, */
 }
 
 macro_rules! freetype_deleter_impl {
@@ -479,9 +547,56 @@ pub enum TTFDataSource {
 
 struct BakedGlyph {
   // index in the font table
-  font:   u32,
-  bbox:   RectangleI32,
-  pixels: Vec<RGBAColor>,
+  bearing_y: i32,
+  font:      u32,
+  codepoint: u32,
+  bbox:      RectangleI32,
+  pixels:    Vec<RGBAColor>,
+}
+
+fn extract_glyph_spans(
+  codepoint: u32,
+  face: FT_Face,
+  lib: FT_Library,
+) -> Option<(i32, Vec<Span>)> {
+  let ft_glyph_index =
+    unsafe { FT_Get_Char_Index(face, codepoint as FT_ULong) };
+
+  if ft_glyph_index == 0 {
+    return None;
+  }
+
+  let load_result =
+    unsafe { FT_Load_Glyph(face, ft_glyph_index, FT_LOAD_DEFAULT) };
+
+  if load_result != 0 {
+    return None;
+  }
+
+  let g = unsafe { (*face).glyph };
+  let glyph_format = unsafe { (*g).format };
+  if glyph_format != FT_GLYPH_FORMAT_OUTLINE {
+    return None;
+  }
+
+  let bearing_y =
+    unsafe { ((*(*face).glyph).metrics.horiBearingY >> 6) as i32 };
+
+  let glyph_cpy = unsafe {
+    let mut glyph_cpy: FT_Glyph = std::ptr::null_mut();
+    FT_Get_Glyph(g, &mut glyph_cpy as *mut _);
+    glyph_cpy
+  };
+
+  if glyph_cpy.is_null() {
+    return None;
+  }
+
+  let mut glyph_spans = Vec::<Span>::new();
+  unsafe {
+    Span::render_spans(lib, &mut (*g).outline, &mut glyph_spans);
+  }
+  Some((bearing_y, glyph_spans))
 }
 
 /// Pack the baked glyphs into a rectangular texture
@@ -588,9 +703,72 @@ pub struct FontAtlas {
 impl FontAtlas {
   const DPI: u32 = 300;
 
-  pub fn build(&mut self) {
+  pub fn build(&mut self) -> Option<(u32, u32, Vec<RGBAColor>)> {
     // compute image size
-    let mut atlas_render_data = Vec::<BakedGlyph>::new();
+    // let mut atlas_render_data = Vec::<BakedGlyph>::new();
+    assert!(!self.fonts.is_empty(), "You forgot to add any fonts!");
+    assert!(
+      !self.baked_glyphs.is_empty(),
+      "You forgot to add any fonts!"
+    );
+
+    if self.baked_glyphs.is_empty() {
+      return None;
+    }
+
+    let (atlas_width, atlas_height, _) = pack_rects(&mut self.baked_glyphs);
+    if atlas_width == 0 || atlas_height == 0 {
+      return None;
+    }
+
+    let mut glyphs_table = HashMap::new();
+
+    self.baked_glyphs.iter().for_each(|baked_glyph| {
+      let font_glyphs_table = glyphs_table
+        .entry(baked_glyph.font)
+        .or_insert(Vec::<FontGlyph>::new());
+
+      font_glyphs_table.push(FontGlyph {
+        codepoint:       baked_glyph.codepoint,
+        xadvance:        0f32,
+        bearing_y:       baked_glyph.bearing_y as f32,
+        bbox:            RectangleI32::new(
+          0,
+          0,
+          baked_glyph.bbox.w,
+          baked_glyph.bbox.h,
+        ),
+        uv_top_left:     Vec2F32::new(
+          baked_glyph.bbox.x as f32 / atlas_width as f32,
+          baked_glyph.bbox.y as f32 / atlas_height as f32,
+        ),
+        uv_bottom_right: Vec2F32::new(
+          (baked_glyph.bbox.x + baked_glyph.bbox.w) as f32 / atlas_width as f32,
+          (baked_glyph.bbox.y + baked_glyph.bbox.h) as f32
+            / atlas_height as f32,
+        ),
+      });
+    });
+
+    self.glyphs = glyphs_table;
+
+    // copy glyph pixels into the atlas texture
+    let mut atlas_pixels =
+      vec![RGBAColor::new(0, 0, 0); (atlas_width * atlas_height) as usize];
+
+    self.baked_glyphs.iter().for_each(|baked_glyph| {
+      let bbox = baked_glyph.bbox;
+      let mut src_idx = 0u32;
+      (bbox.y .. (bbox.y + bbox.h)).for_each(|y| {
+        (bbox.x .. (bbox.x + bbox.w)).for_each(|x| {
+          let dst_idx = (y as u32 * atlas_width + x as u32) as usize;
+          atlas_pixels[dst_idx] = baked_glyph.pixels[src_idx as usize];
+          src_idx += 1;
+        });
+      });
+    });
+
+    Some((atlas_width, atlas_height, atlas_pixels))
   }
 
   pub fn new() -> Option<FontAtlas> {
@@ -627,16 +805,28 @@ impl FontAtlas {
   pub fn add_font(
     &mut self,
     font: &FontConfig,
-    font_source: TTFSource,
+    font_source: TTFDataSource,
   ) -> Option<Font> {
-    None
+    match font_source {
+      TTFDataSource::File(fpath) => {
+        MemoryMappedFile::new(&fpath).ok().and_then(|mapped_ttf| {
+          self.add_font_from_bytes(font, mapped_ttf.as_slice())
+        })
+      }
+      TTFDataSource::StaticBytes(bytes) => {
+        self.add_font_from_bytes(font, bytes)
+      }
+      TTFDataSource::OwnedBytes(bytes) => {
+        self.add_font_from_bytes(font, &bytes)
+      }
+    }
   }
 
   fn add_font_from_bytes(
     &mut self,
     font: &FontConfig,
     ttf_bytes: &[u8],
-  ) -> Option<(FaceMetrics, Font, Vec<FontGlyph>)> {
+  ) -> Option<Font> {
     UniqueResource::<FreetypeFaceHandle>::from_handle(unsafe {
       let mut face: FT_Face = std::ptr::null_mut();
       FT_New_Memory_Face(
@@ -650,145 +840,53 @@ impl FontAtlas {
       face
     })
     .and_then(|face| {
-      unsafe {
-        FT_Set_Char_Size(
-          *face.handle(),
-          (font.size as i32 * 64) as FT_F26Dot6,
-          0,
-          FontAtlas::DPI,
-          FontAtlas::DPI,
-        );
-      }
-
-      // Extract face metrics
-      let pixel_size = font.size as i32 * FontAtlas::DPI as i32 / 72;
-      let units_per_em = unsafe { (**face.handle()).units_per_EM as i32 };
-
-      let face_metrics = FontMetrics {
-        size:                font.size,
-        height:              unsafe {
-          (**face.handle()).height as i32 * pixel_size / units_per_em
-        } as f32,
-        ascender:            unsafe {
-          (**face.handle()).ascender.abs() as i32 * pixel_size / units_per_em
-        } as f32,
-        descender:           unsafe {
-          (**face.handle()).descender.abs() as i32 * pixel_size / units_per_em
-        } as f32,
-        max_advance_width:   unsafe {
-          (**face.handle()).max_advance_width as i32 * pixel_size / units_per_em
-        } as f32,
-        max_advance_height:  unsafe {
-          (**face.handle()).max_advance_height as i32 * pixel_size
-            / units_per_em
-        } as f32,
-        underline_pos:       unsafe {
-          (**face.handle()).underline_position as i32 * pixel_size
-            / units_per_em
-        } as f32,
-        underline_thickness: unsafe {
-          (**face.handle()).underline_thickness as i32 * pixel_size
-            / units_per_em
-        } as f32,
-      };
-
+      let face_metrics =
+        FontMetrics::extract(*face.handle(), font.size, Self::DPI);
       let font_handle = self.fonts.len() as u32;
+      let face_handle = self.faces.len() as u32;
 
       font.glyph_range.iter().for_each(|glyphrange| {
         (glyphrange.start as u32 .. glyphrange.end as u32).for_each(
           |codepoint| {
-            let ft_glyph_index = unsafe {
-              FT_Get_Char_Index(*face.handle(), codepoint as FT_ULong)
-            };
-            if ft_glyph_index == 0 {
-              return;
-            }
+            extract_glyph_spans(codepoint, *face.handle(), *self.lib.handle())
+              .map(|(bearing_y, glyph_spans)| {
+                let baked_glyph = if glyph_spans.is_empty() {
+                  // non renderable (space, tab, newline, etc ...)
+                  BakedGlyph {
+                    codepoint,
+                    bearing_y,
+                    font: font_handle,
+                    bbox: RectangleI32::new(0, 0, 0, 0),
+                    pixels: vec![],
+                  }
+                } else {
+                  let (glyph_bbox, glyph_pixels) =
+                    Span::convert_to_pixels(&glyph_spans);
 
-            let load_result = unsafe {
-              FT_Load_Glyph(*face.handle(), ft_glyph_index, FT_LOAD_DEFAULT)
-            };
-            if load_result != 0 {
-              return;
-            }
+                  BakedGlyph {
+                    codepoint,
+                    bearing_y,
+                    font: font_handle,
+                    bbox: glyph_bbox,
+                    pixels: glyph_pixels,
+                  }
+                };
 
-            let g = unsafe { (**face.handle()).glyph };
-            let glyph_format = unsafe { (*g).format };
-            if glyph_format != FT_GLYPH_FORMAT_OUTLINE {
-              return;
-            }
-
-            let bearing_y = unsafe {
-              ((*(**face.handle()).glyph).metrics.horiBearingY >> 6) as i32
-            };
-
-            let glyph_cpy = unsafe {
-              let mut glyph_cpy: FT_Glyph = std::ptr::null_mut();
-              let load_result = FT_Get_Glyph(g, &mut glyph_cpy as *mut _);
-              glyph_cpy
-            };
-
-            if glyph_cpy.is_null() {
-              return;
-            }
-
-            let glyph_spans = unsafe {
-              let mut glyph_spans = Vec::<Span>::new();
-              Span::render_spans(
-                *self.lib.handle(),
-                &mut (*g).outline,
-                &mut glyph_spans,
-              );
-              glyph_spans
-            };
-
-            let baked_glyph = if glyph_spans.is_empty() {
-              // non renderable (space, tab, newline, etc ...)
-              BakedGlyph {
-                font:   font_handle,
-                bbox:   RectangleI32::new(0, 0, 0, 0),
-                pixels: vec![],
-              }
-            } else {
-              let glyph_bbox = Span::bounding_box(&glyph_spans);
-              let img_width = glyph_bbox.w;
-              let img_height = glyph_bbox.h;
-
-              // copy spans to scratch buffer
-
-              let mut glyph_pixels = vec![
-                RGBAColor::new(0, 0, 0);
-                (img_width * img_height) as usize
-              ];
-
-              glyph_spans.iter().for_each(|span| {
-                for x in 0 .. span.width {
-                  let dst_idx = ((img_height - 1 - (span.y - glyph_bbox.y))
-                    * img_width
-                    + span.x
-                    - glyph_bbox.x
-                    + x) as usize;
-                  glyph_pixels[dst_idx] = RGBAColor::new_with_alpha(
-                    255,
-                    255,
-                    255,
-                    span.coverage as u8,
-                  );
-                }
+                self.baked_glyphs.push(baked_glyph);
               });
-
-              BakedGlyph {
-                font:   font_handle,
-                bbox:   glyph_bbox,
-                pixels: glyph_pixels,
-              }
-            };
-
-            self.baked_glyphs.push(baked_glyph);
           },
         );
       });
 
-      None
+      self.faces.push(face_metrics);
+      let this_font = Font {
+        scale:     font.size,
+        glyph_tbl: font_handle,
+        face_tbl:  face_handle,
+      };
+      self.fonts.push(this_font);
+
+      Some(this_font)
     })
   }
 }
