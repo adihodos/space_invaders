@@ -481,18 +481,7 @@ struct BakedGlyph {
   // index in the font table
   font:   u32,
   bbox:   RectangleI32,
-  pixels: Vec<u8>,
-}
-
-pub struct FontAtlas {
-  glyphs:        HashMap<u32, Vec<FontGlyph>>,
-  baked_glyphs:  Vec<BakedGlyph>,
-  glyphs_pixels: Vec<RGBAColor>,
-  fonts:         Vec<Font>,
-  faces:         Vec<FontMetrics>,
-  configs:       Vec<FontConfig>,
-  stroker:       UniqueResource<FreetypeStrokerHandle>,
-  lib:           UniqueResource<FreetypeLibraryHandle>,
+  pixels: Vec<RGBAColor>,
 }
 
 /// Pack the baked glyphs into a rectangular texture
@@ -585,14 +574,23 @@ fn pack_rects(rects: &mut [BakedGlyph]) -> (u32, u32, f32) {
   (width, height, (area as f32 / (width * height) as f32))
 }
 
+pub struct FontAtlas {
+  glyphs:        HashMap<u32, Vec<FontGlyph>>,
+  baked_glyphs:  Vec<BakedGlyph>,
+  glyphs_pixels: Vec<RGBAColor>,
+  fonts:         Vec<Font>,
+  faces:         Vec<FontMetrics>,
+  configs:       Vec<FontConfig>,
+  stroker:       UniqueResource<FreetypeStrokerHandle>,
+  lib:           UniqueResource<FreetypeLibraryHandle>,
+}
+
 impl FontAtlas {
   const DPI: u32 = 300;
 
   pub fn build(&mut self) {
     // compute image size
     let mut atlas_render_data = Vec::<BakedGlyph>::new();
-    let mut glyph_sheets = vec![GlyphSheet::new(0, 1024, 1024, 0)];
-    let mut current_glyph_sheet_idx = glyph_sheets.len() - 1;
   }
 
   pub fn new() -> Option<FontAtlas> {
@@ -614,7 +612,8 @@ impl FontAtlas {
       .and_then(|stroker| {
         Some(FontAtlas {
           glyphs: HashMap::new(),
-          glyphs_pixels: HashMap::new(),
+          baked_glyphs: Vec::new(),
+          glyphs_pixels: Vec::new(),
           fonts: Vec::new(),
           faces: Vec::new(),
           configs: Vec::new(),
@@ -693,6 +692,8 @@ impl FontAtlas {
         } as f32,
       };
 
+      let font_handle = self.fonts.len() as u32;
+
       font.glyph_range.iter().for_each(|glyphrange| {
         (glyphrange.start as u32 .. glyphrange.end as u32).for_each(
           |codepoint| {
@@ -739,6 +740,50 @@ impl FontAtlas {
               );
               glyph_spans
             };
+
+            let baked_glyph = if glyph_spans.is_empty() {
+              // non renderable (space, tab, newline, etc ...)
+              BakedGlyph {
+                font:   font_handle,
+                bbox:   RectangleI32::new(0, 0, 0, 0),
+                pixels: vec![],
+              }
+            } else {
+              let glyph_bbox = Span::bounding_box(&glyph_spans);
+              let img_width = glyph_bbox.w;
+              let img_height = glyph_bbox.h;
+
+              // copy spans to scratch buffer
+
+              let mut glyph_pixels = vec![
+                RGBAColor::new(0, 0, 0);
+                (img_width * img_height) as usize
+              ];
+
+              glyph_spans.iter().for_each(|span| {
+                for x in 0 .. span.width {
+                  let dst_idx = ((img_height - 1 - (span.y - glyph_bbox.y))
+                    * img_width
+                    + span.x
+                    - glyph_bbox.x
+                    + x) as usize;
+                  glyph_pixels[dst_idx] = RGBAColor::new_with_alpha(
+                    255,
+                    255,
+                    255,
+                    span.coverage as u8,
+                  );
+                }
+              });
+
+              BakedGlyph {
+                font:   font_handle,
+                bbox:   glyph_bbox,
+                pixels: glyph_pixels,
+              }
+            };
+
+            self.baked_glyphs.push(baked_glyph);
           },
         );
       });
