@@ -9,17 +9,17 @@ use crate::math::{
   vertex_types::VertexPTC,
 };
 
-use crate::hmi::{
-  base::{AntialiasingType, ConvertConfig, DrawNullTexture, GenericHandle},
-  commands::{
-    CmdArc, CmdCircle, CmdCircleFilled, CmdPolygon, CmdPolyline,
-    CmdTriangleFilled, Command,
-  },
-  vertex_output::{DrawCommand, DrawIndexType, DrawList},
-};
-
 use crate::{
-  hmi::text_engine::FontAtlas, sys::memory_mapped_file::MemoryMappedFile,
+  hmi::{
+    base::{AntialiasingType, ConvertConfig, DrawNullTexture, GenericHandle},
+    commands::{
+      CmdArc, CmdCircle, CmdCircleFilled, CmdPolygon, CmdPolyline,
+      CmdTriangleFilled, Command,
+    },
+    text_engine::{Font, FontAtlas, FontConfig, TTFDataSource},
+    vertex_output::{DrawCommand, DrawIndexType, DrawList},
+  },
+  sys::memory_mapped_file::MemoryMappedFile,
 };
 
 use glfw::{Action, Context, Key, WindowHint};
@@ -71,7 +71,7 @@ fn write_atlas_png(width: u32, height: u32, pixels: &[RGBAColor]) {
   let pixels_bytes_slice = unsafe {
     std::slice::from_raw_parts(
       pixels.as_ptr() as *const u8,
-      std::mem::size_of_val(pixels),
+      pixels.len() * std::mem::size_of::<RGBAColor>(),
     )
   };
 
@@ -79,19 +79,24 @@ fn write_atlas_png(width: u32, height: u32, pixels: &[RGBAColor]) {
 }
 
 fn test_font_atlas() {
-  use crate::hmi::text_engine::{Font, FontAtlas, FontConfig, TTFDataSource};
-  use std::path::Path;
-
-  let cfg = FontConfig::new(14.0f32);
+  let cfg = FontConfig::new(24.0f32);
   let mut atlas = FontAtlas::new().unwrap();
-  let f01 = atlas
-    .add_font(&cfg, TTFDataSource::File(Path::new("test.ttf")))
-    .unwrap();
+  let _f01 = atlas
+    .add_font(
+      &cfg,
+      TTFDataSource::File(std::path::PathBuf::from("Babylon5.ttf")),
+    )
+    .expect("Failed to load ttf file!");
 
-  let (width, height, pixels) = atlas.build();
+  let (width, height, pixels) = atlas.build().unwrap();
+  write_atlas_png(width, height, &pixels);
 }
 
 fn main() {
+  // {
+  //   let calc_slice_size
+  // }
+  test_font_atlas();
   let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
   glfw.window_hint(WindowHint::OpenGlForwardCompat(true));
   glfw.window_hint(WindowHint::OpenGlProfile(glfw::OpenGlProfileHint::Core));
@@ -225,17 +230,11 @@ fn main() {
     Vec2I16::new(100, 300),
   ];
 
-  let cmd_polygon =
-        // CmdPolygonFilled {
-        //     color: RGBAColor::new(0, 255, 255, 255),
-        //     points: polygon_pts.clone(),
-        // };
-
-         CmdPolygon {
-            color: RGBAColor::new(0, 255, 255),
-            points: polygon_pts.clone(),
-       line_thickness: 2,
-    };
+  let cmd_polygon = CmdPolygon {
+    color:          RGBAColor::new(0, 255, 255),
+    points:         polygon_pts.clone(),
+    line_thickness: 2,
+  };
 
   commands.push(Command::Polygon(cmd_polygon));
 
@@ -249,7 +248,6 @@ fn main() {
   };
   commands.push(Command::Polyline(cmd_polyline));
 
-  // does not work yet!! fix !
   let cmd_circle = CmdCircleFilled {
     x:     400,
     y:     400,

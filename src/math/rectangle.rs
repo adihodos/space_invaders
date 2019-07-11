@@ -58,14 +58,29 @@ where
 
   pub fn union(a: &TRectangle<T>, b: &TRectangle<T>) -> TRectangle<T>
   where
-    T: PartialOrd,
+    T: PartialOrd + Add<Output=T> + Sub<Output=T>,
   {
+    let ax0 = a.x;
+    let ay0 = a.y;
+    let ax1 = ax0 + a.w;
+    let ay1 = ay0 + a.h;
+
+    let bx0 = b.x;
+    let by0 = b.y;
+    let bx1 = bx0 + b.w;
+    let by1 = by0 + b.h;
+
+    let ux0 = <T as MinMax>::min(ax0, bx0);
+    let uy0 = <T as MinMax>::min(ay0, by0);
+    let ux1 = <T as MinMax>::max(ax1, bx1);
+    let uy1 = <T as MinMax>::max(ay1, by1);
+
     Self::new(
-      <T as MinMax>::min(a.x, b.x),
-      <T as MinMax>::min(a.y, b.y),
-      <T as MinMax>::max(a.w, b.w),
-      <T as MinMax>::max(a.h, b.h),
-    )
+      ux0,
+      uy0,
+      ux1 - ux0,
+      uy1 - uy0
+     )
   }
 }
 

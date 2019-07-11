@@ -13,6 +13,7 @@ use crate::{
 };
 use std::{collections::HashMap, rc::Rc};
 
+/// Models a single span of gray pixels when rendering a glyph outline.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct Span {
   pub x:        i32,
@@ -45,7 +46,7 @@ impl Span {
         let s = *s;
         (*span_coll).push(Span::new(
           s.x as i32,
-          -y,
+          y,
           s.len as i32,
           s.coverage as i32,
         ));
@@ -375,6 +376,7 @@ impl ::std::cmp::PartialEq for FontId {
 
 impl ::std::cmp::Eq for FontId {}
 
+#[derive(Clone, Debug)]
 pub struct FontConfig {
   pub pixel_snap:     bool,
   pub oversample_v:   u8,
@@ -546,8 +548,8 @@ pub enum TTFDataSource {
 }
 
 struct BakedGlyph {
-  // index in the font table
   bearing_y: i32,
+  // index in the font table
   font:      u32,
   codepoint: u32,
   bbox:      RectangleI32,
@@ -704,8 +706,6 @@ impl FontAtlas {
   const DPI: u32 = 300;
 
   pub fn build(&mut self) -> Option<(u32, u32, Vec<RGBAColor>)> {
-    // compute image size
-    // let mut atlas_render_data = Vec::<BakedGlyph>::new();
     assert!(!self.fonts.is_empty(), "You forgot to add any fonts!");
     assert!(
       !self.baked_glyphs.is_empty(),
@@ -885,6 +885,7 @@ impl FontAtlas {
         face_tbl:  face_handle,
       };
       self.fonts.push(this_font);
+      self.configs.push(font.clone());
 
       Some(this_font)
     })

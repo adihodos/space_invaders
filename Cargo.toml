@@ -3,6 +3,7 @@
     version = "0.1.0"
     authors = ["Adrian Hodos <adi.hodos@gmail.com>"]
     edition = "2018"
+    build = "build.rs"
 
 [dependencies]
     num-traits = "0.2"
@@ -10,3 +11,10 @@
     gl = "0.10.0"
     libc = "0.2"
     png = "0.14.1"
+
+[target.'cfg(windows)'.dependencies]
+    winapi = { version = "0.3", features = ["winuser", "windef", "libloaderapi", "windowsx", "winbase", "memoryapi", "fileapi", "handleapi"] }    
+
+
+[build-dependencies]
+    cmake = "0.1"    
