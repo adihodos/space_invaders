@@ -24,3 +24,7 @@ pub fn roundup_next_power_of_two(x: u32) -> u32 {
     x
   }
 }
+
+pub fn roundup_multiple_of(x: u32, target: u32) -> u32 {
+  ((x / target) + 1) * target
+}

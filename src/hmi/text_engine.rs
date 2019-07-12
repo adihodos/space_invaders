@@ -5,7 +5,12 @@ use crate::{
     freetype2::*,
     rendered_glyphs_store::{RenderedGlyph, RenderedGlyphsStore},
   },
-  math::{colors::RGBAColor, rectangle::RectangleI32, vec2::Vec2F32},
+  math::{
+    colors::RGBAColor,
+    rectangle::RectangleI32,
+    utility::{roundup_multiple_of, roundup_next_power_of_two},
+    vec2::Vec2F32,
+  },
   sys::{
     memory_mapped_file::MemoryMappedFile,
     unique_resource::{ResourceDeleter, UniqueResource},
@@ -607,6 +612,11 @@ fn pack_rects(rects: &mut [BakedGlyph]) -> (u32, u32, f32) {
     (acc.0 + r.bbox.w * r.bbox.h, acc.1.max(r.bbox.w))
   });
 
+  let non_renderables = rects
+    .iter()
+    .filter(|glyph| glyph.bbox.w == 0 || glyph.bbox.h == 0)
+    .count();
+
   rects.sort_by(|glyph_a, glyph_b| glyph_b.bbox.h.cmp(&glyph_a.bbox.h));
 
   let start_with =
@@ -618,6 +628,10 @@ fn pack_rects(rects: &mut [BakedGlyph]) -> (u32, u32, f32) {
   let mut height = 0u32;
 
   (0 .. rects.len()).for_each(|idx_box| {
+    // filter non-renderables
+    if rects[idx_box].bbox.w == 0 {
+      return;
+    }
     (0 .. spaces.len()).rev().any(|i| {
       // look for empty spaces that can accomodate the current box
       if rects[idx_box].bbox.w > spaces[i].w
@@ -720,6 +734,13 @@ impl FontAtlas {
     if atlas_width == 0 || atlas_height == 0 {
       return None;
     }
+
+    let (atlas_width, atlas_height) = (
+      roundup_multiple_of(atlas_width, 4),
+      roundup_multiple_of(atlas_height, 4),
+      /* roundup_next_power_of_two(atlas_width),
+       * roundup_next_power_of_two(atlas_height), */
+    );
 
     let mut glyphs_table = HashMap::new();
 

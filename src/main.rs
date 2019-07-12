@@ -79,12 +79,13 @@ fn write_atlas_png(width: u32, height: u32, pixels: &[RGBAColor]) {
 }
 
 fn test_font_atlas() {
-  let cfg = FontConfig::new(24.0f32);
+  let mut cfg = FontConfig::new(24.0f32);
+  cfg.glyph_range = FontConfig::default_cyrillic_glyph_ranges();
   let mut atlas = FontAtlas::new().unwrap();
   let _f01 = atlas
     .add_font(
       &cfg,
-      TTFDataSource::File(std::path::PathBuf::from("Babylon5.ttf")),
+      TTFDataSource::File(std::path::PathBuf::from("DroidSans.ttf")),
     )
     .expect("Failed to load ttf file!");
 
