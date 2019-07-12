@@ -618,15 +618,16 @@ fn extract_glyph_spans(
     return None;
   }
 
+  const GLYPH_LOAD_FLAGS: i32 = FT_LOAD_NO_BITMAP | FT_LOAD_TARGET_LIGHT;
   let load_result =
-    unsafe { FT_Load_Glyph(face, ft_glyph_index, FT_LOAD_NO_BITMAP) };
+    unsafe { FT_Load_Glyph(face, ft_glyph_index, GLYPH_LOAD_FLAGS) };
 
   if load_result != 0 {
     return None;
   }
 
-  let g = unsafe { (*face).glyph };
-  let glyph_format = unsafe { (*g).format };
+  let glyph = unsafe { (*face).glyph };
+  let glyph_format = unsafe { (*glyph).format };
   if glyph_format != FT_GLYPH_FORMAT_OUTLINE {
     return None;
   }
@@ -634,20 +635,14 @@ fn extract_glyph_spans(
   let bearing_y =
     unsafe { ((*(*face).glyph).metrics.horiBearingY >> 6) as i32 };
 
-  let glyph_cpy = unsafe {
-    let mut glyph_cpy: FT_Glyph = std::ptr::null_mut();
-    FT_Get_Glyph(g, &mut glyph_cpy as *mut _);
-    glyph_cpy
-  };
-
-  if glyph_cpy.is_null() {
-    return None;
-  }
+  // float bearingX = face->glyph->metrics.horiBearingX >> 6;
+  // float bearingY = face->glyph->metrics.horiBearingY >> 6;
+  // float advance = face->glyph->advance.x >> 6;
 
   let mut glyph_spans = Vec::<Span>::new();
-  unsafe {
-    Span::render_spans(lib, &mut (*g).outline, &mut glyph_spans);
-  }
+  let outline_ptr = unsafe { &mut (*glyph).outline };
+  Span::render_spans(lib, outline_ptr, &mut glyph_spans);
+
   Some((bearing_y, glyph_spans))
 }
 
@@ -656,11 +651,6 @@ fn pack_rects(rects: &mut [BakedGlyph]) -> (u32, u32, f32) {
   let (area, max_width) = rects.iter().fold((0, 0), |acc, r| {
     (acc.0 + r.bbox.w * r.bbox.h, acc.1.max(r.bbox.w))
   });
-
-  let non_renderables = rects
-    .iter()
-    .filter(|glyph| glyph.bbox.w == 0 || glyph.bbox.h == 0)
-    .count();
 
   rects.sort_by(|glyph_a, glyph_b| glyph_b.bbox.h.cmp(&glyph_a.bbox.h));
 
@@ -750,9 +740,7 @@ fn pack_rects(rects: &mut [BakedGlyph]) -> (u32, u32, f32) {
   (width, height, (area as f32 / (width * height) as f32))
 }
 
-pub struct FontAtlasBuilder {
-  
-}
+pub struct FontAtlasBuilder {}
 
 pub struct FontAtlas {
   glyphs: HashMap<u32, Vec<FontGlyph>>,

@@ -90,7 +90,7 @@ fn test_font_atlas() {
   let _f01 = atlas
     .add_font(
       &cfg,
-      TTFDataSource::File(std::path::PathBuf::from("DroidSans.ttf")),
+      TTFDataSource::File(std::path::PathBuf::from("Babylon5.ttf")),
     )
     .expect("Failed to load ttf file!");
 
@@ -99,14 +99,12 @@ fn test_font_atlas() {
 }
 
 struct FontAtlasBuilder {
-  pixels : Vec<RGBAColor>
+  pixels: Vec<RGBAColor>,
 }
 
 impl FontAtlasBuilder {
   fn new() -> FontAtlasBuilder {
-    FontAtlasBuilder {
-      pixels: vec![]
-    }
+    FontAtlasBuilder { pixels: vec![] }
   }
 
   fn add_font(&mut self) -> u32 {
