@@ -1,9 +1,10 @@
 #![allow(dead_code)]
 
+use freetype_sys::*;
+
 use crate::{
   hmi::{
     base::GenericHandle,
-    freetype2::*,
     rendered_glyphs_store::{RenderedGlyph, RenderedGlyphsStore},
   },
   math::{
@@ -66,7 +67,11 @@ impl Span {
     spans: &mut Vec<Span>,
   ) {
     unsafe {
+      const FT_RASTER_FLAG_AA: i32 = 0x01;
+      const FT_RASTER_FLAG_DIRECT: i32 = 0x02;
+
       let mut raster_params: FT_Raster_Params = ::std::mem::zeroed();
+
       raster_params.flags = FT_RASTER_FLAG_AA | FT_RASTER_FLAG_DIRECT;
       raster_params.gray_spans = Span::raster_callback;
       raster_params.user = spans as *mut _ as *mut libc::c_void;
@@ -614,7 +619,7 @@ fn extract_glyph_spans(
   }
 
   let load_result =
-    unsafe { FT_Load_Glyph(face, ft_glyph_index, FT_LOAD_DEFAULT) };
+    unsafe { FT_Load_Glyph(face, ft_glyph_index, FT_LOAD_NO_BITMAP) };
 
   if load_result != 0 {
     return None;
