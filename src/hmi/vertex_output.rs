@@ -9,6 +9,7 @@ use crate::hmi::{
   base::{AntialiasingType, ConvertConfig, GenericHandle, UserFont},
   commands::Command,
   image::Image,
+  text_engine::{Font, FontGlyph},
 };
 
 pub type DrawIndexType = u16;
@@ -706,12 +707,38 @@ impl<'a> DrawList<'a> {
 
   fn add_text(
     &mut self,
-    _font: UserFont,
-    _rect: RectangleF32,
-    _text: &str,
+    font: Font,
+    rect: RectangleF32,
+    text: &str,
     _font_height: f32,
-    _fg: RGBAColorF32,
+    fg: RGBAColorF32,
   ) {
+    if !rect.intersect(&self.clip_rect) {
+      return;
+    }
+
+    self.push_image(font.texture());
+    let mut x = rect.x;
+    // process each codepoint end emit draw info
+    text.chars().for_each(|codepoint| {
+      // query glyph info for this codepoint
+      let glyph_info = font.query(codepoint);
+      // compute quad for the codepoint's glyph
+      let gx = x + glyph_info.bearing_x;
+      let gy = rect.y + glyph_info.bearing_y;
+      let gw = glyph_info.bbox.w as f32;
+      let gh = glyph_info.bbox.h as f32;
+
+      self.push_rect_uv(
+        Vec2F32::new(gx, gy),
+        Vec2F32::new(gx + gw, gy + gh),
+        glyph_info.uv_top_left,
+        glyph_info.uv_bottom_right,
+        RGBAColor::from(fg),
+      );
+
+      x += glyph_info.xadvance;
+    });
   }
 
   pub fn convert(&mut self, cmds: &[Command]) {
@@ -875,6 +902,16 @@ impl<'a> DrawList<'a> {
           p.color,
           DrawListStroke::Open,
           p.line_thickness as f32,
+        );
+      }
+
+      Command::Text(ref t) => {
+        self.add_text(
+          t.font,
+          RectangleF32::new(t.x as f32, t.y as f32, t.w as f32, t.h as f32),
+          &t.text,
+          t.height,
+          RGBAColorF32::from(t.foreground),
         );
       }
 

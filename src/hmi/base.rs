@@ -14,6 +14,15 @@ pub struct DrawNullTexture {
   pub uv: Vec2F32,
 }
 
+impl std::default::Default for DrawNullTexture {
+  fn default() -> DrawNullTexture {
+    DrawNullTexture {
+      texture: GenericHandle::Id(0),
+      uv:      Vec2F32::new(0f32, 0f32),
+    }
+  }
+}
+
 #[derive(Debug, Clone)]
 pub struct ConvertConfig {
   pub global_alpha:         f32,

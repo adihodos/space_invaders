@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 mod hmi;
 mod math;
 mod render_gl;
@@ -17,8 +19,7 @@ use crate::{
       CmdTriangleFilled, Command,
     },
     text_engine::{
-      Font, FontAtlas, FontAtlasBuilder, FontConfig, FontConfigBuilder,
-      TTFDataSource,
+      Font, FontAtlas, FontConfig, FontConfigBuilder, TTFDataSource,
     },
     vertex_output::{DrawCommand, DrawIndexType, DrawList},
   },
@@ -75,7 +76,8 @@ fn write_atlas_png(width: u32, height: u32, pixels: &[u8]) {
 }
 
 fn test_font_atlas() {
-  let font_atlas = FontAtlasBuilder::new()
+  let font_atlas = FontAtlas::new(300)
+    .ok_or("Failed to create font atlas")
     .and_then(|mut atlas_builder| {
       let cfg = FontConfigBuilder::new()
         .size(24f32)
@@ -85,30 +87,33 @@ fn test_font_atlas() {
       let _f01 = atlas_builder
         .add_font(
           &cfg,
+          TTFDataSource::File(std::path::PathBuf::from("DroidSans.ttf")),
+        )
+        .expect("Failed to load ttf file!");
+
+      let cfg = FontConfigBuilder::new().size(64f32).build();
+      let _f02 = atlas_builder
+        .add_font(
+          &cfg,
           TTFDataSource::File(std::path::PathBuf::from("Babylon5.ttf")),
         )
         .expect("Failed to load ttf file!");
 
-      atlas_builder.make_glyphs_image(
-        |width: u32, height: u32, pixels: &[u8]| {
-          write_atlas_png(width, height, pixels);
-          Some((
-            GenericHandle::Id(1),
-            DrawNullTexture {
-              texture: GenericHandle::Id(2),
-              uv:      Vec2F32::new(0f32, 0f32),
-            },
-          ))
-        },
-      )
+      atlas_builder.build(|width: u32, height: u32, pixels: &[u8]| {
+        write_atlas_png(width, height, pixels);
+        Some((
+          GenericHandle::Id(1),
+          DrawNullTexture {
+            texture: GenericHandle::Id(2),
+            uv:      Vec2F32::new(0f32, 0f32),
+          },
+        ))
+      })
     })
     .expect("Failed to initialize font engine!");
 }
 
 fn main() {
-  // {
-  //   let calc_slice_size
-  // }
   test_font_atlas();
   let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
   glfw.window_hint(WindowHint::OpenGlForwardCompat(true));

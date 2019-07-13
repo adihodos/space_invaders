@@ -1,6 +1,7 @@
-use crate::math::{colors::RGBAColor, rectangle::RectangleF32, vec2::Vec2I16};
-
-use crate::hmi::{base::UserFont, image::Image};
+use crate::{
+  hmi::{image::Image, text_engine::Font},
+  math::{colors::RGBAColor, rectangle::RectangleF32, vec2::Vec2I16},
+};
 
 #[derive(Copy, Clone, Debug)]
 pub struct CmdScissor {
@@ -147,7 +148,7 @@ pub struct CmdImage {
 
 #[derive(Clone, Debug)]
 pub struct CmdText {
-  pub font:       UserFont,
+  pub font:       Font,
   pub background: RGBAColor,
   pub foreground: RGBAColor,
   pub x:          i16,
@@ -590,11 +591,11 @@ impl CommandBuffer {
     &mut self,
     _r: RectangleF32,
     _s: &str,
-    _font: UserFont,
+    font: Font,
     _background: RGBAColor,
     _foreground: RGBAColor,
   ) {
-
+    let len = font.text_width(_s);
   }
 
   pub fn push_scissor(&mut self, r: RectangleF32) {

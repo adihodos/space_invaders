@@ -97,8 +97,7 @@ impl Span {
     let img_width = glyph_bbox.w;
     let img_height = glyph_bbox.h;
 
-    // copy spans to scratch buffer
-
+    // transform spans to pixels
     let mut glyph_pixels =
       vec![RGBAColor::new(0, 0, 0); (img_width * img_height) as usize];
 
@@ -278,16 +277,66 @@ pub struct Font {
   scale:     f32,
   glyph_tbl: u32,
   face_tbl:  u32,
+  atlas:     *mut FontAtlas,
 }
 
+impl Font {
+  fn atlas_ref(&self) -> Option<&FontAtlas> {
+    if self.atlas.is_null() {
+      None
+    } else {
+      Some(unsafe { &*self.atlas })
+    }
+  }
+
+  pub fn texture(&self) -> GenericHandle {
+    self
+      .atlas_ref()
+      .map_or(GenericHandle::Id(0), |atlas| atlas.glyphs_texture)
+  }
+
+  pub fn draw_null_texture(&self) -> DrawNullTexture {
+    self
+      .atlas_ref()
+      .map_or(DrawNullTexture::default(), |atlas| atlas.draw_null_texture)
+  }
+
+  pub fn query(&self, codept: char) -> FontGlyph {
+    self
+      .atlas_ref()
+      .map_or(FontGlyph::default(), |atlas| atlas.query(self, codept))
+  }
+
+  pub fn text_width(&self, text: &str) -> f32 {
+    self
+      .atlas_ref()
+      .map_or(0f32, |atlas| atlas.text_width(self, text))
+  }
+}
+
+#[derive(Copy, Clone, Debug)]
 pub struct FontGlyph {
-  codepoint:       u32,
-  xadvance:        f32,
-  bearing_x:       f32,
-  bearing_y:       f32,
-  bbox:            RectangleI32,
-  uv_top_left:     Vec2F32,
-  uv_bottom_right: Vec2F32,
+  pub codepoint:       u32,
+  pub xadvance:        f32,
+  pub bearing_x:       f32,
+  pub bearing_y:       f32,
+  pub bbox:            RectangleI32,
+  pub uv_top_left:     Vec2F32,
+  pub uv_bottom_right: Vec2F32,
+}
+
+impl std::default::Default for FontGlyph {
+  fn default() -> FontGlyph {
+    FontGlyph {
+      codepoint:       0,
+      xadvance:        0f32,
+      bearing_x:       0f32,
+      bearing_y:       0f32,
+      bbox:            RectangleI32::new(0, 0, 0, 0),
+      uv_top_left:     Vec2F32::new(0f32, 0f32),
+      uv_bottom_right: Vec2F32::new(0f32, 0f32),
+    }
+  }
 }
 
 macro_rules! freetype_deleter_impl {
@@ -338,6 +387,42 @@ struct BakedGlyph {
   codepoint: u32,
   bbox:      RectangleI32,
   pixels:    Vec<RGBAColor>,
+}
+
+impl BakedGlyph {
+  fn new(
+    codepoint: u32,
+    font: u32,
+    bearing_x: i32,
+    bearing_y: i32,
+    advance: i32,
+    glyph_spans: &[Span],
+  ) -> BakedGlyph {
+    if glyph_spans.is_empty() {
+      // non renderable (space, tab, newline, etc ...)
+      BakedGlyph {
+        advance,
+        bearing_x,
+        bearing_y,
+        codepoint,
+        font,
+        bbox: RectangleI32::new(0, 0, 0, 0),
+        pixels: vec![],
+      }
+    } else {
+      let (glyph_bbox, glyph_pixels) = Span::convert_to_pixels(&glyph_spans);
+
+      BakedGlyph {
+        advance,
+        bearing_x,
+        bearing_y,
+        codepoint,
+        font,
+        bbox: glyph_bbox,
+        pixels: glyph_pixels,
+      }
+    }
+  }
 }
 
 fn extract_glyph_spans(
@@ -473,19 +558,21 @@ fn pack_rects(rects: &mut [BakedGlyph]) -> (u32, u32, f32) {
   (width, height, (area as f32 / (width * height) as f32))
 }
 
-pub struct FontAtlasBuilder {
-  dpi:           u32,
-  baked_glyphs:  Vec<BakedGlyph>,
-  glyphs_pixels: Vec<RGBAColor>,
-  fonts:         Vec<Font>,
-  faces:         Vec<FontMetrics>,
-  configs:       Vec<FontConfig>,
-  stroker:       UniqueResource<FreetypeStrokerHandle>,
-  lib:           UniqueResource<FreetypeLibraryHandle>,
+pub struct FontAtlas {
+  dpi:               u32,
+  baked_glyphs:      Vec<BakedGlyph>,
+  glyphs:            Vec<HashMap<u32, FontGlyph>>,
+  fonts:             Vec<Font>,
+  faces:             Vec<FontMetrics>,
+  configs:           Vec<FontConfig>,
+  stroker:           UniqueResource<FreetypeStrokerHandle>,
+  lib:               UniqueResource<FreetypeLibraryHandle>,
+  glyphs_texture:    GenericHandle,
+  draw_null_texture: DrawNullTexture,
 }
 
-impl FontAtlasBuilder {
-  pub fn new() -> Option<FontAtlasBuilder> {
+impl FontAtlas {
+  pub fn new(dpi: u32) -> Option<FontAtlas> {
     UniqueResource::<FreetypeLibraryHandle>::from_handle({
       let mut ftlib: FT_Library = std::ptr::null_mut();
       unsafe {
@@ -502,23 +589,37 @@ impl FontAtlasBuilder {
         stroker
       })
       .and_then(|stroker| {
-        Some(FontAtlasBuilder {
-          dpi: 300,
+        Some(FontAtlas {
+          dpi,
           baked_glyphs: Vec::new(),
-          glyphs_pixels: Vec::new(),
+          glyphs: Vec::new(),
           fonts: Vec::new(),
           faces: Vec::new(),
           configs: Vec::new(),
           stroker,
           lib: ftlib,
+          glyphs_texture: GenericHandle::Id(0),
+          draw_null_texture: DrawNullTexture {
+            texture: GenericHandle::Id(0),
+            uv:      Vec2F32::new(0f32, 0f32),
+          },
         })
       })
     })
   }
 
-  pub fn dpi(&mut self, dpi: u32) -> &mut Self {
-    self.dpi = dpi;
-    self
+  pub fn query(&self, font: &Font, codepoint: char) -> FontGlyph {
+    let glyph_table = &self.glyphs[font.glyph_tbl as usize];
+    glyph_table
+      .get(&(codepoint as u32))
+      .map_or(FontGlyph::default(), |glyph_entry| *glyph_entry)
+  }
+
+  pub fn text_width(&self, font: &Font, text: &str) -> f32 {
+    text.chars().fold(0f32, |curr_len, curr_char| {
+      let glyph = self.query(font, curr_char);
+      curr_len + glyph.xadvance
+    })
   }
 
   pub fn add_font(
@@ -541,10 +642,10 @@ impl FontAtlasBuilder {
     }
   }
 
-  pub fn make_glyphs_image<F>(
+  pub fn build<F>(
     &mut self,
     fn_device_glyph_image_upload: F,
-  ) -> Option<FontAtlas>
+  ) -> Result<(), &'static str>
   where
     F: Fn(u32, u32, &[u8]) -> Option<(GenericHandle, DrawNullTexture)>,
   {
@@ -555,12 +656,12 @@ impl FontAtlasBuilder {
     );
 
     if self.baked_glyphs.is_empty() {
-      return None;
+      return Err("no fonts added to the atlas !");
     }
 
     let (atlas_width, atlas_height, _) = pack_rects(&mut self.baked_glyphs);
     if atlas_width == 0 || atlas_height == 0 {
-      return None;
+      return Err("error packing font glyph rects!");
     }
 
     let (atlas_width, atlas_height) = (
@@ -569,14 +670,12 @@ impl FontAtlasBuilder {
     );
 
     // build the glyph tables
-    let mut glyphs_table = HashMap::new();
+    let baked_glyphs = std::mem::replace(&mut self.baked_glyphs, vec![]);
 
-    self.baked_glyphs.iter().for_each(|baked_glyph| {
-      let font_glyphs_table = glyphs_table
-        .entry(baked_glyph.font)
-        .or_insert(Vec::<FontGlyph>::new());
+    baked_glyphs.iter().for_each(|baked_glyph| {
+      let font_glyphs_table = &mut self.glyphs[baked_glyph.font as usize];
 
-      font_glyphs_table.push(FontGlyph {
+      let new_glyph = FontGlyph {
         codepoint:       baked_glyph.codepoint,
         xadvance:        baked_glyph.advance as f32,
         bearing_x:       baked_glyph.bearing_x as f32,
@@ -596,7 +695,9 @@ impl FontAtlasBuilder {
           (baked_glyph.bbox.y + baked_glyph.bbox.h) as f32
             / atlas_height as f32,
         ),
-      });
+      };
+
+      font_glyphs_table.insert(baked_glyph.codepoint, new_glyph);
     });
 
     // copy glyph pixels into the atlas texture
@@ -624,15 +725,11 @@ impl FontAtlasBuilder {
 
     fn_device_glyph_image_upload(atlas_width, atlas_height, pixels_slice)
       .and_then(|(glyphs_texture, draw_null_texture)| {
-        Some(FontAtlas {
-          glyphs: glyphs_table,
-          fonts: std::mem::replace(&mut self.fonts, vec![]),
-          faces: std::mem::replace(&mut self.faces, vec![]),
-          configs: std::mem::replace(&mut self.configs, vec![]),
-          glyphs_texture,
-          draw_null_texture,
-        })
+        self.glyphs_texture = glyphs_texture;
+        self.draw_null_texture = draw_null_texture;
+        Some(())
       })
+      .ok_or("Failed to upload device to atlas!")
   }
 
   fn add_font_from_bytes(
@@ -663,43 +760,73 @@ impl FontAtlasBuilder {
           |codepoint| {
             extract_glyph_spans(codepoint, *face.handle(), *self.lib.handle())
               .map(|(bearing_x, bearing_y, advance, glyph_spans)| {
-                let baked_glyph = if glyph_spans.is_empty() {
-                  // non renderable (space, tab, newline, etc ...)
-                  BakedGlyph {
-                    advance,
-                    bearing_x,
-                    bearing_y,
-                    codepoint,
-                    font: font_handle,
-                    bbox: RectangleI32::new(0, 0, 0, 0),
-                    pixels: vec![],
-                  }
-                } else {
-                  let (glyph_bbox, glyph_pixels) =
-                    Span::convert_to_pixels(&glyph_spans);
-
-                  BakedGlyph {
-                    advance,
-                    bearing_x,
-                    bearing_y,
-                    codepoint,
-                    font: font_handle,
-                    bbox: glyph_bbox,
-                    pixels: glyph_pixels,
-                  }
-                };
-
-                self.baked_glyphs.push(baked_glyph);
+                self.baked_glyphs.push(BakedGlyph::new(
+                  codepoint,
+                  font_handle,
+                  bearing_x,
+                  bearing_y,
+                  advance,
+                  &glyph_spans,
+                ));
               });
           },
         );
       });
+
+      // Extract the fallback glyph. This may already have been extracted if
+      // it was in the configured glyph range.
+      self
+        .baked_glyphs
+        .iter()
+        .find(|baked_glyph| baked_glyph.codepoint == font.fallback_glyph as u32)
+        .map_or_else(
+          || {
+            // fallback glyph not found, extract its data and return it for
+            // insertion
+            let fallback_glyph = extract_glyph_spans(
+              font.fallback_glyph as u32,
+              *face.handle(),
+              *self.lib.handle(),
+            )
+            .map(|(bearing_x, bearing_y, advance, glyph_spans)| {
+              BakedGlyph::new(
+                font.fallback_glyph as u32,
+                font_handle,
+                bearing_x,
+                bearing_y,
+                advance,
+                &glyph_spans,
+              )
+            })
+            .unwrap_or_else(|| {
+              BakedGlyph::new(
+                font.fallback_glyph as u32,
+                font_handle,
+                0,
+                0,
+                face_metrics.max_advance_width as i32,
+                &vec![],
+              )
+            });
+
+            Some(fallback_glyph)
+          },
+          |_| {
+            // fallback glyph already there , so nothing to do
+            None
+          },
+        )
+        .and_then(|fb_glyph| {
+          self.baked_glyphs.push(fb_glyph);
+          Some(())
+        });
 
       self.faces.push(face_metrics);
       let this_font = Font {
         scale:     font.size,
         glyph_tbl: font_handle,
         face_tbl:  face_handle,
+        atlas:     std::ptr::null_mut(),
       };
       self.fonts.push(this_font);
       self.configs.push(font.clone());
@@ -708,14 +835,3 @@ impl FontAtlasBuilder {
     })
   }
 }
-
-pub struct FontAtlas {
-  glyphs:            HashMap<u32, Vec<FontGlyph>>,
-  fonts:             Vec<Font>,
-  faces:             Vec<FontMetrics>,
-  configs:           Vec<FontConfig>,
-  glyphs_texture:    GenericHandle,
-  draw_null_texture: DrawNullTexture,
-}
-
-impl FontAtlas {}
