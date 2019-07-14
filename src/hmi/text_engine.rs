@@ -127,6 +127,7 @@ pub struct FontConfigBuilder {
   spacing:        Vec2F32,
   glyph_range:    Vec<std::ops::Range<char>>,
   fallback_glyph: char,
+  pixel_snap:     bool,
 }
 
 impl FontConfigBuilder {
@@ -136,6 +137,7 @@ impl FontConfigBuilder {
       spacing:        Vec2F32::new(0f32, 0f32),
       glyph_range:    vec![],
       fallback_glyph: '?',
+      pixel_snap:     false,
     }
   }
 
@@ -180,6 +182,11 @@ impl FontConfigBuilder {
     self
   }
 
+  pub fn pixel_snap(&mut self, snap_to_pixel: bool) -> &mut Self {
+    self.pixel_snap = snap_to_pixel;
+    self
+  }
+
   pub fn add_glyph_range(
     &mut self,
     mut glyph_range: Vec<std::ops::Range<char>>,
@@ -205,6 +212,7 @@ impl FontConfigBuilder {
       spacing: self.spacing,
       glyph_range,
       fallback_glyph: self.fallback_glyph,
+      pixel_snap: self.pixel_snap,
     }
   }
 }
@@ -215,6 +223,25 @@ pub struct FontConfig {
   pub spacing:        Vec2F32,
   pub glyph_range:    Vec<std::ops::Range<char>>,
   pub fallback_glyph: char,
+  pub pixel_snap:     bool,
+}
+
+impl FontConfig {
+  fn calc_xadvance(&self, advance: i32) -> f32 {
+    if self.pixel_snap {
+      ((advance as f32 + 0.5f32) as i32) as f32 + self.spacing.x
+    } else {
+      advance as f32 + self.spacing.x
+    }
+  }
+
+  fn calc_yadvance(&self, advance: i32) -> f32 {
+    if self.pixel_snap {
+      ((advance as f32 + 0.5f32) as i32) as f32 + self.spacing.y
+    } else {
+      advance as f32 + self.spacing.y
+    }
+  }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -391,9 +418,9 @@ pub enum TTFDataSource {
 }
 
 struct BakedGlyph {
-  advance:   i32,
-  bearing_x: i32,
-  bearing_y: i32,
+  advance_x: f32,
+  bearing_x: f32,
+  bearing_y: f32,
   // index in the font table
   font:      u32,
   codepoint: u32,
@@ -405,15 +432,15 @@ impl BakedGlyph {
   fn new(
     codepoint: u32,
     font: u32,
-    bearing_x: i32,
-    bearing_y: i32,
-    advance: i32,
+    bearing_x: f32,
+    bearing_y: f32,
+    advance_x: f32,
     glyph_spans: &[Span],
   ) -> BakedGlyph {
     if glyph_spans.is_empty() {
       // non renderable (space, tab, newline, etc ...)
       BakedGlyph {
-        advance,
+        advance_x,
         bearing_x,
         bearing_y,
         codepoint,
@@ -425,7 +452,7 @@ impl BakedGlyph {
       let (glyph_bbox, glyph_pixels) = Span::convert_to_pixels(&glyph_spans);
 
       BakedGlyph {
-        advance,
+        advance_x,
         bearing_x,
         bearing_y,
         codepoint,
@@ -741,9 +768,9 @@ impl FontAtlas {
 
       let new_glyph = FontGlyph {
         codepoint:       baked_glyph.codepoint,
-        xadvance:        baked_glyph.advance as f32,
-        bearing_x:       baked_glyph.bearing_x as f32,
-        bearing_y:       baked_glyph.bearing_y as f32,
+        xadvance:        baked_glyph.advance_x,
+        bearing_x:       baked_glyph.bearing_x,
+        bearing_y:       baked_glyph.bearing_y,
         bbox:            RectangleI32::new(
           0,
           0,
@@ -824,13 +851,13 @@ impl FontAtlas {
         (glyphrange.start as u32 .. glyphrange.end as u32).for_each(
           |codepoint| {
             extract_glyph_spans(codepoint, *face.handle(), *self.lib.handle())
-              .map(|(bearing_x, bearing_y, advance, glyph_spans)| {
+              .map(|(bearing_x, bearing_y, advance_x, glyph_spans)| {
                 self.baked_glyphs.push(BakedGlyph::new(
                   codepoint,
                   font_handle,
-                  bearing_x,
-                  bearing_y,
-                  advance,
+                  bearing_x as f32,
+                  bearing_y as f32,
+                  font.calc_xadvance(advance_x),
                   &glyph_spans,
                 ));
               });
@@ -857,9 +884,9 @@ impl FontAtlas {
               BakedGlyph::new(
                 font.fallback_glyph as u32,
                 font_handle,
-                bearing_x,
-                bearing_y,
-                advance,
+                bearing_x as f32,
+                bearing_y as f32,
+                font.calc_xadvance(advance),
                 &glyph_spans,
               )
             })
@@ -867,9 +894,9 @@ impl FontAtlas {
               BakedGlyph::new(
                 font.fallback_glyph as u32,
                 font_handle,
-                0,
-                0,
-                face_metrics.max_advance_width as i32,
+                0f32,
+                0f32,
+                font.calc_xadvance(face_metrics.max_advance_width as i32),
                 &vec![],
               )
             });
