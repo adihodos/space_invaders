@@ -589,13 +589,33 @@ impl CommandBuffer {
 
   pub fn draw_text(
     &mut self,
-    _r: RectangleF32,
-    _s: &str,
+    r: RectangleF32,
+    s: &str,
     font: Font,
-    _background: RGBAColor,
-    _foreground: RGBAColor,
+    background: RGBAColor,
+    foreground: RGBAColor,
   ) {
-    let len = font.text_width(_s);
+    if s.is_empty() || background.a == 0 || foreground.a == 0 {
+      return;
+    }
+
+    if !self.clip.map_or(true, |clip_rect| clip_rect.intersect(&r)) {
+      return;
+    }
+
+    let cmd = CmdText {
+      font,
+      background,
+      foreground,
+      x: r.x as i16,
+      y: r.y as i16,
+      w: r.w as u16,
+      h: r.h as u16,
+      height: 0f32,
+      text: font.clamped_string(s, r.w),
+    };
+
+    self.base.push(Command::Text(cmd));
   }
 
   pub fn push_scissor(&mut self, r: RectangleF32) {

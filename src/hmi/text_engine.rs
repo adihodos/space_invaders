@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use freetype_sys::*;
+use std::collections::HashMap;
 
 use crate::{
   hmi::base::{DrawNullTexture, GenericHandle},
@@ -13,7 +14,6 @@ use crate::{
     unique_resource::{ResourceDeleter, UniqueResource},
   },
 };
-use std::collections::HashMap;
 
 /// Models a single span of gray pixels when rendering a glyph outline.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -312,6 +312,18 @@ impl Font {
       .atlas_ref()
       .map_or(0f32, |atlas| atlas.text_width(self, text))
   }
+
+  pub fn clamp_text(&self, text: &str, max_width: f32) -> (i32, f32) {
+    self
+      .atlas_ref()
+      .map_or((0, 0f32), |atlas| atlas.clamp_text(self, text, max_width))
+  }
+
+  pub fn clamped_string(&self, text: &str, max_width: f32) -> String {
+    self.atlas_ref().map_or(String::new(), |atlas| {
+      atlas.clamped_string(self, text, max_width)
+    })
+  }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -425,6 +437,7 @@ impl BakedGlyph {
   }
 }
 
+/// Extract all spans from a rasterized glyph.
 fn extract_glyph_spans(
   codepoint: u32,
   face: FT_Face,
@@ -464,7 +477,7 @@ fn extract_glyph_spans(
   Some((bearing_x, bearing_y, advance_x, glyph_spans))
 }
 
-/// Pack the baked glyphs into a rectangular texture
+/// Packs font glyphs into a rectangular texture.
 fn pack_rects(rects: &mut [BakedGlyph]) -> (u32, u32, f32) {
   let (area, max_width) = rects.iter().fold((0, 0), |acc, r| {
     (acc.0 + r.bbox.w * r.bbox.h, acc.1.max(r.bbox.w))
@@ -572,6 +585,7 @@ pub struct FontAtlas {
 }
 
 impl FontAtlas {
+  /// Creates a new font atlas. Fonts must be added to it before it can be used.
   pub fn new(dpi: u32) -> Option<FontAtlas> {
     UniqueResource::<FreetypeLibraryHandle>::from_handle({
       let mut ftlib: FT_Library = std::ptr::null_mut();
@@ -608,6 +622,7 @@ impl FontAtlas {
     })
   }
 
+  /// Query the properties of a font's glyph.
   pub fn query(&self, font: &Font, codepoint: char) -> FontGlyph {
     let glyph_table = &self.glyphs[font.glyph_tbl as usize];
     glyph_table
@@ -615,6 +630,7 @@ impl FontAtlas {
       .map_or(FontGlyph::default(), |glyph_entry| *glyph_entry)
   }
 
+  /// Compute the length of a string using a certain font in the atlas.
   pub fn text_width(&self, font: &Font, text: &str) -> f32 {
     text.chars().fold(0f32, |curr_len, curr_char| {
       let glyph = self.query(font, curr_char);
@@ -622,6 +638,52 @@ impl FontAtlas {
     })
   }
 
+  pub fn clamp_text(
+    &self,
+    font: &Font,
+    text: &str,
+    max_width: f32,
+  ) -> (i32, f32) {
+    let mut glyph_count = 0;
+    let mut width = 0f32;
+    text.chars().all(|codepoint| {
+      let glyph_info = self.query(font, codepoint);
+      if (width + glyph_info.xadvance) > max_width {
+        false
+      } else {
+        width += glyph_info.xadvance;
+        glyph_count += 1;
+        true
+      }
+    });
+
+    (glyph_count, width)
+  }
+
+  /// Create a string by clamping some text to a specified maximum width.
+  pub fn clamped_string(
+    &self,
+    font: &Font,
+    text: &str,
+    max_width: f32,
+  ) -> String {
+    let mut width = 0f32;
+
+    text
+      .chars()
+      .take_while(|codepoint| {
+        let glyph_info = self.query(font, *codepoint);
+        if (width + glyph_info.xadvance) < max_width {
+          width += glyph_info.xadvance;
+          true
+        } else {
+          false
+        }
+      })
+      .collect()
+  }
+
+  /// Add a font into the atlas from various sources.
   pub fn add_font(
     &mut self,
     font: &FontConfig,
@@ -642,6 +704,8 @@ impl FontAtlas {
     }
   }
 
+  /// Builds the font atlas containing all the fonts and glyphs that were added
+  /// to it.
   pub fn build<F>(
     &mut self,
     fn_device_glyph_image_upload: F,
@@ -732,6 +796,7 @@ impl FontAtlas {
       .ok_or("Failed to upload device to atlas!")
   }
 
+  /// Add a TTF font from bytes.
   fn add_font_from_bytes(
     &mut self,
     font: &FontConfig,

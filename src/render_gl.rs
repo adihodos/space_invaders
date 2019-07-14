@@ -34,7 +34,6 @@ impl Program {
       }
 
       let error = create_whitespace_cstring_with_len(len as usize);
-
       unsafe {
         gl::GetProgramInfoLog(
           program_id,

@@ -6,10 +6,7 @@ use std::path::Path;
 #[cfg(unix)]
 mod unix {
   use crate::sys::unique_resource::ResourceDeleter;
-
   use libc::{c_int, c_void, close, munmap};
-
-  use std::{ffi::CString, path::Path, ptr::null_mut};
 
   #[derive(Default)]
   pub struct OSFileDeleter {}

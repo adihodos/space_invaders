@@ -6,10 +6,10 @@ use crate::math::{
 };
 
 use crate::hmi::{
-  base::{AntialiasingType, ConvertConfig, GenericHandle, UserFont},
+  base::{AntialiasingType, ConvertConfig, GenericHandle},
   commands::Command,
   image::Image,
-  text_engine::{Font, FontGlyph},
+  text_engine::Font,
 };
 
 pub type DrawIndexType = u16;
@@ -176,9 +176,9 @@ impl<'a> DrawList<'a> {
       points.len()
     };
 
-    let thick_line = thickness > 1_f32;
+    // let thick_line = thickness > 1_f32;
     let col = RGBAColorF32::from(color);
-    let col_trans = RGBAColorF32::new_with_alpha(col.r, col.g, col.b, 0_f32);
+    // let col_trans = RGBAColorF32::new_with_alpha(col.r, col.g, col.b, 0_f32);
 
     // aliased only for now
 
