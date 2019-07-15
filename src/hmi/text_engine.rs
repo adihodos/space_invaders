@@ -98,8 +98,10 @@ impl Span {
     let img_height = glyph_bbox.h;
 
     // transform spans to pixels
-    let mut glyph_pixels =
-      vec![RGBAColor::new(0, 0, 0); (img_width * img_height) as usize];
+    let mut glyph_pixels = vec![
+      RGBAColor::new_with_alpha(0, 0, 0, 0);
+      (img_width * img_height) as usize
+    ];
 
     spans.iter().for_each(|span| {
       for x in 0 .. span.width {
@@ -792,10 +794,12 @@ impl FontAtlas {
     });
 
     // copy glyph pixels into the atlas texture
-    let mut atlas_pixels =
-      vec![RGBAColor::new(0, 0, 0); (atlas_width * atlas_height) as usize];
+    let mut atlas_pixels = vec![
+      RGBAColor::new_with_alpha(0, 0, 0, 0);
+      (atlas_width * atlas_height) as usize
+    ];
 
-    self.baked_glyphs.iter().for_each(|baked_glyph| {
+    baked_glyphs.iter().for_each(|baked_glyph| {
       let bbox = baked_glyph.bbox;
       let mut src_idx = 0u32;
       (bbox.y .. (bbox.y + bbox.h)).for_each(|y| {
@@ -918,9 +922,10 @@ impl FontAtlas {
         scale:     font.size,
         glyph_tbl: font_handle,
         face_tbl:  face_handle,
-        atlas:     std::ptr::null_mut(),
+        atlas:     self as *mut FontAtlas,
       };
       self.fonts.push(this_font);
+      self.glyphs.push(HashMap::new());
       self.configs.push(font.clone());
 
       Some(this_font)

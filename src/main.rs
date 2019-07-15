@@ -15,7 +15,7 @@ use crate::{
   hmi::{
     base::{AntialiasingType, ConvertConfig, DrawNullTexture, GenericHandle},
     commands::{
-      CmdArc, CmdCircle, CmdCircleFilled, CmdPolygon, CmdPolyline,
+      CmdArc, CmdCircle, CmdCircleFilled, CmdPolygon, CmdPolyline, CmdText,
       CmdTriangleFilled, Command,
     },
     text_engine::{
@@ -114,7 +114,7 @@ fn test_font_atlas() {
 }
 
 fn main() {
-  test_font_atlas();
+  // test_font_atlas();
   let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
   glfw.window_hint(WindowHint::OpenGlForwardCompat(true));
   glfw.window_hint(WindowHint::OpenGlProfile(glfw::OpenGlProfileHint::Core));
@@ -240,68 +240,172 @@ fn main() {
 
   let mut commands = Vec::<Command>::new();
 
-  let polygon_pts = vec![
-    Vec2I16::new(100, 100),
-    Vec2I16::new(300, 100),
-    Vec2I16::new(500, 200),
-    Vec2I16::new(300, 300),
-    Vec2I16::new(100, 300),
-  ];
+  // let polygon_pts = vec![
+  //   Vec2I16::new(100, 100),
+  //   Vec2I16::new(300, 100),
+  //   Vec2I16::new(500, 200),
+  //   Vec2I16::new(300, 300),
+  //   Vec2I16::new(100, 300),
+  // ];
 
-  let cmd_polygon = CmdPolygon {
-    color:          RGBAColor::new(0, 255, 255),
-    points:         polygon_pts.clone(),
-    line_thickness: 2,
-  };
+  // let cmd_polygon = CmdPolygon {
+  //   color:          RGBAColor::new(0, 255, 255),
+  //   points:         polygon_pts.clone(),
+  //   line_thickness: 2,
+  // };
 
-  commands.push(Command::Polygon(cmd_polygon));
+  // commands.push(Command::Polygon(cmd_polygon));
 
-  let cmd_polyline = CmdPolyline {
-    color:          RGBAColor::new(255, 0, 0),
-    line_thickness: 2,
-    points:         polygon_pts
-      .iter()
-      .map(|v| *v + Vec2I16::new(400, 300))
-      .collect(),
-  };
-  commands.push(Command::Polyline(cmd_polyline));
+  // let cmd_polyline = CmdPolyline {
+  //   color:          RGBAColor::new(255, 0, 0),
+  //   line_thickness: 2,
+  //   points:         polygon_pts
+  //     .iter()
+  //     .map(|v| *v + Vec2I16::new(400, 300))
+  //     .collect(),
+  // };
+  // commands.push(Command::Polyline(cmd_polyline));
 
-  let cmd_circle = CmdCircleFilled {
-    x:     400,
-    y:     400,
-    w:     300,
-    h:     300,
-    color: RGBAColor::new(128, 255, 64),
-  };
-  commands.push(Command::CircleFilled(cmd_circle));
+  // let cmd_circle = CmdCircleFilled {
+  //   x:     400,
+  //   y:     400,
+  //   w:     300,
+  //   h:     300,
+  //   color: RGBAColor::new(128, 255, 64),
+  // };
+  // commands.push(Command::CircleFilled(cmd_circle));
 
-  let cmd_circle = CmdCircle {
-    x:              400,
-    y:              400,
-    line_thickness: 2,
-    w:              100,
-    h:              100,
-    color:          RGBAColor::new(64, 128, 255),
-  };
-  commands.push(Command::Circle(cmd_circle));
+  // let cmd_circle = CmdCircle {
+  //   x:              400,
+  //   y:              400,
+  //   line_thickness: 2,
+  //   w:              100,
+  //   h:              100,
+  //   color:          RGBAColor::new(64, 128, 255),
+  // };
+  // commands.push(Command::Circle(cmd_circle));
 
-  let triangle = CmdTriangleFilled {
-    a:     Vec2I16::new(0, 500),
-    b:     Vec2I16::new(200, 100),
-    c:     Vec2I16::new(400, 500),
-    color: RGBAColor::new(0, 255, 0),
-  };
-  commands.push(Command::TriangleFilled(triangle));
+  // let triangle = CmdTriangleFilled {
+  //   a:     Vec2I16::new(0, 500),
+  //   b:     Vec2I16::new(200, 100),
+  //   c:     Vec2I16::new(400, 500),
+  //   color: RGBAColor::new(0, 255, 0),
+  // };
+  // commands.push(Command::TriangleFilled(triangle));
 
-  let cmd_arc = CmdArc {
-    cx:             400,
-    cy:             100,
-    r:              100,
-    line_thickness: 3,
-    a:              [0_f32, -std::f32::consts::PI],
-    color:          RGBAColor::new(255, 64, 32),
-  };
-  commands.push(Command::Arc(cmd_arc));
+  // let cmd_arc = CmdArc {
+  //   cx:             400,
+  //   cy:             100,
+  //   r:              100,
+  //   line_thickness: 3,
+  //   a:              [0_f32, -std::f32::consts::PI],
+  //   color:          RGBAColor::new(255, 64, 32),
+  // };
+  // commands.push(Command::Arc(cmd_arc));
+
+  let mut fonts = vec![];
+  let mut font_atlas = FontAtlas::new(300)
+    .ok_or("Failed to create font atlas")
+    .and_then(|mut atlas_builder| {
+      let cfg = FontConfigBuilder::new().size(14f32).build();
+
+      let _f01 = atlas_builder
+        .add_font(
+          &cfg,
+          TTFDataSource::File(std::path::PathBuf::from("DroidSans.ttf")),
+        )
+        .expect("Failed to load ttf file!");
+
+      fonts.push(_f01);
+
+      let cfg = FontConfigBuilder::new().size(32f32).build();
+      let _f02 = atlas_builder
+        .add_font(
+          &cfg,
+          TTFDataSource::File(std::path::PathBuf::from("Babylon5.ttf")),
+        )
+        .expect("Failed to load ttf file!");
+
+      fonts.push(_f02);
+
+      atlas_builder
+        .build(|width: u32, height: u32, pixels: &[u8]| {
+          write_atlas_png(width, height, pixels);
+
+          let glyphs_texture = unsafe {
+            let mut glyphs_texture: gl::types::GLuint = 0;
+            gl::CreateTextures(
+              gl::TEXTURE_2D,
+              1,
+              &mut glyphs_texture as *mut _,
+            );
+            gl::TextureSubImage2D(
+              glyphs_texture,
+              0,
+              0,
+              0,
+              width as gl::types::GLsizei,
+              height as gl::types::GLsizei,
+              gl::RGBA,
+              gl::UNSIGNED_BYTE,
+              pixels.as_ptr() as *const u8 as *const gl::types::GLvoid,
+            );
+
+            glyphs_texture
+          };
+
+          Some((GenericHandle::Id(glyphs_texture), null_tex))
+        })
+        .and_then(|_| Ok(atlas_builder))
+    })
+    .expect("Failed to initialize font engine!");
+
+  // let cfg = FontConfigBuilder::new().size(14f32).build();
+
+  // let _f01 = font_atlas
+  //   .add_font(
+  //     &cfg,
+  //     TTFDataSource::File(std::path::PathBuf::from("DroidSans.ttf")),
+  //   )
+  //   .expect("Failed to load ttf file!");
+
+  fn write_string(
+    font: &Font,
+    fg: RGBAColor,
+    bk: RGBAColor,
+    x: i16,
+    y: i16,
+    w: u16,
+    h: u16,
+    text: &str,
+    lst: &mut Vec<Command>,
+  ) {
+    let text_cmd = CmdText {
+      font: *font,
+      background: bk,
+      foreground: fg,
+      x,
+      y,
+      w,
+      h,
+      height: 0f32,
+      text: text.to_owned(),
+    };
+
+    lst.push(Command::Text(text_cmd));
+  }
+
+  write_string(
+    &fonts[0],
+    RGBAColor::new(255, 0, 255),
+    RGBAColor::new(0, 255, 0),
+    100,
+    100,
+    400,
+    200,
+    "Some text here",
+    &mut commands,
+  );
 
   drawlist.convert(&commands);
 
