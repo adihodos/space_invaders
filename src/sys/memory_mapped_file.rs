@@ -104,7 +104,7 @@ mod win32 {
     }
 
     fn null() -> Self::Handle {
-      unsafe { std::ptr::null_mut() }
+      std::ptr::null_mut()
     }
 
     fn delete(&mut self, res: &mut Self::Handle) {

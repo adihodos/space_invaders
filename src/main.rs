@@ -19,7 +19,7 @@ use crate::{
       CmdTriangleFilled, Command,
     },
     text_engine::{
-      Font, FontAtlas, FontConfig, FontConfigBuilder, TTFDataSource,
+      Font, FontAtlas, FontAtlasBuilder, FontConfig, FontConfigBuilder, TTFDataSource,
     },
     vertex_output::{DrawCommand, DrawIndexType, DrawList},
   },
@@ -76,7 +76,7 @@ fn write_atlas_png(width: u32, height: u32, pixels: &[u8]) {
 }
 
 fn test_font_atlas() {
-  let font_atlas = FontAtlas::new(300)
+  let font_atlas = FontAtlasBuilder::new(300)
     .ok_or("Failed to create font atlas")
     .and_then(|mut atlas_builder| {
       let cfg = FontConfigBuilder::new()
@@ -304,7 +304,7 @@ fn main() {
   // commands.push(Command::Arc(cmd_arc));
 
   let mut fonts = vec![];
-  let mut font_atlas = FontAtlas::new(300)
+  let mut font_atlas = FontAtlasBuilder::new(300)
     .ok_or("Failed to create font atlas")
     .and_then(|mut atlas_builder| {
       let cfg = FontConfigBuilder::new().size(14f32).build();
@@ -356,7 +356,6 @@ fn main() {
 
           Some((GenericHandle::Id(glyphs_texture), null_tex))
         })
-        .and_then(|_| Ok(atlas_builder))
     })
     .expect("Failed to initialize font engine!");
 
