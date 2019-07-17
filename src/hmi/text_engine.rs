@@ -511,7 +511,8 @@ fn pack_rects(rects: &mut [BakedGlyph]) -> (u32, u32, f32) {
     (acc.0 + r.bbox.w * r.bbox.h, acc.1.max(r.bbox.w))
   });
 
-  rects.sort_by(|glyph_a, glyph_b| glyph_b.bbox.h.cmp(&glyph_a.bbox.h));
+  rects
+    .sort_unstable_by(|glyph_a, glyph_b| glyph_b.bbox.h.cmp(&glyph_a.bbox.h));
 
   let start_with =
     (max_width as f32).max(((area as f32) / 0.95f32).sqrt().ceil());
@@ -704,6 +705,8 @@ impl FontAtlasBuilder {
 
     // build the glyph tables
     let baked_glyphs = std::mem::replace(&mut self.baked_glyphs, vec![]);
+    let ipw = 1f32 / (atlas_width) as f32;
+    let iph = 1f32 / (atlas_height) as f32;
 
     baked_glyphs.iter().for_each(|baked_glyph| {
       let font_glyphs_table = &mut self.glyphs[baked_glyph.font as usize];
@@ -721,13 +724,12 @@ impl FontAtlasBuilder {
           baked_glyph.bbox.h,
         ),
         uv_top_left:     Vec2F32::new(
-          baked_glyph.bbox.x as f32 / atlas_width as f32,
-          baked_glyph.bbox.y as f32 / atlas_height as f32,
+          baked_glyph.bbox.x as f32 * ipw,
+          baked_glyph.bbox.y as f32 * iph,
         ),
         uv_bottom_right: Vec2F32::new(
-          (baked_glyph.bbox.x + baked_glyph.bbox.w) as f32 / atlas_width as f32,
-          (baked_glyph.bbox.y + baked_glyph.bbox.h) as f32
-            / atlas_height as f32,
+          (baked_glyph.bbox.x + baked_glyph.bbox.w) as f32 * ipw,
+          (baked_glyph.bbox.y + baked_glyph.bbox.h) as f32 * iph,
         ),
       };
 
