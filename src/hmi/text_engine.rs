@@ -724,8 +724,8 @@ impl FontAtlasBuilder {
           baked_glyph.bbox.h,
         ),
         uv_top_left:     Vec2F32::new(
-          baked_glyph.bbox.x as f32 * ipw,
-          baked_glyph.bbox.y as f32 * iph,
+          (baked_glyph.bbox.x) as f32 * ipw,
+          (baked_glyph.bbox.y) as f32 * iph,
         ),
         uv_bottom_right: Vec2F32::new(
           (baked_glyph.bbox.x + baked_glyph.bbox.w) as f32 * ipw,

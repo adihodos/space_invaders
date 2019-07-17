@@ -3,4 +3,5 @@ pub mod buffer;
 pub mod commands;
 pub mod image;
 pub mod text_engine;
+pub mod ui_context;
 pub mod vertex_output;

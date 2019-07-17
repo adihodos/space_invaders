@@ -306,7 +306,7 @@ fn main() {
   commands.push(Command::Arc(cmd_arc));
 
   let mut fonts = vec![];
-  let mut font_atlas = FontAtlasBuilder::new(300)
+  let font_atlas = FontAtlasBuilder::new(300)
     .ok_or("Failed to create font atlas")
     .and_then(|mut atlas_builder| {
       let cfg = FontConfigBuilder::new().size(14f32).build();
