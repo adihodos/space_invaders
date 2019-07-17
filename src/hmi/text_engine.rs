@@ -708,12 +708,13 @@ impl FontAtlasBuilder {
 
     baked_glyphs.iter().for_each(|baked_glyph| {
       let font_glyphs_table = &mut self.glyphs[baked_glyph.font as usize];
+      let font_metrics = &self.faces[baked_glyph.font as usize];
 
       let new_glyph = FontGlyph {
         codepoint: baked_glyph.codepoint,
         xadvance: baked_glyph.advance_x,
         bearing_x: baked_glyph.bearing_x,
-        bearing_y: baked_glyph.bearing_y,
+        bearing_y: font_metrics.ascender - baked_glyph.bearing_y,
         bbox: RectangleI32::new(0, 0, baked_glyph.bbox.w, baked_glyph.bbox.h),
         uv_top_left: Vec2F32::new(
           baked_glyph.bbox.x as f32 / atlas_width as f32,

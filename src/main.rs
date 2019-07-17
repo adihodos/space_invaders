@@ -15,11 +15,12 @@ use crate::{
   hmi::{
     base::{AntialiasingType, ConvertConfig, DrawNullTexture, GenericHandle},
     commands::{
-      CmdArc, CmdCircle, CmdCircleFilled, CmdPolygon, CmdPolyline, CmdText,
-      CmdTriangleFilled, Command,
+      CmdArc, CmdCircle, CmdCircleFilled, CmdLine, CmdPolygon, CmdPolyline,
+      CmdText, CmdTriangleFilled, Command, CmdRect
     },
     text_engine::{
-      Font, FontAtlas, FontAtlasBuilder, FontConfig, FontConfigBuilder, TTFDataSource,
+      Font, FontAtlas, FontAtlasBuilder, FontConfig, FontConfigBuilder,
+      TTFDataSource,
     },
     vertex_output::{DrawCommand, DrawIndexType, DrawList},
   },
@@ -328,34 +329,29 @@ fn main() {
 
       fonts.push(_f02);
 
-      atlas_builder
-        .build(|width: u32, height: u32, pixels: &[u8]| {
-          write_atlas_png(width, height, pixels);
+      atlas_builder.build(|width: u32, height: u32, pixels: &[u8]| {
+        write_atlas_png(width, height, pixels);
 
-          let glyphs_texture = unsafe {
-            let mut glyphs_texture: gl::types::GLuint = 0;
-            gl::CreateTextures(
-              gl::TEXTURE_2D,
-              1,
-              &mut glyphs_texture as *mut _,
-            );
-            gl::TextureSubImage2D(
-              glyphs_texture,
-              0,
-              0,
-              0,
-              width as gl::types::GLsizei,
-              height as gl::types::GLsizei,
-              gl::RGBA,
-              gl::UNSIGNED_BYTE,
-              pixels.as_ptr() as *const u8 as *const gl::types::GLvoid,
-            );
+        let glyphs_texture = unsafe {
+          let mut glyphs_texture: gl::types::GLuint = 0;
+          gl::CreateTextures(gl::TEXTURE_2D, 1, &mut glyphs_texture as *mut _);
+          gl::TextureSubImage2D(
+            glyphs_texture,
+            0,
+            0,
+            0,
+            width as gl::types::GLsizei,
+            height as gl::types::GLsizei,
+            gl::RGBA,
+            gl::UNSIGNED_BYTE,
+            pixels.as_ptr() as *const u8 as *const gl::types::GLvoid,
+          );
 
-            glyphs_texture
-          };
+          glyphs_texture
+        };
 
-          Some((GenericHandle::Id(glyphs_texture), null_tex))
-        })
+        Some((GenericHandle::Id(glyphs_texture), null_tex))
+      })
     })
     .expect("Failed to initialize font engine!");
 
@@ -394,6 +390,17 @@ fn main() {
     lst.push(Command::Text(text_cmd));
   }
 
+  let text_rect = CmdRect {
+    rounding:       0,
+    line_thickness: 1,
+    x:              100,
+    y:              100,
+    w:              300,
+    h:              100,
+    color:          RGBAColor::new(255, 0, 0),
+  };
+  commands.push(Command::Rect(text_rect));
+
   write_string(
     &fonts[0],
     RGBAColor::new(255, 0, 255),
@@ -407,6 +414,14 @@ fn main() {
   );
 
   drawlist.convert(&commands);
+
+  //   #[derive(Copy, Clone, Debug)]
+  // pub struct CmdLine {
+  //   pub line_thickness: u16,
+  //   pub begin:          Vec2I16,
+  //   pub end:            Vec2I16,
+  //   pub color:          RGBAColor,
+  // }
 
   // drawlist.stroke_poly_line(
   //     &poly_pts,
