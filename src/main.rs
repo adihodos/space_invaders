@@ -16,7 +16,7 @@ use crate::{
     base::{AntialiasingType, ConvertConfig, DrawNullTexture, GenericHandle},
     commands::{
       CmdArc, CmdCircle, CmdCircleFilled, CmdLine, CmdPolygon, CmdPolyline,
-      CmdText, CmdTriangleFilled, Command, CmdRect
+      CmdRect, CmdText, CmdTriangleFilled, Command,
     },
     text_engine::{
       Font, FontAtlas, FontAtlasBuilder, FontConfig, FontConfigBuilder,
@@ -24,6 +24,7 @@ use crate::{
     },
     vertex_output::{DrawCommand, DrawIndexType, DrawList},
   },
+  render_gl::OpenGLStateSaveSetRestore,
   sys::memory_mapped_file::MemoryMappedFile,
 };
 
@@ -241,68 +242,68 @@ fn main() {
 
   let mut commands = Vec::<Command>::new();
 
-  // let polygon_pts = vec![
-  //   Vec2I16::new(100, 100),
-  //   Vec2I16::new(300, 100),
-  //   Vec2I16::new(500, 200),
-  //   Vec2I16::new(300, 300),
-  //   Vec2I16::new(100, 300),
-  // ];
+  let polygon_pts = vec![
+    Vec2I16::new(100, 100),
+    Vec2I16::new(300, 100),
+    Vec2I16::new(500, 200),
+    Vec2I16::new(300, 300),
+    Vec2I16::new(100, 300),
+  ];
 
-  // let cmd_polygon = CmdPolygon {
-  //   color:          RGBAColor::new(0, 255, 255),
-  //   points:         polygon_pts.clone(),
-  //   line_thickness: 2,
-  // };
+  let cmd_polygon = CmdPolygon {
+    color:          RGBAColor::new(0, 255, 255),
+    points:         polygon_pts.clone(),
+    line_thickness: 2,
+  };
 
-  // commands.push(Command::Polygon(cmd_polygon));
+  commands.push(Command::Polygon(cmd_polygon));
 
-  // let cmd_polyline = CmdPolyline {
-  //   color:          RGBAColor::new(255, 0, 0),
-  //   line_thickness: 2,
-  //   points:         polygon_pts
-  //     .iter()
-  //     .map(|v| *v + Vec2I16::new(400, 300))
-  //     .collect(),
-  // };
-  // commands.push(Command::Polyline(cmd_polyline));
+  let cmd_polyline = CmdPolyline {
+    color:          RGBAColor::new(255, 0, 0),
+    line_thickness: 2,
+    points:         polygon_pts
+      .iter()
+      .map(|v| *v + Vec2I16::new(400, 300))
+      .collect(),
+  };
+  commands.push(Command::Polyline(cmd_polyline));
 
-  // let cmd_circle = CmdCircleFilled {
-  //   x:     400,
-  //   y:     400,
-  //   w:     300,
-  //   h:     300,
-  //   color: RGBAColor::new(128, 255, 64),
-  // };
-  // commands.push(Command::CircleFilled(cmd_circle));
+  let cmd_circle = CmdCircleFilled {
+    x:     400,
+    y:     400,
+    w:     300,
+    h:     300,
+    color: RGBAColor::new(128, 255, 64),
+  };
+  commands.push(Command::CircleFilled(cmd_circle));
 
-  // let cmd_circle = CmdCircle {
-  //   x:              400,
-  //   y:              400,
-  //   line_thickness: 2,
-  //   w:              100,
-  //   h:              100,
-  //   color:          RGBAColor::new(64, 128, 255),
-  // };
-  // commands.push(Command::Circle(cmd_circle));
+  let cmd_circle = CmdCircle {
+    x:              400,
+    y:              400,
+    line_thickness: 2,
+    w:              100,
+    h:              100,
+    color:          RGBAColor::new(64, 128, 255),
+  };
+  commands.push(Command::Circle(cmd_circle));
 
-  // let triangle = CmdTriangleFilled {
-  //   a:     Vec2I16::new(0, 500),
-  //   b:     Vec2I16::new(200, 100),
-  //   c:     Vec2I16::new(400, 500),
-  //   color: RGBAColor::new(0, 255, 0),
-  // };
-  // commands.push(Command::TriangleFilled(triangle));
+  let triangle = CmdTriangleFilled {
+    a:     Vec2I16::new(0, 500),
+    b:     Vec2I16::new(200, 100),
+    c:     Vec2I16::new(400, 500),
+    color: RGBAColor::new(0, 255, 0),
+  };
+  commands.push(Command::TriangleFilled(triangle));
 
-  // let cmd_arc = CmdArc {
-  //   cx:             400,
-  //   cy:             100,
-  //   r:              100,
-  //   line_thickness: 3,
-  //   a:              [0_f32, -std::f32::consts::PI],
-  //   color:          RGBAColor::new(255, 64, 32),
-  // };
-  // commands.push(Command::Arc(cmd_arc));
+  let cmd_arc = CmdArc {
+    cx:             400,
+    cy:             100,
+    r:              100,
+    line_thickness: 3,
+    a:              [0_f32, -std::f32::consts::PI],
+    color:          RGBAColor::new(255, 64, 32),
+  };
+  commands.push(Command::Arc(cmd_arc));
 
   let mut fonts = vec![];
   let mut font_atlas = FontAtlasBuilder::new(300)
@@ -319,7 +320,7 @@ fn main() {
 
       fonts.push(_f01);
 
-      let cfg = FontConfigBuilder::new().size(32f32).build();
+      let cfg = FontConfigBuilder::new().size(16f32).build();
       let _f02 = atlas_builder
         .add_font(
           &cfg,
@@ -335,6 +336,13 @@ fn main() {
         let glyphs_texture = unsafe {
           let mut glyphs_texture: gl::types::GLuint = 0;
           gl::CreateTextures(gl::TEXTURE_2D, 1, &mut glyphs_texture as *mut _);
+          gl::TextureStorage2D(
+            glyphs_texture,
+            1,
+            gl::RGBA8,
+            width as gl::types::GLsizei,
+            height as gl::types::GLsizei,
+          );
           gl::TextureSubImage2D(
             glyphs_texture,
             0,
@@ -354,15 +362,6 @@ fn main() {
       })
     })
     .expect("Failed to initialize font engine!");
-
-  // let cfg = FontConfigBuilder::new().size(14f32).build();
-
-  // let _f01 = font_atlas
-  //   .add_font(
-  //     &cfg,
-  //     TTFDataSource::File(std::path::PathBuf::from("DroidSans.ttf")),
-  //   )
-  //   .expect("Failed to load ttf file!");
 
   fn write_string(
     font: &Font,
@@ -413,39 +412,19 @@ fn main() {
     &mut commands,
   );
 
+  write_string(
+    &fonts[1],
+    RGBAColor::new(0, 255, 255),
+    RGBAColor::new(0, 0, 255),
+    100,
+    200,
+    1024,
+    400,
+    "This is some text",
+    &mut commands,
+  );
+
   drawlist.convert(&commands);
-
-  //   #[derive(Copy, Clone, Debug)]
-  // pub struct CmdLine {
-  //   pub line_thickness: u16,
-  //   pub begin:          Vec2I16,
-  //   pub end:            Vec2I16,
-  //   pub color:          RGBAColor,
-  // }
-
-  // drawlist.stroke_poly_line(
-  //     &poly_pts,
-  //     RGBAColor::new(255, 0, 0, 255),
-  //     DrawListStroke::Closed,
-  //     4_f32,
-  //     AntialiasingType::Off,
-  // );
-
-  // let endpts = [Vec2F32::new(50_f32, 50_f32)];
-  // let translation = Vec2F32::new(200_f32, 200_f32);
-  // let poly_moved = endpts
-  //     .iter()
-  //     .chain(poly_pts.iter())
-  //     .map(|&input_vtx| input_vtx + translation)
-  //     .collect::<Vec<_>>();
-
-  // println!("{:?}", poly_moved);
-
-  // drawlist.fill_poly_convex(
-  //     &poly_moved,
-  //     RGBAColor::new(255, 255, 0, 255),
-  //     AntialiasingType::Off,
-  // );
 
   fn slice_bytes_size<T: Sized>(s: &[T]) -> gl::types::GLsizeiptr {
     (s.len() * std::mem::size_of::<T>()) as gl::types::GLsizeiptr
@@ -537,6 +516,8 @@ fn main() {
       );
 
       let mut offset = 0;
+      let _gl_state_save_restore = OpenGLStateSaveSetRestore::new();
+
       buff_draw_commands.iter().for_each(|cmd| {
         if cmd.element_count == 0 {
           return;

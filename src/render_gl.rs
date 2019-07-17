@@ -4,6 +4,78 @@ use std::{
   ffi::{CStr, CString},
 };
 
+/// Saves the OpenGL state on creation, enables blending and restores the saved
+/// state when dropped.
+pub struct OpenGLStateSaveSetRestore {
+  last_blend_src:      gl::types::GLint,
+  last_blend_dst:      gl::types::GLint,
+  last_blend_eq_rgb:   gl::types::GLint,
+  last_blend_eq_alpha: gl::types::GLint,
+  blend_enabled:       bool,
+  cullface_enabled:    bool,
+  depth_enabled:       bool,
+  scissors_enabled:    bool,
+}
+
+impl OpenGLStateSaveSetRestore {
+  pub fn new() -> OpenGLStateSaveSetRestore {
+    unsafe {
+      let mut st: OpenGLStateSaveSetRestore = ::std::mem::zeroed();
+      gl::GetIntegerv(gl::BLEND_SRC, &mut st.last_blend_src as *mut _);
+      gl::GetIntegerv(gl::BLEND_DST, &mut st.last_blend_dst as *mut _);
+      gl::GetIntegerv(
+        gl::BLEND_EQUATION_RGB,
+        &mut st.last_blend_eq_rgb as *mut _,
+      );
+      gl::GetIntegerv(
+        gl::BLEND_EQUATION_ALPHA,
+        &mut st.last_blend_eq_alpha as *mut _,
+      );
+      st.blend_enabled = gl::IsEnabled(gl::BLEND) != gl::FALSE;
+      st.cullface_enabled = gl::IsEnabled(gl::CULL_FACE) != gl::FALSE;
+      st.depth_enabled = gl::IsEnabled(gl::DEPTH_TEST) != gl::FALSE;
+      st.scissors_enabled = gl::IsEnabled(gl::SCISSOR_TEST) != gl::FALSE;
+
+      gl::Enable(gl::BLEND);
+      gl::BlendEquation(gl::FUNC_ADD);
+      gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+      gl::Disable(gl::CULL_FACE);
+      gl::Disable(gl::DEPTH_TEST);
+      gl::Enable(gl::SCISSOR_TEST);
+
+      st
+    }
+  }
+}
+
+impl Drop for OpenGLStateSaveSetRestore {
+  fn drop(&mut self) {
+    unsafe {
+      gl::BlendEquationSeparate(
+        self.last_blend_eq_rgb as u32,
+        self.last_blend_eq_alpha as u32,
+      );
+      gl::BlendFunc(self.last_blend_src as u32, self.last_blend_dst as u32);
+
+      if !self.blend_enabled {
+        gl::Disable(gl::BLEND)
+      }
+
+      if self.cullface_enabled {
+        gl::Enable(gl::CULL_FACE)
+      }
+
+      if self.depth_enabled {
+        gl::Enable(gl::DEPTH_TEST)
+      }
+
+      if !self.scissors_enabled {
+        gl::Disable(gl::SCISSOR_TEST);
+      }
+    }
+  }
+}
+
 pub struct Program {
   id: gl::types::GLuint,
 }

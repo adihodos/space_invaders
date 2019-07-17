@@ -18,9 +18,9 @@ use crate::{
 /// Models a single span of gray pixels when rendering a glyph outline.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct Span {
-  pub x: i32,
-  pub y: i32,
-  pub width: i32,
+  pub x:        i32,
+  pub y:        i32,
+  pub width:    i32,
   pub coverage: i32,
 }
 
@@ -104,7 +104,7 @@ impl Span {
     ];
 
     spans.iter().for_each(|span| {
-      for x in 0..span.width {
+      for x in 0 .. span.width {
         let dst_idx = ((img_height - 1 - (span.y - glyph_bbox.y)) * img_width
           + span.x
           - glyph_bbox.x
@@ -125,28 +125,28 @@ impl ::std::default::Default for Span {
 }
 
 pub struct FontConfigBuilder {
-  size: f32,
-  spacing: Vec2F32,
-  glyph_range: Vec<std::ops::Range<char>>,
+  size:           f32,
+  spacing:        Vec2F32,
+  glyph_range:    Vec<std::ops::Range<char>>,
   fallback_glyph: char,
-  pixel_snap: bool,
+  pixel_snap:     bool,
 }
 
 impl FontConfigBuilder {
   pub fn new() -> FontConfigBuilder {
     FontConfigBuilder {
-      size: 10f32,
-      spacing: Vec2F32::new(0f32, 0f32),
-      glyph_range: vec![],
+      size:           10f32,
+      spacing:        Vec2F32::new(0f32, 0f32),
+      glyph_range:    vec![],
       fallback_glyph: '?',
-      pixel_snap: false,
+      pixel_snap:     false,
     }
   }
 
   pub fn default_glyph_ranges() -> Vec<std::ops::Range<char>> {
     vec![std::ops::Range {
       start: 0x0020 as char,
-      end: 0x00FF as char,
+      end:   0x00FF as char,
     }]
   }
 
@@ -156,19 +156,19 @@ impl FontConfigBuilder {
     vec![
       Range {
         start: 0x0020 as char,
-        end: 0x00FF as char,
+        end:   0x00FF as char,
       },
       Range {
         start: '\u{400}',
-        end: '\u{52F}',
+        end:   '\u{52F}',
       },
       Range {
         start: '\u{2DE0}',
-        end: '\u{2DFF}',
+        end:   '\u{2DFF}',
       },
       Range {
         start: '\u{A640}',
-        end: '\u{A69F}',
+        end:   '\u{A69F}',
       },
     ]
   }
@@ -221,11 +221,11 @@ impl FontConfigBuilder {
 
 #[derive(Clone, Debug)]
 pub struct FontConfig {
-  pub size: f32,
-  pub spacing: Vec2F32,
-  pub glyph_range: Vec<std::ops::Range<char>>,
+  pub size:           f32,
+  pub spacing:        Vec2F32,
+  pub glyph_range:    Vec<std::ops::Range<char>>,
   pub fallback_glyph: char,
-  pub pixel_snap: bool,
+  pub pixel_snap:     bool,
 }
 
 impl FontConfig {
@@ -248,13 +248,13 @@ impl FontConfig {
 
 #[derive(Debug, Copy, Clone)]
 pub struct FontMetrics {
-  pub size: f32,
-  pub height: f32,
-  pub ascender: f32,
-  pub descender: f32,
-  pub max_advance_width: f32,
-  pub max_advance_height: f32,
-  pub underline_pos: f32,
+  pub size:                f32,
+  pub height:              f32,
+  pub ascender:            f32,
+  pub descender:           f32,
+  pub max_advance_width:   f32,
+  pub max_advance_height:  f32,
+  pub underline_pos:       f32,
   pub underline_thickness: f32,
 }
 
@@ -275,22 +275,23 @@ impl FontMetrics {
     let units_per_em = unsafe { (*face).units_per_EM as i32 };
 
     FontMetrics {
-      size: font_size,
-      height: unsafe { (*face).height as i32 * pixel_size / units_per_em }
-        as f32,
-      ascender: unsafe {
-        (*face).ascender.abs() as i32 * pixel_size / units_per_em
+      size:                font_size,
+      height:              unsafe {
+        (*face).height as i32 * pixel_size / units_per_em
       } as f32,
-      descender: unsafe {
+      ascender:            unsafe {
+        (*face).ascender as i32 * pixel_size / units_per_em
+      } as f32,
+      descender:           unsafe {
         (*face).descender.abs() as i32 * pixel_size / units_per_em
       } as f32,
-      max_advance_width: unsafe {
+      max_advance_width:   unsafe {
         (*face).max_advance_width as i32 * pixel_size / units_per_em
       } as f32,
-      max_advance_height: unsafe {
+      max_advance_height:  unsafe {
         (*face).max_advance_height as i32 * pixel_size / units_per_em
       } as f32,
-      underline_pos: unsafe {
+      underline_pos:       unsafe {
         (*face).underline_position as i32 * pixel_size / units_per_em
       } as f32,
       underline_thickness: unsafe {
@@ -298,14 +299,42 @@ impl FontMetrics {
       } as f32,
     }
   }
+
+  fn extract_pixel_sizes(face: FT_Face, font_pixel_size: u32) -> FontMetrics {
+    unsafe {
+      FT_Set_Pixel_Sizes(face, font_pixel_size, font_pixel_size);
+    }
+
+    let x_scale = unsafe { (*(*face).size).metrics.x_scale };
+    let y_scale = unsafe { (*(*face).size).metrics.y_scale };
+
+    FontMetrics {
+      size:                font_pixel_size as f32,
+      height:              unsafe {
+        FT_MulFix((*face).height as FT_Long, y_scale)
+      } as f32,
+      ascender:            unsafe {
+        FT_MulFix((*face).ascender as FT_Long, y_scale)
+      } as f32,
+      descender:           unsafe {
+        FT_MulFix((*face).descender as FT_Long, y_scale)
+      } as f32,
+      max_advance_width:   unsafe {
+        FT_MulFix((*face).max_advance_width as FT_Long, x_scale)
+      } as f32,
+      max_advance_height:  unsafe { (*face).max_advance_height } as f32,
+      underline_pos:       unsafe { (*face).underline_position } as f32,
+      underline_thickness: unsafe { (*face).underline_thickness } as f32,
+    }
+  }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct Font {
-  scale: f32,
+  scale:     f32,
   glyph_tbl: u32,
-  face_tbl: u32,
-  atlas: *const FontAtlas,
+  face_tbl:  u32,
+  atlas:     *const FontAtlas,
 }
 
 impl Font {
@@ -356,24 +385,24 @@ impl Font {
 
 #[derive(Copy, Clone, Debug)]
 pub struct FontGlyph {
-  pub codepoint: u32,
-  pub xadvance: f32,
-  pub bearing_x: f32,
-  pub bearing_y: f32,
-  pub bbox: RectangleI32,
-  pub uv_top_left: Vec2F32,
+  pub codepoint:       u32,
+  pub xadvance:        f32,
+  pub bearing_x:       f32,
+  pub bearing_y:       f32,
+  pub bbox:            RectangleI32,
+  pub uv_top_left:     Vec2F32,
   pub uv_bottom_right: Vec2F32,
 }
 
 impl std::default::Default for FontGlyph {
   fn default() -> FontGlyph {
     FontGlyph {
-      codepoint: 0,
-      xadvance: 0f32,
-      bearing_x: 0f32,
-      bearing_y: 0f32,
-      bbox: RectangleI32::new(0, 0, 0, 0),
-      uv_top_left: Vec2F32::new(0f32, 0f32),
+      codepoint:       0,
+      xadvance:        0f32,
+      bearing_x:       0f32,
+      bearing_y:       0f32,
+      bbox:            RectangleI32::new(0, 0, 0, 0),
+      uv_top_left:     Vec2F32::new(0f32, 0f32),
       uv_bottom_right: Vec2F32::new(0f32, 0f32),
     }
   }
@@ -423,10 +452,10 @@ struct BakedGlyph {
   bearing_x: f32,
   bearing_y: f32,
   // index in the font table
-  font: u32,
+  font:      u32,
   codepoint: u32,
-  bbox: RectangleI32,
-  pixels: Vec<RGBAColor>,
+  bbox:      RectangleI32,
+  pixels:    Vec<RGBAColor>,
 }
 
 impl BakedGlyph {
@@ -521,12 +550,12 @@ fn pack_rects(rects: &mut [BakedGlyph]) -> (u32, u32, f32) {
   let mut width = 0u32;
   let mut height = 0u32;
 
-  (0..rects.len()).for_each(|idx_box| {
+  (0 .. rects.len()).for_each(|idx_box| {
     // filter non-renderables
     if rects[idx_box].bbox.w == 0 {
       return;
     }
-    (0..spaces.len()).rev().any(|i| {
+    (0 .. spaces.len()).rev().any(|i| {
       // look for empty spaces that can accomodate the current box
       if rects[idx_box].bbox.w > spaces[i].w
         || rects[idx_box].bbox.h > spaces[i].h
@@ -600,17 +629,17 @@ fn pack_rects(rects: &mut [BakedGlyph]) -> (u32, u32, f32) {
 }
 
 pub struct FontAtlasBuilder {
-  dpi: u32,
-  baked_glyphs: Vec<BakedGlyph>,
-  glyphs: Vec<HashMap<u32, FontGlyph>>,
-  fonts: Vec<Font>,
-  faces: Vec<FontMetrics>,
-  configs: Vec<FontConfig>,
-  stroker: UniqueResource<FreetypeStrokerHandle>,
-  lib: UniqueResource<FreetypeLibraryHandle>,
-  glyphs_texture: GenericHandle,
+  dpi:               u32,
+  baked_glyphs:      Vec<BakedGlyph>,
+  glyphs:            Vec<HashMap<u32, FontGlyph>>,
+  fonts:             Vec<Font>,
+  faces:             Vec<FontMetrics>,
+  configs:           Vec<FontConfig>,
+  stroker:           UniqueResource<FreetypeStrokerHandle>,
+  lib:               UniqueResource<FreetypeLibraryHandle>,
+  glyphs_texture:    GenericHandle,
   draw_null_texture: DrawNullTexture,
-  atlas: *mut FontAtlas,
+  atlas:             *mut FontAtlas,
 }
 
 impl FontAtlasBuilder {
@@ -632,7 +661,6 @@ impl FontAtlasBuilder {
         stroker
       })
       .and_then(|stroker| {
-
         Some(FontAtlasBuilder {
           dpi,
           baked_glyphs: Vec::new(),
@@ -645,7 +673,7 @@ impl FontAtlasBuilder {
           glyphs_texture: GenericHandle::Id(0),
           draw_null_texture: DrawNullTexture {
             texture: GenericHandle::Id(0),
-            uv: Vec2F32::new(0f32, 0f32),
+            uv:      Vec2F32::new(0f32, 0f32),
           },
           atlas: Box::into_raw(Box::new(FontAtlas::new())),
         })
@@ -711,12 +739,17 @@ impl FontAtlasBuilder {
       let font_metrics = &self.faces[baked_glyph.font as usize];
 
       let new_glyph = FontGlyph {
-        codepoint: baked_glyph.codepoint,
-        xadvance: baked_glyph.advance_x,
-        bearing_x: baked_glyph.bearing_x,
-        bearing_y: font_metrics.ascender - baked_glyph.bearing_y,
-        bbox: RectangleI32::new(0, 0, baked_glyph.bbox.w, baked_glyph.bbox.h),
-        uv_top_left: Vec2F32::new(
+        codepoint:       baked_glyph.codepoint,
+        xadvance:        baked_glyph.advance_x,
+        bearing_x:       baked_glyph.bearing_x,
+        bearing_y:       font_metrics.ascender - baked_glyph.bearing_y,
+        bbox:            RectangleI32::new(
+          0,
+          0,
+          baked_glyph.bbox.w,
+          baked_glyph.bbox.h,
+        ),
+        uv_top_left:     Vec2F32::new(
           baked_glyph.bbox.x as f32 / atlas_width as f32,
           baked_glyph.bbox.y as f32 / atlas_height as f32,
         ),
@@ -739,8 +772,8 @@ impl FontAtlasBuilder {
     baked_glyphs.iter().for_each(|baked_glyph| {
       let bbox = baked_glyph.bbox;
       let mut src_idx = 0u32;
-      (bbox.y..(bbox.y + bbox.h)).for_each(|y| {
-        (bbox.x..(bbox.x + bbox.w)).for_each(|x| {
+      (bbox.y .. (bbox.y + bbox.h)).for_each(|y| {
+        (bbox.x .. (bbox.x + bbox.w)).for_each(|x| {
           let dst_idx = (y as u32 * atlas_width + x as u32) as usize;
           atlas_pixels[dst_idx] = baked_glyph.pixels[src_idx as usize];
           src_idx += 1;
@@ -792,11 +825,12 @@ impl FontAtlasBuilder {
     .and_then(|face| {
       let face_metrics =
         FontMetrics::extract(*face.handle(), font.size, self.dpi);
+        // FontMetrics::extract_pixel_sizes(*face.handle(), font.size as u32);
       let font_handle = self.fonts.len() as u32;
       let face_handle = self.faces.len() as u32;
 
       font.glyph_range.iter().for_each(|glyphrange| {
-        (glyphrange.start as u32..glyphrange.end as u32).for_each(
+        (glyphrange.start as u32 .. glyphrange.end as u32).for_each(
           |codepoint| {
             extract_glyph_spans(codepoint, *face.handle(), *self.lib.handle())
               .map(|(bearing_x, bearing_y, advance_x, glyph_spans)| {
@@ -863,10 +897,10 @@ impl FontAtlasBuilder {
 
       self.faces.push(face_metrics);
       let this_font = Font {
-        scale: font.size,
+        scale:     font.size,
         glyph_tbl: font_handle,
-        face_tbl: face_handle,
-        atlas: self.atlas,
+        face_tbl:  face_handle,
+        atlas:     self.atlas,
       };
       self.fonts.push(this_font);
       self.glyphs.push(HashMap::new());
@@ -878,22 +912,22 @@ impl FontAtlasBuilder {
 }
 
 pub struct FontAtlas {
-  glyphs: Vec<HashMap<u32, FontGlyph>>,
-  fonts: Vec<Font>,
-  faces: Vec<FontMetrics>,
-  configs: Vec<FontConfig>,
-  glyphs_texture: GenericHandle,
+  glyphs:            Vec<HashMap<u32, FontGlyph>>,
+  fonts:             Vec<Font>,
+  faces:             Vec<FontMetrics>,
+  configs:           Vec<FontConfig>,
+  glyphs_texture:    GenericHandle,
   draw_null_texture: DrawNullTexture,
 }
 
 impl FontAtlas {
   fn new() -> FontAtlas {
     FontAtlas {
-      glyphs: vec![],
-      fonts: vec![],
-      faces: vec![],
-      configs: vec![],
-      glyphs_texture: GenericHandle::Id(0),
+      glyphs:            vec![],
+      fonts:             vec![],
+      faces:             vec![],
+      configs:           vec![],
+      glyphs_texture:    GenericHandle::Id(0),
       draw_null_texture: DrawNullTexture::default(),
     }
   }
