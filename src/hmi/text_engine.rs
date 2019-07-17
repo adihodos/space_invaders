@@ -87,7 +87,6 @@ impl Span {
 
     spans.iter().fold(start_bbox, |current_bbox, span| {
       let span_bbox = RectangleI32::new(span.x, span.y, span.width, 1);
-
       RectangleI32::union(&current_bbox, &span_bbox)
     })
   }
@@ -297,34 +296,6 @@ impl FontMetrics {
       underline_thickness: unsafe {
         (*face).underline_thickness as i32 * pixel_size / units_per_em
       } as f32,
-    }
-  }
-
-  fn extract_pixel_sizes(face: FT_Face, font_pixel_size: u32) -> FontMetrics {
-    unsafe {
-      FT_Set_Pixel_Sizes(face, font_pixel_size, font_pixel_size);
-    }
-
-    let x_scale = unsafe { (*(*face).size).metrics.x_scale };
-    let y_scale = unsafe { (*(*face).size).metrics.y_scale };
-
-    FontMetrics {
-      size:                font_pixel_size as f32,
-      height:              unsafe {
-        FT_MulFix((*face).height as FT_Long, y_scale)
-      } as f32,
-      ascender:            unsafe {
-        FT_MulFix((*face).ascender as FT_Long, y_scale)
-      } as f32,
-      descender:           unsafe {
-        FT_MulFix((*face).descender as FT_Long, y_scale)
-      } as f32,
-      max_advance_width:   unsafe {
-        FT_MulFix((*face).max_advance_width as FT_Long, x_scale)
-      } as f32,
-      max_advance_height:  unsafe { (*face).max_advance_height } as f32,
-      underline_pos:       unsafe { (*face).underline_position } as f32,
-      underline_thickness: unsafe { (*face).underline_thickness } as f32,
     }
   }
 }
@@ -825,7 +796,7 @@ impl FontAtlasBuilder {
     .and_then(|face| {
       let face_metrics =
         FontMetrics::extract(*face.handle(), font.size, self.dpi);
-        // FontMetrics::extract_pixel_sizes(*face.handle(), font.size as u32);
+
       let font_handle = self.fonts.len() as u32;
       let face_handle = self.faces.len() as u32;
 
