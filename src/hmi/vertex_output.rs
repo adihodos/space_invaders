@@ -146,25 +146,6 @@ impl<'a> DrawList<'a> {
         )
       })
       .map(|texture| self.push_command(rect, texture));
-
-    // if self.buffer.is_empty() {
-    //   self.push_command(rect, self.config.null.texture);
-    //   return;
-    // }
-
-    // let prev_cmd_texture = self
-    //   .buffer
-    //   .last_mut()
-    //   .and_then(|last_cmd| {
-    //     if last_cmd.element_count == 0 {
-    //       last_cmd.clip_rect = rect;
-    //     }
-
-    //     Some(last_cmd.texture)
-    //   })
-    //   .unwrap();
-
-    // self.push_command(rect, prev_cmd_texture);
   }
 
   fn push_image(&mut self, texture: GenericHandle) {
@@ -180,10 +161,6 @@ impl<'a> DrawList<'a> {
       .filter(|cmds_buffer| cmds_buffer.is_empty())
       .map(|_| Self::null_rectangle())
       .map(|null_rect| self.push_command(null_rect, texture));
-
-    // if self.buffer.is_empty() {
-    //   self.push_command(Self::null_rectangle(), texture);
-    // }
 
     self
       .cmds_buff
@@ -208,24 +185,6 @@ impl<'a> DrawList<'a> {
         // insert a new command since the texture changed
         self.push_command(clip_rect, texture)
       });
-
-    // self
-    //   .buffer
-    //   .last_mut()
-    //   .and_then(|prev_cmd| {
-    //     if prev_cmd.element_count == 0 {
-    //       prev_cmd.texture = texture;
-    //       None
-    //     } else if prev_cmd.texture != texture {
-    //       Some(*prev_cmd)
-    //     } else {
-    //       None
-    //     }
-    //   })
-    //   .and_then(|prev| {
-    //     self.push_command(prev.clip_rect, texture);
-    //     Some(())
-    //   });
   }
 
   fn draw_vertex(
@@ -339,38 +298,13 @@ impl<'a> DrawList<'a> {
           index_buffer.len()
         })
         .map(|element_count| {
+          // update element count of the last command
           self.cmds_buff.as_mut().map(|cmds_buffer| {
             cmds_buffer
               .last_mut()
               .map(|last_cmd| last_cmd.element_count = element_count as u32)
           })
         });
-
-      // update element count of the last command
-
-      // [
-      //   Vec2F32::new(dy, -dx) + p1,
-      //   Vec2F32::new(dy, -dx) + p2,
-      //   Vec2F32::new(-dy, dx) + p2,
-      //   Vec2F32::new(-dy, dx) + p1,
-      // ]
-      // .into_iter()
-      // .for_each(|&pos| {
-      //   self
-      //     .vertices
-      //     .push(Self::draw_vertex(&self.config, pos, uv, col));
-      // });
-
-      // [0, 1, 2, 0, 2, 3].into_iter().for_each(|&offset| {
-      //   self.elements.push((idx + offset) as DrawIndexType)
-      // });
-
-      // update element count for the current draw command
-      // let element_count = self.elements.len() as u32;
-      // self.buffer.last_mut().and_then(|cmd| {
-      //   cmd.element_count = element_count;
-      //   Some(())
-      // });
     });
   }
 
@@ -427,15 +361,6 @@ impl<'a> DrawList<'a> {
       })
       .unwrap();
 
-    // points.iter().for_each(|&vertex| {
-    //   self.vertices.push(Self::draw_vertex(
-    //     &self.config,
-    //     vertex,
-    //     self.config.null.uv,
-    //     col,
-    //   ));
-    // });
-
     self
       .index_buff
       .as_mut()
@@ -457,12 +382,6 @@ impl<'a> DrawList<'a> {
             .map(|last_cmd| last_cmd.element_count = element_count as u32)
         })
       });
-
-    // let element_count = self.elements.len() as u32;
-    // self.buffer.last_mut().and_then(|cmd| {
-    //   cmd.element_count = element_count;
-    //   Some(())
-    // });
   }
 
   fn path_line_to(&mut self, pos: Vec2F32) {
@@ -494,10 +413,6 @@ impl<'a> DrawList<'a> {
       .map(|_| Self::null_rectangle())
       .map(|clip_rect| self.add_clip(clip_rect));
 
-    // if self.buffer.is_empty() {
-    //   self.add_clip(Self::null_rectangle());
-    // }
-
     // if the last command has a non null texture, we need to push a null
     // texture
     let null_tex = self.config.null.texture;
@@ -511,18 +426,6 @@ impl<'a> DrawList<'a> {
           .map(|_| null_tex)
       })
       .map(|tex| self.push_image(tex));
-
-    // self
-    //   .buffer
-    //   .last()
-    //   .and_then(|cmd| {
-    //     if cmd.texture != self.config.null.texture {
-    //       Some(self.config.null.texture)
-    //     } else {
-    //       None
-    //     }
-    //   })
-    //   .map(|img| self.push_image(img));
 
     self.path.borrow_mut().push(pos);
   }
@@ -772,7 +675,6 @@ impl<'a> DrawList<'a> {
     let col_bottom = RGBAColorF32::from(bottom);
 
     self.push_image(self.config.null.texture);
-    // let idx = self.vertices.len() as DrawIndexType;
 
     let null_uv = self.config.null.uv;
     let idx = self
@@ -796,15 +698,6 @@ impl<'a> DrawList<'a> {
       })
       .unwrap();
 
-    // vertices.into_iter().for_each(|&(pos, col)| {
-    //   self.vertices.push(Self::draw_vertex(
-    //     &self.config,
-    //     pos,
-    //     self.config.null.uv,
-    //     col,
-    //   ));
-    // });
-
     self
       .index_buff
       .as_mut()
@@ -823,16 +716,6 @@ impl<'a> DrawList<'a> {
             .map(|last_cmd| last_cmd.element_count = element_count)
         })
       });
-
-    // [0, 1, 2, 0, 2, 3]
-    //   .into_iter()
-    //   .for_each(|&offset| self.elements.push(idx + offset as DrawIndexType));
-
-    // let element_count = self.elements.len() as u32;
-    // self.buffer.last_mut().and_then(|cmd| {
-    //   cmd.element_count = element_count;
-    //   Some(())
-    // });
   }
 
   fn stroke_triangle(
@@ -961,7 +844,6 @@ impl<'a> DrawList<'a> {
     let b = Vec2F32::new(c.x, a.y);
     let d = Vec2F32::new(a.x, c.y);
 
-    // let idx = self.vertices.len() as DrawIndexType;
     let idx = self
       .vertex_buff
       .as_mut()
@@ -997,24 +879,6 @@ impl<'a> DrawList<'a> {
             .map(|last_cmd| last_cmd.element_count = element_count)
         })
       });
-
-    // [(a, uva), (b, uvb), (c, uvc), (d, uvd)]
-    //   .into_iter()
-    //   .for_each(|&(v, uv)| {
-    //     self
-    //       .vertices
-    //       .push(Self::draw_vertex(&self.config, v, uv, col))
-    //   });
-
-    // [0, 1, 2, 0, 2, 3]
-    //   .into_iter()
-    //   .for_each(|&offset| self.elements.push(offset as DrawIndexType + idx));
-
-    // let element_count = self.elements.len() as u32;
-    // self.buffer.last_mut().and_then(|cmd| {
-    //   cmd.element_count = element_count;
-    //   Some(())
-    // });
   }
 
   fn add_image(
