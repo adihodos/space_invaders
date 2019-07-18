@@ -231,13 +231,13 @@ fn main() {
     vertex_size:          std::mem::size_of::<VertexPTC>(),
   };
 
-  let mut drawlist = DrawList::new(
+  let mut drawlist = DrawList::new_with_buffers(
     convert_cfg,
+    AntialiasingType::On,
+    AntialiasingType::Off,
     &mut buff_draw_commands,
     &mut buff_vertices,
     &mut buff_indices,
-    AntialiasingType::On,
-    AntialiasingType::Off,
   );
 
   let mut commands = Vec::<Command>::new();

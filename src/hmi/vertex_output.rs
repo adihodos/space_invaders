@@ -29,15 +29,15 @@ pub struct DrawCommand {
 
 #[derive(Debug)]
 pub struct DrawList<'a> {
-  clip_rect:  RectangleF32,
-  circle_vtx: Vec<Vec2F32>,
-  config:     ConvertConfig,
-  buffer:     &'a mut Vec<DrawCommand>,
-  vertices:   &'a mut Vec<VertexPTC>,
-  elements:   &'a mut Vec<DrawIndexType>,
-  path:       std::cell::RefCell<Vec<Vec2F32>>,
-  line_aa:    AntialiasingType,
-  shape_aa:   AntialiasingType,
+  clip_rect:   RectangleF32,
+  circle_vtx:  Vec<Vec2F32>,
+  cmds_buff:   Option<&'a mut Vec<DrawCommand>>,
+  vertex_buff: Option<&'a mut Vec<VertexPTC>>,
+  index_buff:  Option<&'a mut Vec<DrawIndexType>>,
+  config:      ConvertConfig,
+  path:        std::cell::RefCell<Vec<Vec2F32>>,
+  line_aa:     AntialiasingType,
+  shape_aa:    AntialiasingType,
 }
 
 impl<'a> DrawList<'a> {
@@ -47,9 +47,6 @@ impl<'a> DrawList<'a> {
 
   pub fn new(
     config: ConvertConfig,
-    cmds: &'a mut Vec<DrawCommand>,
-    vertices: &'a mut Vec<VertexPTC>,
-    elements: &'a mut Vec<DrawIndexType>,
     line_aa: AntialiasingType,
     shape_aa: AntialiasingType,
   ) -> Self {
@@ -65,13 +62,38 @@ impl<'a> DrawList<'a> {
         })
         .collect(),
       config,
-      buffer: cmds,
-      vertices,
-      elements,
+
+      cmds_buff: None,
+      vertex_buff: None,
+      index_buff: None,
       path: std::cell::RefCell::new(vec![]),
       line_aa,
       shape_aa,
     }
+  }
+
+  pub fn new_with_buffers(
+    config: ConvertConfig,
+    line_aa: AntialiasingType,
+    shape_aa: AntialiasingType,
+    cmds_buff: &'a mut Vec<DrawCommand>,
+    vertex_buff: &'a mut Vec<VertexPTC>,
+    index_buff: &'a mut Vec<DrawIndexType>,
+  ) -> Self {
+    let mut obj = Self::new(config, line_aa, shape_aa);
+    obj.setup_buffers(cmds_buff, vertex_buff, index_buff);
+    obj
+  }
+
+  fn setup_buffers(
+    &mut self,
+    cmds_buff: &'a mut Vec<DrawCommand>,
+    vertex_buff: &'a mut Vec<VertexPTC>,
+    index_buff: &'a mut Vec<DrawIndexType>,
+  ) {
+    self.cmds_buff.replace(cmds_buff);
+    self.vertex_buff.replace(vertex_buff);
+    self.index_buff.replace(index_buff);
   }
 
   fn path_last(&self) -> Vec2F32 {
@@ -83,63 +105,131 @@ impl<'a> DrawList<'a> {
   }
 
   fn push_command(&mut self, clip: RectangleF32, texture: GenericHandle) {
-    let cmd = DrawCommand {
-      element_count: 0,
-      clip_rect: clip,
-      texture,
-    };
+    assert!(
+      self.cmds_buff.is_some(),
+      "Can't push new command without a buffer bound!"
+    );
 
-    self.buffer.push(cmd);
+    self.cmds_buff.as_mut().map(|cmds_buffer| {
+      let cmd = DrawCommand {
+        element_count: 0,
+        clip_rect: clip,
+        texture,
+      };
+
+      cmds_buffer.push(cmd)
+    });
+
+    // self.buffer.push(cmd);
     self.clip_rect = clip;
   }
 
   fn add_clip(&mut self, rect: RectangleF32) {
-    if self.buffer.is_empty() {
-      self.push_command(rect, self.config.null.texture);
-      return;
-    }
+    assert!(
+      self.cmds_buff.is_some(),
+      "Can't push new clip rectangle without a command buffer bound!"
+    );
 
-    let prev_cmd_texture = self
-      .buffer
-      .last_mut()
-      .and_then(|last_cmd| {
-        if last_cmd.element_count == 0 {
-          last_cmd.clip_rect = rect;
-        }
-
-        Some(last_cmd.texture)
+    let null_texture = self.config.null.texture;
+    self
+      .cmds_buff
+      .as_mut()
+      .and_then(|cmds_buffer| {
+        cmds_buffer.last_mut().map_or(
+          Some(null_texture), // no previous commands in the buffer
+          |last_cmd| {
+            if last_cmd.element_count == 0 {
+              last_cmd.clip_rect = rect;
+            }
+            Some(last_cmd.texture)
+          }, // use texture from the last command
+        )
       })
-      .unwrap();
+      .map(|texture| self.push_command(rect, texture));
 
-    self.push_command(rect, prev_cmd_texture);
+    // if self.buffer.is_empty() {
+    //   self.push_command(rect, self.config.null.texture);
+    //   return;
+    // }
+
+    // let prev_cmd_texture = self
+    //   .buffer
+    //   .last_mut()
+    //   .and_then(|last_cmd| {
+    //     if last_cmd.element_count == 0 {
+    //       last_cmd.clip_rect = rect;
+    //     }
+
+    //     Some(last_cmd.texture)
+    //   })
+    //   .unwrap();
+
+    // self.push_command(rect, prev_cmd_texture);
   }
 
   fn push_image(&mut self, texture: GenericHandle) {
-    if self.buffer.is_empty() {
-      self.push_command(Self::null_rectangle(), texture);
-    }
+    assert!(
+      self.cmds_buff.is_some(),
+      "Can't push new clip rectangle without a command buffer bound!"
+    );
+
+    // if the command buffer is empty push a new command.
+    self
+      .cmds_buff
+      .as_ref()
+      .filter(|cmds_buffer| cmds_buffer.is_empty())
+      .map(|_| Self::null_rectangle())
+      .map(|null_rect| self.push_command(null_rect, texture));
+
+    // if self.buffer.is_empty() {
+    //   self.push_command(Self::null_rectangle(), texture);
+    // }
 
     self
-      .buffer
-      .last_mut()
-      .and_then(|prev_cmd| {
-        if prev_cmd.element_count == 0 {
-          prev_cmd.texture = texture;
-          None
-        } else if prev_cmd.texture != texture {
-          Some(*prev_cmd)
-        } else {
-          None
-        }
+      .cmds_buff
+      .as_mut()
+      .and_then(|cmds_buffer| {
+        assert!(!cmds_buffer.is_empty());
+        cmds_buffer.last_mut().and_then(|last_cmd| {
+          if last_cmd.element_count == 0 {
+            last_cmd.texture = texture;
+            None // no commands in buffer, just update the texture
+          } else if last_cmd.texture != texture {
+            // texture change so insert a new command using this command's clip
+            // rectangle
+            Some(last_cmd.clip_rect)
+          } else {
+            // nothing to do, same texture
+            None
+          }
+        })
       })
-      .and_then(|prev| {
-        self.push_command(prev.clip_rect, texture);
-        Some(())
+      .map(|clip_rect| {
+        // insert a new command since the texture changed
+        self.push_command(clip_rect, texture)
       });
+
+    // self
+    //   .buffer
+    //   .last_mut()
+    //   .and_then(|prev_cmd| {
+    //     if prev_cmd.element_count == 0 {
+    //       prev_cmd.texture = texture;
+    //       None
+    //     } else if prev_cmd.texture != texture {
+    //       Some(*prev_cmd)
+    //     } else {
+    //       None
+    //     }
+    //   })
+    //   .and_then(|prev| {
+    //     self.push_command(prev.clip_rect, texture);
+    //     Some(())
+    //   });
   }
 
   fn draw_vertex(
-    _config: &ConvertConfig,
+    // _config: &ConvertConfig,
     pos: Vec2F32,
     uv: Vec2F32,
     color: RGBAColorF32,
@@ -159,6 +249,26 @@ impl<'a> DrawList<'a> {
     thickness: f32,
     _aliasing: AntialiasingType,
   ) {
+    assert!(
+      self.cmds_buff.is_some(),
+      "Can't draw without a command buffer bound!"
+    );
+    assert!(
+      self.vertex_buff.is_some(),
+      "Can't draw without a vertex buffer bound!"
+    );
+    assert!(
+      self.index_buff.is_some(),
+      "Can't draw without an element buffer bound!"
+    );
+
+    if self.cmds_buff.is_none()
+      || self.vertex_buff.is_none()
+      || self.index_buff.is_none()
+    {
+      return;
+    }
+
     if points.len() < 2 {
       return;
     }
@@ -197,31 +307,70 @@ impl<'a> DrawList<'a> {
       // let dx = diff.x * (thickness * 0.5_f32);
       // let dy = diff.y * (thickness * 0.5_f32);
 
-      let idx = self.vertices.len();
+      let idx = self
+        .vertex_buff
+        .as_mut()
+        .map(|vertex_buffer| {
+          // save the count of vertices it's needed to generate the indices
+          let idx = vertex_buffer.len();
+          [
+            Vec2F32::new(dy, -dx) + p1,
+            Vec2F32::new(dy, -dx) + p2,
+            Vec2F32::new(-dy, dx) + p2,
+            Vec2F32::new(-dy, dx) + p1,
+          ]
+          .into_iter()
+          .for_each(|&pos| {
+            vertex_buffer.push(Self::draw_vertex(pos, uv, col));
+          });
 
-      [
-        Vec2F32::new(dy, -dx) + p1,
-        Vec2F32::new(dy, -dx) + p2,
-        Vec2F32::new(-dy, dx) + p2,
-        Vec2F32::new(-dy, dx) + p1,
-      ]
-      .into_iter()
-      .for_each(|&pos| {
-        self
-          .vertices
-          .push(Self::draw_vertex(&self.config, pos, uv, col));
-      });
+          idx
+        })
+        .unwrap();
 
-      [0, 1, 2, 0, 2, 3].into_iter().for_each(|&offset| {
-        self.elements.push((idx + offset) as DrawIndexType)
-      });
+      self
+        .index_buff
+        .as_mut()
+        .map(|index_buffer| {
+          [0, 1, 2, 0, 2, 3].into_iter().for_each(|&offset| {
+            index_buffer.push((idx + offset) as DrawIndexType)
+          });
+
+          index_buffer.len()
+        })
+        .map(|element_count| {
+          self.cmds_buff.as_mut().map(|cmds_buffer| {
+            cmds_buffer
+              .last_mut()
+              .map(|last_cmd| last_cmd.element_count = element_count as u32)
+          })
+        });
+
+      // update element count of the last command
+
+      // [
+      //   Vec2F32::new(dy, -dx) + p1,
+      //   Vec2F32::new(dy, -dx) + p2,
+      //   Vec2F32::new(-dy, dx) + p2,
+      //   Vec2F32::new(-dy, dx) + p1,
+      // ]
+      // .into_iter()
+      // .for_each(|&pos| {
+      //   self
+      //     .vertices
+      //     .push(Self::draw_vertex(&self.config, pos, uv, col));
+      // });
+
+      // [0, 1, 2, 0, 2, 3].into_iter().for_each(|&offset| {
+      //   self.elements.push((idx + offset) as DrawIndexType)
+      // });
 
       // update element count for the current draw command
-      let element_count = self.elements.len() as u32;
-      self.buffer.last_mut().and_then(|cmd| {
-        cmd.element_count = element_count;
-        Some(())
-      });
+      // let element_count = self.elements.len() as u32;
+      // self.buffer.last_mut().and_then(|cmd| {
+      //   cmd.element_count = element_count;
+      //   Some(())
+      // });
     });
   }
 
@@ -231,12 +380,32 @@ impl<'a> DrawList<'a> {
     color: RGBAColor,
     _aliasing: AntialiasingType,
   ) {
+    assert!(
+      self.cmds_buff.is_some(),
+      "Can't draw without a command buffer bound!"
+    );
+    assert!(
+      self.vertex_buff.is_some(),
+      "Can't draw without a vertex buffer bound!"
+    );
+    assert!(
+      self.index_buff.is_some(),
+      "Can't draw without an element buffer bound!"
+    );
+
+    if self.cmds_buff.is_none()
+      || self.vertex_buff.is_none()
+      || self.index_buff.is_none()
+    {
+      return;
+    }
+
     if points.len() < 3 {
       return;
     }
 
     let col = RGBAColorF32::from(color);
-    let idx = self.vertices.len();
+    // let idx = self.vertices.len();
 
     // let idx_count = (points.len() - 2) * 3;
     // self.buffer.last_mut().and_then(|cmd| {
@@ -244,44 +413,116 @@ impl<'a> DrawList<'a> {
     //   Some(())
     // });
 
-    points.iter().for_each(|&vertex| {
-      self.vertices.push(Self::draw_vertex(
-        &self.config,
-        vertex,
-        self.config.null.uv,
-        col,
-      ));
-    });
+    let null_uv = self.config.null.uv;
+    let idx = self
+      .vertex_buff
+      .as_mut()
+      .map(|vertex_buffer| {
+        let idx = vertex_buffer.len();
+        points.iter().for_each(|&vertex| {
+          vertex_buffer.push(Self::draw_vertex(vertex, null_uv, col));
+        });
 
-    (2 .. points.len()).into_iter().for_each(|offset| {
-      self.elements.push(idx as DrawIndexType);
-      self.elements.push((idx + offset - 1) as DrawIndexType);
-      self.elements.push((idx + offset) as DrawIndexType);
-    });
+        idx
+      })
+      .unwrap();
 
-    let element_count = self.elements.len() as u32;
-    self.buffer.last_mut().and_then(|cmd| {
-      cmd.element_count = element_count;
-      Some(())
-    });
+    // points.iter().for_each(|&vertex| {
+    //   self.vertices.push(Self::draw_vertex(
+    //     &self.config,
+    //     vertex,
+    //     self.config.null.uv,
+    //     col,
+    //   ));
+    // });
+
+    self
+      .index_buff
+      .as_mut()
+      .map(|index_buffer| {
+        let element_count = index_buffer.len();
+
+        (2 .. points.len()).into_iter().for_each(|offset| {
+          index_buffer.push(idx as DrawIndexType);
+          index_buffer.push((idx + offset - 1) as DrawIndexType);
+          index_buffer.push((idx + offset) as DrawIndexType);
+        });
+
+        element_count
+      })
+      .map(|element_count| {
+        self.cmds_buff.as_mut().map(|cmds_buffer| {
+          cmds_buffer
+            .last_mut()
+            .map(|last_cmd| last_cmd.element_count = element_count as u32)
+        })
+      });
+
+    // let element_count = self.elements.len() as u32;
+    // self.buffer.last_mut().and_then(|cmd| {
+    //   cmd.element_count = element_count;
+    //   Some(())
+    // });
   }
 
   fn path_line_to(&mut self, pos: Vec2F32) {
-    if self.buffer.is_empty() {
-      self.add_clip(Self::null_rectangle());
+    assert!(
+      self.cmds_buff.is_some(),
+      "Can't draw without a command buffer bound!"
+    );
+    assert!(
+      self.vertex_buff.is_some(),
+      "Can't draw without a vertex buffer bound!"
+    );
+    assert!(
+      self.index_buff.is_some(),
+      "Can't draw without an element buffer bound!"
+    );
+
+    if self.cmds_buff.is_none()
+      || self.vertex_buff.is_none()
+      || self.index_buff.is_none()
+    {
+      return;
     }
 
+    // if no previous commands, push the null clipping rectangle
     self
-      .buffer
-      .last()
-      .and_then(|cmd| {
-        if cmd.texture != self.config.null.texture {
-          Some(self.config.null.texture)
-        } else {
-          None
-        }
+      .cmds_buff
+      .as_mut()
+      .filter(|cmds_buffer| cmds_buffer.is_empty())
+      .map(|_| Self::null_rectangle())
+      .map(|clip_rect| self.add_clip(clip_rect));
+
+    // if self.buffer.is_empty() {
+    //   self.add_clip(Self::null_rectangle());
+    // }
+
+    // if the last command has a non null texture, we need to push a null
+    // texture
+    let null_tex = self.config.null.texture;
+    self
+      .cmds_buff
+      .as_mut()
+      .and_then(|cmds_buffer| {
+        cmds_buffer
+          .last()
+          .filter(|last_cmd| last_cmd.texture != null_tex)
+          .map(|_| null_tex)
       })
-      .map(|img| self.push_image(img));
+      .map(|tex| self.push_image(tex));
+
+    // self
+    //   .buffer
+    //   .last()
+    //   .and_then(|cmd| {
+    //     if cmd.texture != self.config.null.texture {
+    //       Some(self.config.null.texture)
+    //     } else {
+    //       None
+    //     }
+    //   })
+    //   .map(|img| self.push_image(img));
 
     self.path.borrow_mut().push(pos);
   }
@@ -505,39 +746,93 @@ impl<'a> DrawList<'a> {
     right: RGBAColor,
     bottom: RGBAColor,
   ) {
+    assert!(
+      self.cmds_buff.is_some(),
+      "Can't draw without a command buffer bound!"
+    );
+    assert!(
+      self.vertex_buff.is_some(),
+      "Can't draw without a vertex buffer bound!"
+    );
+    assert!(
+      self.index_buff.is_some(),
+      "Can't draw without an element buffer bound!"
+    );
+
+    if self.cmds_buff.is_none()
+      || self.vertex_buff.is_none()
+      || self.index_buff.is_none()
+    {
+      return;
+    }
+
     let col_left = RGBAColorF32::from(left);
     let col_right = RGBAColorF32::from(right);
     let col_top = RGBAColorF32::from(top);
     let col_bottom = RGBAColorF32::from(bottom);
 
     self.push_image(self.config.null.texture);
-    let idx = self.vertices.len() as DrawIndexType;
+    // let idx = self.vertices.len() as DrawIndexType;
 
-    let vertices = [
-      (Vec2F32::new(rect.x, rect.y), col_left),
-      (Vec2F32::new(rect.x + rect.w, rect.y), col_top),
-      (Vec2F32::new(rect.x + rect.w, rect.y + rect.h), col_right),
-      (Vec2F32::new(rect.x, rect.y + rect.h), col_bottom),
-    ];
+    let null_uv = self.config.null.uv;
+    let idx = self
+      .vertex_buff
+      .as_mut()
+      .map(|vertex_buffer| {
+        let idx = vertex_buffer.len() as u32;
 
-    vertices.into_iter().for_each(|&(pos, col)| {
-      self.vertices.push(Self::draw_vertex(
-        &self.config,
-        pos,
-        self.config.null.uv,
-        col,
-      ));
-    });
+        let vertices = [
+          (Vec2F32::new(rect.x, rect.y), col_left),
+          (Vec2F32::new(rect.x + rect.w, rect.y), col_top),
+          (Vec2F32::new(rect.x + rect.w, rect.y + rect.h), col_right),
+          (Vec2F32::new(rect.x, rect.y + rect.h), col_bottom),
+        ];
 
-    [0, 1, 2, 0, 2, 3]
-      .into_iter()
-      .for_each(|&offset| self.elements.push(idx + offset as DrawIndexType));
+        vertices.into_iter().for_each(|&(pos, col)| {
+          vertex_buffer.push(Self::draw_vertex(pos, null_uv, col));
+        });
 
-    let element_count = self.elements.len() as u32;
-    self.buffer.last_mut().and_then(|cmd| {
-      cmd.element_count = element_count;
-      Some(())
-    });
+        idx
+      })
+      .unwrap();
+
+    // vertices.into_iter().for_each(|&(pos, col)| {
+    //   self.vertices.push(Self::draw_vertex(
+    //     &self.config,
+    //     pos,
+    //     self.config.null.uv,
+    //     col,
+    //   ));
+    // });
+
+    self
+      .index_buff
+      .as_mut()
+      .map(|index_buffer| {
+        let element_count = index_buffer.len() as u32;
+        [0, 1, 2, 0, 2, 3].into_iter().for_each(|&offset| {
+          index_buffer.push(idx as DrawIndexType + offset as DrawIndexType)
+        });
+
+        element_count
+      })
+      .map(|element_count| {
+        self.cmds_buff.as_mut().map(|cmds_buffer| {
+          cmds_buffer
+            .last_mut()
+            .map(|last_cmd| last_cmd.element_count = element_count)
+        })
+      });
+
+    // [0, 1, 2, 0, 2, 3]
+    //   .into_iter()
+    //   .for_each(|&offset| self.elements.push(idx + offset as DrawIndexType));
+
+    // let element_count = self.elements.len() as u32;
+    // self.buffer.last_mut().and_then(|cmd| {
+    //   cmd.element_count = element_count;
+    //   Some(())
+    // });
   }
 
   fn stroke_triangle(
@@ -639,6 +934,26 @@ impl<'a> DrawList<'a> {
     uvc: Vec2F32,
     color: RGBAColor,
   ) {
+    assert!(
+      self.cmds_buff.is_some(),
+      "Can't draw without a command buffer bound!"
+    );
+    assert!(
+      self.vertex_buff.is_some(),
+      "Can't draw without a vertex buffer bound!"
+    );
+    assert!(
+      self.index_buff.is_some(),
+      "Can't draw without an element buffer bound!"
+    );
+
+    if self.cmds_buff.is_none()
+      || self.vertex_buff.is_none()
+      || self.index_buff.is_none()
+    {
+      return;
+    }
+
     let col = RGBAColorF32::from(color);
     let uvb = Vec2F32::new(uvc.x, uva.y);
     let uvd = Vec2F32::new(uva.x, uvc.y);
@@ -646,25 +961,60 @@ impl<'a> DrawList<'a> {
     let b = Vec2F32::new(c.x, a.y);
     let d = Vec2F32::new(a.x, c.y);
 
-    let idx = self.vertices.len() as DrawIndexType;
+    // let idx = self.vertices.len() as DrawIndexType;
+    let idx = self
+      .vertex_buff
+      .as_mut()
+      .map(|vertex_buffer| {
+        let idx = vertex_buffer.len() as u32;
 
-    [(a, uva), (b, uvb), (c, uvc), (d, uvd)]
-      .into_iter()
-      .for_each(|&(v, uv)| {
-        self
-          .vertices
-          .push(Self::draw_vertex(&self.config, v, uv, col))
+        [(a, uva), (b, uvb), (c, uvc), (d, uvd)]
+          .into_iter()
+          .for_each(|&(v, uv)| {
+            vertex_buffer.push(Self::draw_vertex(v, uv, col));
+          });
+
+        idx
+      })
+      .unwrap();
+
+    self
+      .index_buff
+      .as_mut()
+      .map(|index_buffer| {
+        let element_count = index_buffer.len() as u32;
+
+        [0, 1, 2, 0, 2, 3].into_iter().for_each(|&offset| {
+          index_buffer.push(offset as DrawIndexType + idx as u16)
+        });
+
+        element_count
+      })
+      .map(|element_count| {
+        self.cmds_buff.as_mut().map(|cmds_buffer| {
+          cmds_buffer
+            .last_mut()
+            .map(|last_cmd| last_cmd.element_count = element_count)
+        })
       });
 
-    [0, 1, 2, 0, 2, 3]
-      .into_iter()
-      .for_each(|&offset| self.elements.push(offset as DrawIndexType + idx));
+    // [(a, uva), (b, uvb), (c, uvc), (d, uvd)]
+    //   .into_iter()
+    //   .for_each(|&(v, uv)| {
+    //     self
+    //       .vertices
+    //       .push(Self::draw_vertex(&self.config, v, uv, col))
+    //   });
 
-    let element_count = self.elements.len() as u32;
-    self.buffer.last_mut().and_then(|cmd| {
-      cmd.element_count = element_count;
-      Some(())
-    });
+    // [0, 1, 2, 0, 2, 3]
+    //   .into_iter()
+    //   .for_each(|&offset| self.elements.push(offset as DrawIndexType + idx));
+
+    // let element_count = self.elements.len() as u32;
+    // self.buffer.last_mut().and_then(|cmd| {
+    //   cmd.element_count = element_count;
+    //   Some(())
+    // });
   }
 
   fn add_image(
