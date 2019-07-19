@@ -1,6 +1,7 @@
 use crate::math::{rectangle::RectangleF32, vec2::Vec2F32};
+use num_derive::{FromPrimitive, ToPrimitive};
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, FromPrimitive, ToPrimitive)]
 pub enum KeyId {
   KeyNone,
   KeyShift,
@@ -37,7 +38,7 @@ pub enum KeyId {
   KeyMax,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, FromPrimitive, ToPrimitive)]
 pub enum MouseButtonId {
   ButtonLeft,
   ButtonMiddle,
@@ -250,7 +251,57 @@ impl Input {
   }
 
   pub fn any_mouse_click_in_rect(&self, b: &RectangleF32) -> bool {
-    (0 .. MouseButtonId::ButtonMax as i32)
-      .any(|id| self.is_mouse_click_in_rect(id as MouseButtonId, b))
+    num::ToPrimitive::to_i32(&MouseButtonId::ButtonMax).map_or(
+      false,
+      |last_btn| {
+        (0 .. last_btn).any(|btn_id| {
+          num::FromPrimitive::from_i32(btn_id)
+            .map_or(false, |btn: MouseButtonId| {
+              self.is_mouse_click_in_rect(btn, b)
+            })
+        })
+      },
+    )
+  }
+
+  pub fn is_mouse_hovering_rect(&self, r: &RectangleF32) -> bool {
+    r.contains_point(self.mouse.pos.x, self.mouse.pos.y)
+  }
+
+  pub fn is_mouse_prev_hovering_rect(&self, r: &RectangleF32) -> bool {
+    r.contains_point(self.mouse.prev.x, self.mouse.prev.y)
+  }
+
+  pub fn mouse_clicked(&self, id: MouseButtonId, r: &RectangleF32) -> bool {
+    self.is_mouse_hovering_rect(r) && self.is_mouse_click_in_rect(id, r)
+  }
+
+  pub fn is_mouse_down(&self, id: MouseButtonId) -> bool {
+    self.mouse.buttons[id as usize].down
+  }
+
+  pub fn is_mouse_pressed(&self, id: MouseButtonId) -> bool {
+    let btn = &self.mouse.buttons[id as usize];
+    btn.down && btn.clicked != 0
+  }
+
+  pub fn is_mouse_released(&self, id: MouseButtonId) -> bool {
+    let btn = &self.mouse.buttons[id as usize];
+    btn.down && btn.clicked != 0
+  }
+
+  pub fn is_key_pressed(&self, key: KeyId) -> bool {
+    let k = &self.keyboard.keys[key as usize];
+    (k.down && k.clicked != 0) || (!k.down && k.clicked >= 2)
+  }
+
+  pub fn is_key_released(&self, key: KeyId) -> bool {
+    let k = &self.keyboard.keys[key as usize];
+    (!k.down && k.clicked != 0) || (k.down && k.clicked >= 2)
+  }
+
+  pub fn is_key_down(&self, key: KeyId) -> bool {
+    let k = &self.keyboard.keys[key as usize];
+    k.down
   }
 }
