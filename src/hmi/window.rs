@@ -5,7 +5,6 @@ use crate::{
   },
   math::{rectangle::RectangleF32, vec2::Vec2U32},
 };
-use enumflags2_derive::EnumFlags;
 
 pub struct WindowFlags {}
 

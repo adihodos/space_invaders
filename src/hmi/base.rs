@@ -36,6 +36,12 @@ pub struct ConvertConfig {
   pub vertex_size:          usize,
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum ButtonBehaviour {
+  ButtonDefault,
+  ButtonRepeater,
+}
+
 #[derive(Copy, Debug, Clone)]
 pub struct UserFont {}
 

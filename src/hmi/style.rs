@@ -408,6 +408,51 @@ pub struct StyleWindow {
 }
 
 #[derive(Copy, Clone, Debug)]
+pub enum StyleColors {
+  ColorText,
+  ColorWindow,
+  ColorHeader,
+  ColorBorder,
+  ColorButton,
+  ColorButtonHover,
+  ColorButtonActive,
+  ColorToggle,
+  ColorToggleHover,
+  ColorToggleCursor,
+  ColorSelect,
+  ColorSelectActive,
+  ColorSlider,
+  ColorSliderCursor,
+  ColorSliderCursorHover,
+  ColorSliderCursorActive,
+  ColorProperty,
+  ColorEdit,
+  ColorEditCursor,
+  ColorCombo,
+  ColorChart,
+  ColorChartColor,
+  ColorChartColorHighlight,
+  ColorScrollbar,
+  ColorScrollbarCursor,
+  ColorScrollbarCursorHover,
+  ColorScrollbarCursorActive,
+  ColorTabHeader,
+  ColorCount,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum StyleCursor {
+  CursorArrow,
+  CursorText,
+  CursorMove,
+  CursorResizeVertical,
+  CursorResizeHorizontal,
+  CursorResizeTopLeftDownRight,
+  CursorResizeTopRightDownLeft,
+  CursorCount,
+}
+
+#[derive(Copy, Clone, Debug)]
 pub struct Style {
   pub font:              Font,
   pub cursors:           [Cursor; Self::CURSOR_COUNT as usize],
@@ -433,6 +478,102 @@ pub struct Style {
   pub window:            StyleWindow,
 }
 
+
+
 impl Style {
   pub const CURSOR_COUNT: i32 = 7;
+
+  // fn default_color_style() -> &[RGBAColor] {
+
+  // }
+  // DEFAULT_COLOR_STYLE = [RGBAColor::new(0, 0, 0); 1];  
+
+  pub fn from_table(table: &[RGBAColor])  {
+    // default button
+     let text = StyleText {
+       color: table[StyleColors::ColorText as usize],
+       padding: Vec2F32::same(0f32)
+     };
+
+// default text
+     let button = StyleButton {
+       normal: StyleItem::Color(table[StyleColors::ColorButton as usize] ),
+       hover: StyleItem::Color(table[StyleColors::ColorButtonHover as usize]),
+       active: StyleItem::Color(table[StyleColors::ColorButtonActive as usize] ),
+       border_color: table[StyleColors::ColorBorder as usize],
+       text_background: table[StyleColors::ColorButton as usize],
+       text_normal: table[StyleColors::ColorText as usize],
+       text_hover: table[StyleColors::ColorText as usize],
+       text_active: table[StyleColors::ColorText as usize],
+       padding: Vec2F32::same(2f32),
+       image_padding: Vec2F32::same(0f32),
+       touch_padding: Vec2F32::same(0f32),
+      //  text_alignment: Text
+
+     };
+  }
+}
+
+// impl std::default::Default for Style {
+//   fn default() -> Style {}
+// }
+
+struct StackSize {}
+
+impl StackSize {
+  pub const BUTTON_BEHAVIOR_STACK_SIZE: usize = 8;
+  pub const COLOR_STACK_SIZE: usize = 32;
+  pub const FLAGS_STACK_SIZE: usize = 32;
+  pub const FLOAT_STACK_SIZE: usize = 32;
+  pub const FONT_STACK_SIZE: usize = 8;
+  pub const STYLE_ITEM_STACK_SIZE: usize = 16;
+  pub const VECTOR_STACK_SIZE: usize = 16;
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct ConfigStackElement<T>
+where
+  T: Copy + Clone + std::fmt::Debug,
+{
+  pub address:   *mut T,
+  pub old_value: T,
+}
+
+macro_rules! define_config_stack {
+  ($name:ident, $tp:ty, $size:expr) => {
+    #[derive(Copy, Clone, Debug)]
+    pub struct $name {
+      pub head:     i32,
+      pub elements: [ConfigStackElement<$tp>; $size],
+    }
+
+    impl $name {}
+  };
+}
+
+define_config_stack!(
+  ConfigStackStyleItem,
+  StyleItem,
+  StackSize::STYLE_ITEM_STACK_SIZE
+);
+define_config_stack!(ConfigStackFloat, f32, StackSize::FLOAT_STACK_SIZE);
+define_config_stack!(ConfigStackVec2, Vec2F32, StackSize::VECTOR_STACK_SIZE);
+define_config_stack!(ConfigStackFlags, u32, StackSize::FLAGS_STACK_SIZE);
+define_config_stack!(ConfigStackColor, RGBAColor, StackSize::COLOR_STACK_SIZE);
+define_config_stack!(ConfigStackFont, Font, StackSize::FONT_STACK_SIZE);
+define_config_stack!(
+  ConfigStackButtonBehaviour,
+  crate::hmi::base::ButtonBehaviour,
+  StackSize::BUTTON_BEHAVIOR_STACK_SIZE
+);
+
+#[derive(Copy, Clone, Debug)]
+pub struct ConfigurationStacks {
+  pub style_items:       ConfigStackStyleItem,
+  pub floats:            ConfigStackFloat,
+  pub vectors:           ConfigStackVec2,
+  pub flags:             ConfigStackFlags,
+  pub colors:            ConfigStackColor,
+  pub fonts:             ConfigStackFont,
+  pub button_behaviours: ConfigStackButtonBehaviour,
 }

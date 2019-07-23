@@ -10,3 +10,4 @@ pub mod style;
 pub mod cursor;
 pub mod panel;
 pub mod window;
+pub mod text;
