@@ -8,10 +8,10 @@ use crate::hmi::{
   window::Window,
 };
 
-struct Consts {}
+pub struct Consts {}
 
 impl Consts {
-  const VALUE_PAGE_CAPACITY: usize = 48;
+  pub const VALUE_PAGE_CAPACITY: usize = 48;
 }
 
 #[derive(Copy, Clone)]

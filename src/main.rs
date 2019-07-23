@@ -117,8 +117,7 @@ fn test_font_atlas() {
 
 fn main() {
   // test_font_atlas();
-  println!("Page cap {}", crate::hmi::ui_context::Consts::page_cap());
-  
+
   let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
   glfw.window_hint(WindowHint::OpenGlForwardCompat(true));
   glfw.window_hint(WindowHint::OpenGlProfile(glfw::OpenGlProfileHint::Core));

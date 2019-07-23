@@ -1,25 +1,30 @@
 use crate::{
-  hmi::{cursor::Cursor, image::Image, text_engine::Font},
+  hmi::{
+    cursor::Cursor,
+    image::Image,
+    text::{TextAlign, TextAlignment},
+    text_engine::Font,
+  },
   math::{colors::RGBAColor, vec2::Vec2F32},
 };
 use num_derive::{FromPrimitive, ToPrimitive};
 
 #[derive(Copy, Clone, Debug, FromPrimitive, ToPrimitive)]
 pub enum SymbolType {
-  SymbolNone,
-  SymbolX,
-  SymbolUnderscore,
-  SymbolCircleSolid,
-  SymbolCircleOutline,
-  SymbolRectSolid,
-  SymbolRectOutline,
-  SymbolTriangleUp,
-  SymbolTriangleDown,
-  SymbolTriangleLeft,
-  SymbolTriangleRight,
-  SymbolPlus,
-  SymbolMinus,
-  SymbolMax,
+  X,
+  None_,
+  Underscore,
+  CircleSolid,
+  CircleOutline,
+  RectSolid,
+  RectOutline,
+  TriangleUp,
+  TriangleDown,
+  TriangleLeft,
+  TriangleRight,
+  Plus,
+  Minus,
+  Max,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -29,8 +34,8 @@ pub enum StyleItem {
 }
 
 impl StyleItem {
-  fn hide(&mut self) {
-    *self = StyleItem::Color(RGBAColor::new_with_alpha(0, 0, 0, 0))
+  fn hide() -> StyleItem {
+    StyleItem::Color(RGBAColor::new_with_alpha(0, 0, 0, 0))
   }
 }
 
@@ -478,39 +483,648 @@ pub struct Style {
   pub window:            StyleWindow,
 }
 
-
-
 impl Style {
   pub const CURSOR_COUNT: i32 = 7;
 
   // fn default_color_style() -> &[RGBAColor] {
 
   // }
-  // DEFAULT_COLOR_STYLE = [RGBAColor::new(0, 0, 0); 1];  
+  // DEFAULT_COLOR_STYLE = [RGBAColor::new(0, 0, 0); 1];
 
-  pub fn from_table(table: &[RGBAColor])  {
+  pub fn from_table(table: &[RGBAColor]) {
     // default button
-     let text = StyleText {
-       color: table[StyleColors::ColorText as usize],
-       padding: Vec2F32::same(0f32)
-     };
+    let text = StyleText {
+      color:   table[StyleColors::ColorText as usize],
+      padding: Vec2F32::same(0f32),
+    };
 
-// default text
-     let button = StyleButton {
-       normal: StyleItem::Color(table[StyleColors::ColorButton as usize] ),
-       hover: StyleItem::Color(table[StyleColors::ColorButtonHover as usize]),
-       active: StyleItem::Color(table[StyleColors::ColorButtonActive as usize] ),
-       border_color: table[StyleColors::ColorBorder as usize],
-       text_background: table[StyleColors::ColorButton as usize],
-       text_normal: table[StyleColors::ColorText as usize],
-       text_hover: table[StyleColors::ColorText as usize],
-       text_active: table[StyleColors::ColorText as usize],
-       padding: Vec2F32::same(2f32),
-       image_padding: Vec2F32::same(0f32),
-       touch_padding: Vec2F32::same(0f32),
-      //  text_alignment: Text
+    // default text
+    let button = StyleButton {
+      normal:          StyleItem::Color(
+        table[StyleColors::ColorButton as usize],
+      ),
+      hover:           StyleItem::Color(
+        table[StyleColors::ColorButtonHover as usize],
+      ),
+      active:          StyleItem::Color(
+        table[StyleColors::ColorButtonActive as usize],
+      ),
+      border_color:    table[StyleColors::ColorBorder as usize],
+      text_background: table[StyleColors::ColorButton as usize],
+      text_normal:     table[StyleColors::ColorText as usize],
+      text_hover:      table[StyleColors::ColorText as usize],
+      text_active:     table[StyleColors::ColorText as usize],
+      padding:         Vec2F32::same(2f32),
+      image_padding:   Vec2F32::same(0f32),
+      touch_padding:   Vec2F32::same(0f32),
+      text_alignment:  TextAlignment::Centered,
+      border:          1f32,
+      rounding:        4f32,
+    };
 
-     };
+    let contextual_button = StyleButton {
+      normal:          StyleItem::Color(
+        table[StyleColors::ColorWindow as usize],
+      ),
+      hover:           StyleItem::Color(
+        table[StyleColors::ColorButtonHover as usize],
+      ),
+      active:          StyleItem::Color(
+        table[StyleColors::ColorButtonActive as usize],
+      ),
+      border_color:    table[StyleColors::ColorWindow as usize],
+      text_background: table[StyleColors::ColorWindow as usize],
+      text_normal:     table[StyleColors::ColorText as usize],
+      text_hover:      table[StyleColors::ColorText as usize],
+      text_active:     table[StyleColors::ColorText as usize],
+      padding:         Vec2F32::same(2f32),
+      image_padding:   Vec2F32::same(0f32),
+      touch_padding:   Vec2F32::same(0f32),
+      text_alignment:  TextAlignment::Centered,
+      border:          0f32,
+      rounding:        0f32,
+    };
+
+    let menu_button = StyleButton {
+      normal:          StyleItem::Color(
+        table[StyleColors::ColorWindow as usize],
+      ),
+      hover:           StyleItem::Color(
+        table[StyleColors::ColorWindow as usize],
+      ),
+      active:          StyleItem::Color(
+        table[StyleColors::ColorWindow as usize],
+      ),
+      border_color:    table[StyleColors::ColorWindow as usize],
+      text_background: table[StyleColors::ColorWindow as usize],
+      text_normal:     table[StyleColors::ColorText as usize],
+      text_hover:      table[StyleColors::ColorText as usize],
+      text_active:     table[StyleColors::ColorText as usize],
+      padding:         Vec2F32::same(2f32),
+      image_padding:   Vec2F32::same(0f32),
+      touch_padding:   Vec2F32::same(0f32),
+      text_alignment:  TextAlignment::Centered,
+      border:          0f32,
+      rounding:        1f32,
+    };
+
+    // checkbox toggle
+    let toggle = StyleToggle {
+      normal:          StyleItem::Color(
+        table[StyleColors::ColorToggle as usize],
+      ),
+      hover:           StyleItem::Color(
+        table[StyleColors::ColorToggleHover as usize],
+      ),
+      active:          StyleItem::Color(
+        table[StyleColors::ColorToggleHover as usize],
+      ),
+      cursor_normal:   StyleItem::Color(
+        table[StyleColors::ColorToggleCursor as usize],
+      ),
+      cursor_hover:    StyleItem::Color(
+        table[StyleColors::ColorToggleCursor as usize],
+      ),
+      text_background: table[StyleColors::ColorWindow as usize],
+      text_normal:     table[StyleColors::ColorText as usize],
+      text_hover:      table[StyleColors::ColorText as usize],
+      text_alignment:  TextAlignment::Centered,
+      text_active:     table[StyleColors::ColorText as usize],
+      padding:         Vec2F32::same(2f32),
+      touch_padding:   Vec2F32::same(0f32),
+      border_color:    RGBAColor::new(0, 0, 0),
+      border:          0f32,
+      spacing:         4f32,
+    };
+
+    let option = StyleToggle {
+      normal:          StyleItem::Color(
+        table[StyleColors::ColorToggle as usize],
+      ),
+      hover:           StyleItem::Color(
+        table[StyleColors::ColorToggleHover as usize],
+      ),
+      active:          StyleItem::Color(
+        table[StyleColors::ColorToggleHover as usize],
+      ),
+      cursor_normal:   StyleItem::Color(
+        table[StyleColors::ColorToggleCursor as usize],
+      ),
+      cursor_hover:    StyleItem::Color(
+        table[StyleColors::ColorToggleCursor as usize],
+      ),
+      text_background: table[StyleColors::ColorWindow as usize],
+      text_normal:     table[StyleColors::ColorText as usize],
+      text_hover:      table[StyleColors::ColorText as usize],
+      text_alignment:  TextAlignment::Centered,
+      text_active:     table[StyleColors::ColorText as usize],
+      padding:         Vec2F32::same(3f32),
+      touch_padding:   Vec2F32::same(0f32),
+      border_color:    RGBAColor::new(0, 0, 0),
+      border:          0f32,
+      spacing:         4f32,
+    };
+
+    let select = StyleSelectable {
+      normal:              StyleItem::Color(
+        table[StyleColors::ColorSelect as usize],
+      ),
+      hover:               StyleItem::Color(
+        table[StyleColors::ColorSelect as usize],
+      ),
+      pressed:             StyleItem::Color(
+        table[StyleColors::ColorSelect as usize],
+      ),
+      normal_active:       StyleItem::Color(
+        table[StyleColors::ColorSelectActive as usize],
+      ),
+      hover_active:        StyleItem::Color(
+        table[StyleColors::ColorSelectActive as usize],
+      ),
+      pressed_active:      StyleItem::Color(
+        table[StyleColors::ColorSelectActive as usize],
+      ),
+      text_alignment:      TextAlignment::Centered,
+      text_background:     RGBAColor::new(0, 0, 0),
+      text_normal:         table[StyleColors::ColorText as usize],
+      text_hover:          table[StyleColors::ColorText as usize],
+      text_pressed:        table[StyleColors::ColorText as usize],
+      text_normal_active:  table[StyleColors::ColorText as usize],
+      text_hover_active:   table[StyleColors::ColorText as usize],
+      text_pressed_active: table[StyleColors::ColorText as usize],
+      padding:             Vec2F32::same(2f32),
+      image_padding:       Vec2F32::same(2f32),
+      touch_padding:       Vec2F32::same(0f32),
+      rounding:            0f32,
+    };
+
+    let slider_btn = StyleButton {
+      normal:          StyleItem::Color(RGBAColor::new(40, 40, 40)),
+      hover:           StyleItem::Color(RGBAColor::new(42, 42, 42)),
+      active:          StyleItem::Color(RGBAColor::new(44, 44, 44)),
+      border_color:    RGBAColor::new(65, 65, 65),
+      text_background: RGBAColor::new(40, 40, 40),
+      text_normal:     RGBAColor::new(175, 175, 175),
+      text_hover:      RGBAColor::new(175, 175, 175),
+      text_active:     RGBAColor::new(175, 175, 175),
+      padding:         Vec2F32::same(8f32),
+      image_padding:   Vec2F32::same(0f32),
+      touch_padding:   Vec2F32::same(0f32),
+      text_alignment:  TextAlignment::Centered,
+      border:          1f32,
+      rounding:        0f32,
+    };
+
+    let slider = StyleSlider {
+      normal:        StyleItem::hide(),
+      hover:         StyleItem::hide(),
+      active:        StyleItem::hide(),
+      bar_normal:    table[StyleColors::ColorSlider as usize],
+      bar_hover:     table[StyleColors::ColorSlider as usize],
+      bar_active:    table[StyleColors::ColorSlider as usize],
+      bar_filled:    table[StyleColors::ColorSliderCursor as usize],
+      cursor_normal: StyleItem::Color(
+        table[StyleColors::ColorSliderCursor as usize],
+      ),
+      cursor_hover:  StyleItem::Color(
+        table[StyleColors::ColorSliderCursorHover as usize],
+      ),
+      cursor_active: StyleItem::Color(
+        table[StyleColors::ColorSliderCursorActive as usize],
+      ),
+      inc_symbol:    SymbolType::TriangleRight,
+      dec_symbol:    SymbolType::TriangleLeft,
+      inc_button:    slider_btn,
+      dec_button:    slider_btn,
+      border:        0f32,
+      border_color:  RGBAColor::new(0, 0, 0),
+      cursor_size:   Vec2F32::same(16f32),
+      padding:       Vec2F32::same(2f32),
+      spacing:       Vec2F32::same(2f32),
+      show_buttons:  false,
+      bar_height:    8f32,
+      rounding:      0f32,
+    };
+
+    let progress = StyleProgress {
+      normal:              StyleItem::Color(
+        table[StyleColors::ColorSlider as usize],
+      ),
+      hover:               StyleItem::Color(
+        table[StyleColors::ColorSlider as usize],
+      ),
+      active:              StyleItem::Color(
+        table[StyleColors::ColorSlider as usize],
+      ),
+      cursor_normal:       StyleItem::Color(
+        table[StyleColors::ColorSliderCursor as usize],
+      ),
+      cursor_hover:        StyleItem::Color(
+        table[StyleColors::ColorSliderCursorHover as usize],
+      ),
+      cursor_active:       StyleItem::Color(
+        table[StyleColors::ColorSliderCursorActive as usize],
+      ),
+      border_color:        RGBAColor::new(0, 0, 0),
+      cursor_border_color: RGBAColor::new(0, 0, 0),
+      padding:             Vec2F32::same(4f32),
+      rounding:            0f32,
+      border:              0f32,
+      cursor_rounding:     0f32,
+      cursor_border:       0f32,
+    };
+
+    let scroll_btn = StyleButton {
+      normal:          StyleItem::Color(RGBAColor::new(40, 40, 40)),
+      hover:           StyleItem::Color(RGBAColor::new(42, 42, 42)),
+      active:          StyleItem::Color(RGBAColor::new(44, 44, 44)),
+      border_color:    RGBAColor::new(65, 65, 65),
+      text_background: RGBAColor::new(40, 40, 40),
+      text_normal:     RGBAColor::new(175, 175, 175),
+      text_hover:      RGBAColor::new(175, 175, 175),
+      text_active:     RGBAColor::new(175, 175, 175),
+      padding:         Vec2F32::same(4f32),
+      image_padding:   Vec2F32::same(0f32),
+      touch_padding:   Vec2F32::same(0f32),
+      text_alignment:  TextAlignment::Centered,
+      border:          1f32,
+      rounding:        0f32,
+    };
+
+    let scroll = StyleScrollbar {
+      normal:              StyleItem::Color(
+        table[StyleColors::ColorScrollbar as usize],
+      ),
+      hover:               StyleItem::Color(
+        table[StyleColors::ColorScrollbar as usize],
+      ),
+      active:              StyleItem::Color(
+        table[StyleColors::ColorScrollbar as usize],
+      ),
+      cursor_normal:       StyleItem::Color(
+        table[StyleColors::ColorScrollbarCursor as usize],
+      ),
+      cursor_hover:        StyleItem::Color(
+        table[StyleColors::ColorScrollbarCursorHover as usize],
+      ),
+      cursor_active:       StyleItem::Color(
+        table[StyleColors::ColorScrollbarCursorActive as usize],
+      ),
+      dec_symbol:          SymbolType::CircleSolid,
+      inc_symbol:          SymbolType::CircleSolid,
+      border_color:        table[StyleColors::ColorScrollbar as usize],
+      cursor_border_color: table[StyleColors::ColorScrollbar as usize],
+      padding:             Vec2F32::same(0f32),
+      show_buttons:        false,
+      border:              0f32,
+      rounding:            0f32,
+      border_cursor:       0f32,
+      rounding_cursor:     0f32,
+      inc_button:          scroll_btn,
+      dec_button:          scroll_btn,
+    };
+
+    let edit = StyleEdit {
+      normal:               StyleItem::Color(
+        table[StyleColors::ColorEdit as usize],
+      ),
+      hover:                StyleItem::Color(
+        table[StyleColors::ColorEdit as usize],
+      ),
+      active:               StyleItem::Color(
+        table[StyleColors::ColorEdit as usize],
+      ),
+      cursor_normal:        table[StyleColors::ColorText as usize],
+      cursor_hover:         table[StyleColors::ColorText as usize],
+      cursor_text_normal:   table[StyleColors::ColorEdit as usize],
+      cursor_text_hover:    table[StyleColors::ColorEdit as usize],
+      border_color:         table[StyleColors::ColorBorder as usize],
+      text_normal:          table[StyleColors::ColorText as usize],
+      text_hover:           table[StyleColors::ColorText as usize],
+      text_active:          table[StyleColors::ColorText as usize],
+      selected_normal:      table[StyleColors::ColorText as usize],
+      selected_hover:       table[StyleColors::ColorText as usize],
+      selected_text_normal: table[StyleColors::ColorEdit as usize],
+      selected_text_hover:  table[StyleColors::ColorEdit as usize],
+      scrollbar_size:       Vec2F32::same(10f32),
+      scrollbar:            scroll,
+      padding:              Vec2F32::same(4f32),
+      row_padding:          2f32,
+      cursor_size:          4f32,
+      border:               1f32,
+      rounding:             0f32,
+    };
+
+    let property_button = StyleButton {
+      normal:          StyleItem::Color(
+        table[StyleColors::ColorProperty as usize],
+      ),
+      hover:           StyleItem::Color(
+        table[StyleColors::ColorProperty as usize],
+      ),
+      active:          StyleItem::Color(
+        table[StyleColors::ColorProperty as usize],
+      ),
+      border_color:    RGBAColor::new(0, 0, 0),
+      text_background: table[StyleColors::ColorProperty as usize],
+      text_normal:     table[StyleColors::ColorText as usize],
+      text_hover:      table[StyleColors::ColorText as usize],
+      text_active:     table[StyleColors::ColorText as usize],
+      padding:         Vec2F32::same(0f32),
+      image_padding:   Vec2F32::same(0f32),
+      touch_padding:   Vec2F32::same(0f32),
+      text_alignment:  TextAlignment::Centered,
+      border:          0f32,
+      rounding:        0f32,
+    };
+
+    let property_edit = StyleEdit {
+      normal:               StyleItem::Color(
+        table[StyleColors::ColorProperty as usize],
+      ),
+      hover:                StyleItem::Color(
+        table[StyleColors::ColorProperty as usize],
+      ),
+      active:               StyleItem::Color(
+        table[StyleColors::ColorProperty as usize],
+      ),
+      border_color:         RGBAColor::new(0, 0, 0),
+      cursor_normal:        table[StyleColors::ColorText as usize],
+      cursor_hover:         table[StyleColors::ColorText as usize],
+      cursor_text_normal:   table[StyleColors::ColorEdit as usize],
+      cursor_text_hover:    table[StyleColors::ColorEdit as usize],
+      text_normal:          table[StyleColors::ColorText as usize],
+      text_hover:           table[StyleColors::ColorText as usize],
+      text_active:          table[StyleColors::ColorText as usize],
+      selected_normal:      table[StyleColors::ColorText as usize],
+      selected_hover:       table[StyleColors::ColorText as usize],
+      selected_text_normal: table[StyleColors::ColorEdit as usize],
+      selected_text_hover:  table[StyleColors::ColorEdit as usize],
+      scrollbar_size:       Vec2F32::same(0f32),
+      scrollbar:            scroll,
+      padding:              Vec2F32::same(0f32),
+      row_padding:          0f32,
+      cursor_size:          8f32,
+      border:               0f32,
+      rounding:             0f32,
+    };
+
+    let property = StyleProperty {
+      normal:       StyleItem::Color(
+        table[StyleColors::ColorProperty as usize],
+      ),
+      hover:        StyleItem::Color(
+        table[StyleColors::ColorProperty as usize],
+      ),
+      active:       StyleItem::Color(
+        table[StyleColors::ColorProperty as usize],
+      ),
+      border_color: table[StyleColors::ColorBorder as usize],
+      label_normal: table[StyleColors::ColorText as usize],
+      label_hover:  table[StyleColors::ColorText as usize],
+      label_active: table[StyleColors::ColorText as usize],
+      sym_left:     SymbolType::TriangleLeft,
+      sym_right:    SymbolType::TriangleRight,
+      padding:      Vec2F32::same(4f32),
+      border:       1f32,
+      rounding:     10f32,
+      dec_button:   property_button,
+      inc_button:   property_button,
+      edit:         property_edit,
+    };
+
+    let chart = StyleChart {
+      background:     StyleItem::Color(table[StyleColors::ColorChart as usize]),
+      border_color:   table[StyleColors::ColorBorder as usize],
+      selected_color: table[StyleColors::ColorChartColorHighlight as usize],
+      color:          table[StyleColors::ColorChartColor as usize],
+      padding:        Vec2F32::same(4f32),
+      border:         0f32,
+      rounding:       0f32,
+    };
+
+    let combo_button = StyleButton {
+      normal:          StyleItem::Color(
+        table[StyleColors::ColorCombo as usize],
+      ),
+      hover:           StyleItem::Color(
+        table[StyleColors::ColorCombo as usize],
+      ),
+      active:          StyleItem::Color(
+        table[StyleColors::ColorCombo as usize],
+      ),
+      border_color:    RGBAColor::new(0, 0, 0),
+      text_background: table[StyleColors::ColorCombo as usize],
+      text_normal:     table[StyleColors::ColorText as usize],
+      text_hover:      table[StyleColors::ColorText as usize],
+      text_active:     table[StyleColors::ColorText as usize],
+      padding:         Vec2F32::same(2f32),
+      touch_padding:   Vec2F32::same(0f32),
+      text_alignment:  TextAlignment::Centered,
+      border:          0f32,
+      rounding:        0f32,
+      image_padding:   Vec2F32::same(0f32),
+    };
+
+    let combo = StyleCombo {
+      normal:          StyleItem::Color(
+        table[StyleColors::ColorCombo as usize],
+      ),
+      hover:           StyleItem::Color(
+        table[StyleColors::ColorCombo as usize],
+      ),
+      active:          StyleItem::Color(
+        table[StyleColors::ColorCombo as usize],
+      ),
+      border_color:    table[StyleColors::ColorBorder as usize],
+      label_normal:    table[StyleColors::ColorText as usize],
+      label_hover:     table[StyleColors::ColorText as usize],
+      label_active:    table[StyleColors::ColorText as usize],
+      sym_normal:      SymbolType::TriangleDown,
+      sym_hover:       SymbolType::TriangleDown,
+      sym_active:      SymbolType::TriangleDown,
+      content_padding: Vec2F32::same(4f32),
+      button_padding:  Vec2F32::new(0f32, 4f32),
+      spacing:         Vec2F32::new(4f32, 0f32),
+      border:          1f32,
+      rounding:        0f32,
+      button:          combo_button,
+      symbol_active:   RGBAColor::new(0, 0, 0),
+      symbol_hover:    RGBAColor::new(0, 0, 0),
+      symbol_normal:   RGBAColor::new(0, 0, 0),
+    };
+
+    let tab_btn = StyleButton {
+      normal:          StyleItem::Color(
+        table[StyleColors::ColorTabHeader as usize],
+      ),
+      hover:           StyleItem::Color(
+        table[StyleColors::ColorTabHeader as usize],
+      ),
+      active:          StyleItem::Color(
+        table[StyleColors::ColorTabHeader as usize],
+      ),
+      border_color:    RGBAColor::new(0, 0, 0),
+      text_background: table[StyleColors::ColorTabHeader as usize],
+      text_normal:     table[StyleColors::ColorText as usize],
+      text_hover:      table[StyleColors::ColorText as usize],
+      text_active:     table[StyleColors::ColorText as usize],
+      padding:         Vec2F32::same(2f32),
+      touch_padding:   Vec2F32::same(0f32),
+      text_alignment:  TextAlignment::Centered,
+      border:          0f32,
+      rounding:        0f32,
+      image_padding:   Vec2F32::same(0f32),
+    };
+
+    let tab_node_btn = StyleButton {
+      normal:          StyleItem::Color(
+        table[StyleColors::ColorWindow as usize],
+      ),
+      hover:           StyleItem::Color(
+        table[StyleColors::ColorWindow as usize],
+      ),
+      active:          StyleItem::Color(
+        table[StyleColors::ColorWindow as usize],
+      ),
+      border_color:    RGBAColor::new(0, 0, 0),
+      text_background: table[StyleColors::ColorTabHeader as usize],
+      text_normal:     table[StyleColors::ColorText as usize],
+      text_hover:      table[StyleColors::ColorText as usize],
+      text_active:     table[StyleColors::ColorText as usize],
+      padding:         Vec2F32::same(2f32),
+      touch_padding:   Vec2F32::same(0f32),
+      text_alignment:  TextAlignment::Centered,
+      border:          0f32,
+      rounding:        0f32,
+      image_padding:   Vec2F32::same(0f32),
+    };
+
+    let tab = StyleTab {
+      background:           StyleItem::Color(
+        table[StyleColors::ColorTabHeader as usize],
+      ),
+      border_color:         table[StyleColors::ColorBorder as usize],
+      text:                 table[StyleColors::ColorText as usize],
+      sym_minimize:         SymbolType::TriangleRight,
+      sym_maximize:         SymbolType::TriangleDown,
+      padding:              Vec2F32::same(4f32),
+      spacing:              Vec2F32::same(4f32),
+      indent:               10f32,
+      border:               1f32,
+      rounding:             0f32,
+      tab_maximize_button:  tab_btn,
+      tab_minimize_button:  tab_btn,
+      node_minimize_button: tab_node_btn,
+      node_maximize_button: tab_node_btn,
+    };
+
+    let win_btn_close = StyleButton {
+      normal:          StyleItem::Color(
+        table[StyleColors::ColorHeader as usize],
+      ),
+      hover:           StyleItem::Color(
+        table[StyleColors::ColorHeader as usize],
+      ),
+      active:          StyleItem::Color(
+        table[StyleColors::ColorHeader as usize],
+      ),
+      border_color:    RGBAColor::new(0, 0, 0),
+      text_background: table[StyleColors::ColorHeader as usize],
+      text_normal:     table[StyleColors::ColorText as usize],
+      text_hover:      table[StyleColors::ColorText as usize],
+      text_active:     table[StyleColors::ColorText as usize],
+      padding:         Vec2F32::same(0f32),
+      touch_padding:   Vec2F32::same(0f32),
+      text_alignment:  TextAlignment::Centered,
+      border:          0f32,
+      rounding:        0f32,
+      image_padding:   Vec2F32::same(0f32),
+    };
+
+    let win_btn_min = StyleButton {
+      normal:          StyleItem::Color(
+        table[StyleColors::ColorHeader as usize],
+      ),
+      hover:           StyleItem::Color(
+        table[StyleColors::ColorHeader as usize],
+      ),
+      active:          StyleItem::Color(
+        table[StyleColors::ColorHeader as usize],
+      ),
+      border_color:    RGBAColor::new(0, 0, 0),
+      text_background: table[StyleColors::ColorHeader as usize],
+      text_normal:     table[StyleColors::ColorText as usize],
+      text_hover:      table[StyleColors::ColorText as usize],
+      text_active:     table[StyleColors::ColorText as usize],
+      padding:         Vec2F32::same(0f32),
+      touch_padding:   Vec2F32::same(0f32),
+      text_alignment:  TextAlignment::Centered,
+      border:          0f32,
+      rounding:        0f32,
+      image_padding:   Vec2F32::same(0f32),
+    };
+
+    let win_header = StyleWindowHeader {
+      align:           StyleHeaderAlign::Right,
+      close_symbol:    SymbolType::X,
+      minimize_symbol: SymbolType::Minus,
+      maximize_symbol: SymbolType::Plus,
+      normal:          StyleItem::Color(
+        table[StyleColors::ColorHeader as usize],
+      ),
+      hover:           StyleItem::Color(
+        table[StyleColors::ColorHeader as usize],
+      ),
+      active:          StyleItem::Color(
+        table[StyleColors::ColorHeader as usize],
+      ),
+      label_normal:    table[StyleColors::ColorText as usize],
+      label_hover:     table[StyleColors::ColorText as usize],
+      label_active:    table[StyleColors::ColorText as usize],
+      label_padding:   Vec2F32::same(4f32),
+      padding:         Vec2F32::same(4f32),
+      spacing:         Vec2F32::same(0f32),
+      close_button:    win_btn_close,
+      minimize_button: win_btn_min,
+    };
+
+    let win = StyleWindow {
+      header:                  win_header,
+      background:              table[StyleColors::ColorWindow as usize],
+      fixed_background:        StyleItem::Color(
+        table[StyleColors::ColorWindow as usize],
+      ),
+      border_color:            table[StyleColors::ColorBorder as usize],
+      popup_border_color:      table[StyleColors::ColorBorder as usize],
+      combo_border_color:      table[StyleColors::ColorBorder as usize],
+      contextual_border_color: table[StyleColors::ColorBorder as usize],
+      menu_border_color:       table[StyleColors::ColorBorder as usize],
+      group_border_color:      table[StyleColors::ColorBorder as usize],
+      tooltip_border_color:    table[StyleColors::ColorBorder as usize],
+      scaler:                  StyleItem::Color(
+        table[StyleColors::ColorText as usize],
+      ),
+      rounding:                0f32,
+      spacing:                 Vec2F32::same(4f32),
+      scrollbar_size:          Vec2F32::same(10f32),
+      min_size:                Vec2F32::same(64f32),
+      combo_border:            1f32,
+      contextual_border:       1f32,
+      menu_border:             1f32,
+      group_border:            1f32,
+      tooltip_border:          1f32,
+      popup_border:            1f32,
+      border:                  2f32,
+      min_row_height_padding:  8f32,
+      padding:                 Vec2F32::same(4f32),
+      group_padding:           Vec2F32::same(4f32),
+      popup_padding:           Vec2F32::same(4f32),
+      combo_padding:           Vec2F32::same(4f32),
+      contextual_padding:      Vec2F32::same(4f32),
+      menu_padding:            Vec2F32::same(4f32),
+      tooltip_padding:         Vec2F32::same(4f32),
+    };
   }
 }
 
