@@ -198,6 +198,11 @@ impl CommandBuffer {
     }
   }
 
+  pub fn clear(&mut self) {
+    self.base.clear();
+    self.clip = None;
+  }
+
   pub fn stroke_line(
     &mut self,
     x0: f32,

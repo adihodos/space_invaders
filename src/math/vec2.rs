@@ -42,6 +42,15 @@ where
   }
 }
 
+impl<T> std::default::Default for TVec2<T>
+where
+  T: Copy + Clone + std::fmt::Debug + Num,
+{
+  fn default() -> Self {
+    Self::new(T::zero(), T::zero())
+  }
+}
+
 impl<T> Into<(T, T)> for TVec2<T>
 where
   T: Copy + Clone + std::fmt::Debug,

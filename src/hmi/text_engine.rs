@@ -308,6 +308,17 @@ pub struct Font {
   atlas:     *const FontAtlas,
 }
 
+impl std::default::Default for Font {
+  fn default() -> Self {
+    Self {
+      scale:     std::f32::MAX,
+      glyph_tbl: std::u32::MAX,
+      face_tbl:  std::u32::MAX,
+      atlas:     std::ptr::null_mut(),
+    }
+  }
+}
+
 impl Font {
   fn atlas_ref(&self) -> Option<&FontAtlas> {
     if self.atlas.is_null() {

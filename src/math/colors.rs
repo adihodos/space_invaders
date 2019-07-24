@@ -109,6 +109,33 @@ where
 pub type RGBAColor = TColorRGBA<u8>;
 pub type RGBAColorF32 = TColorRGBA<f32>;
 
+impl<T> std::default::Default for TColorRGBA<T>
+where
+  T: Copy + Clone + std::fmt::Debug + Num + NumColorComponent,
+{
+  fn default() -> Self {
+    Self::new_with_alpha(T::zero(), T::zero(), T::zero(), T::zero())
+  }
+}
+
+impl<T> std::convert::From<(T, T, T, T)> for TColorRGBA<T>
+where
+  T: Copy + Clone + std::fmt::Debug + Num + NumColorComponent,
+{
+  fn from(c: (T, T, T, T)) -> Self {
+    Self::new_with_alpha(c.0, c.1, c.2, c.3)
+  }
+}
+
+impl<T> std::convert::From<(T, T, T)> for TColorRGBA<T>
+where
+  T: Copy + Clone + std::fmt::Debug + Num + NumColorComponent,
+{
+  fn from(c: (T, T, T)) -> Self {
+    Self::new_with_alpha(c.0, c.1, c.2, T::alpha_max())
+  }
+}
+
 impl<T> std::convert::From<[T; 4]> for TColorRGBA<T>
 where
   T: Copy + Clone + std::fmt::Debug + Num + NumColorComponent,

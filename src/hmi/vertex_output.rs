@@ -85,7 +85,7 @@ impl<'a> DrawList<'a> {
     obj
   }
 
-  fn setup_buffers(
+  pub fn setup_buffers(
     &mut self,
     cmds_buff: &'a mut Vec<DrawCommand>,
     vertex_buff: &'a mut Vec<VertexPTC>,

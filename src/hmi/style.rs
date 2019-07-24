@@ -33,6 +33,12 @@ pub enum StyleItem {
   Color(RGBAColor),
 }
 
+impl std::default::Default for StyleItem {
+  fn default() -> Self {
+    StyleItem::Color(RGBAColor::new_with_alpha(0, 0, 0, 0))
+  }
+}
+
 impl StyleItem {
   fn hide() -> StyleItem {
     StyleItem::Color(RGBAColor::new_with_alpha(0, 0, 0, 0))
@@ -459,8 +465,8 @@ pub enum StyleCursor {
 
 #[derive(Copy, Clone, Debug)]
 pub struct Style {
-  pub font:              Font,
-  pub cursors:           [Cursor; Self::CURSOR_COUNT as usize],
+  pub font: Font,
+  // pub cursors:           [Cursor; Self::CURSOR_COUNT as usize],
   pub cursor_active:     usize,
   pub cursor_last:       usize,
   pub cursor_visible:    bool,
@@ -484,36 +490,65 @@ pub struct Style {
 }
 
 impl Style {
+  pub const COLOR_TABLE: [(u8, u8, u8, u8); 28] = [
+    (175, 175, 175, 255),
+    (45, 45, 45, 255),
+    (40, 40, 40, 255),
+    (65, 65, 65, 255),
+    (50, 50, 50, 255),
+    (40, 40, 40, 255),
+    (35, 35, 35, 255),
+    (100, 100, 100, 255),
+    (120, 120, 120, 255),
+    (45, 45, 45, 255),
+    (45, 45, 45, 255),
+    (35, 35, 35, 255),
+    (38, 38, 38, 255),
+    (100, 100, 100, 255),
+    (120, 120, 120, 255),
+    (150, 150, 150, 255),
+    (38, 38, 38, 255),
+    (38, 38, 38, 255),
+    (175, 175, 175, 255),
+    (45, 45, 45, 255),
+    (120, 120, 120, 255),
+    (45, 45, 45, 255),
+    (255, 0, 0, 255),
+    (40, 40, 40, 255),
+    (100, 100, 100, 255),
+    (120, 120, 120, 255),
+    (150, 150, 150, 255),
+    (40, 40, 40, 255),
+  ];
   pub const CURSOR_COUNT: i32 = 7;
 
-  // fn default_color_style() -> &[RGBAColor] {
+  pub fn new(font: Font) -> Self {
+    Self::new_from_table(font, &Self::COLOR_TABLE)
+  }
 
-  // }
-  // DEFAULT_COLOR_STYLE = [RGBAColor::new(0, 0, 0); 1];
-
-  pub fn from_table(table: &[RGBAColor]) {
+  pub fn new_from_table(font: Font, table: &[(u8, u8, u8, u8)]) -> Self {
     // default button
     let text = StyleText {
-      color:   table[StyleColors::ColorText as usize],
+      color:   table[StyleColors::ColorText as usize].into(),
       padding: Vec2F32::same(0f32),
     };
 
     // default text
     let button = StyleButton {
       normal:          StyleItem::Color(
-        table[StyleColors::ColorButton as usize],
+        table[StyleColors::ColorButton as usize].into(),
       ),
       hover:           StyleItem::Color(
-        table[StyleColors::ColorButtonHover as usize],
+        table[StyleColors::ColorButtonHover as usize].into(),
       ),
       active:          StyleItem::Color(
-        table[StyleColors::ColorButtonActive as usize],
+        table[StyleColors::ColorButtonActive as usize].into(),
       ),
-      border_color:    table[StyleColors::ColorBorder as usize],
-      text_background: table[StyleColors::ColorButton as usize],
-      text_normal:     table[StyleColors::ColorText as usize],
-      text_hover:      table[StyleColors::ColorText as usize],
-      text_active:     table[StyleColors::ColorText as usize],
+      border_color:    table[StyleColors::ColorBorder as usize].into(),
+      text_background: table[StyleColors::ColorButton as usize].into(),
+      text_normal:     table[StyleColors::ColorText as usize].into(),
+      text_hover:      table[StyleColors::ColorText as usize].into(),
+      text_active:     table[StyleColors::ColorText as usize].into(),
       padding:         Vec2F32::same(2f32),
       image_padding:   Vec2F32::same(0f32),
       touch_padding:   Vec2F32::same(0f32),
@@ -524,19 +559,19 @@ impl Style {
 
     let contextual_button = StyleButton {
       normal:          StyleItem::Color(
-        table[StyleColors::ColorWindow as usize],
+        table[StyleColors::ColorWindow as usize].into(),
       ),
       hover:           StyleItem::Color(
-        table[StyleColors::ColorButtonHover as usize],
+        table[StyleColors::ColorButtonHover as usize].into(),
       ),
       active:          StyleItem::Color(
-        table[StyleColors::ColorButtonActive as usize],
+        table[StyleColors::ColorButtonActive as usize].into(),
       ),
-      border_color:    table[StyleColors::ColorWindow as usize],
-      text_background: table[StyleColors::ColorWindow as usize],
-      text_normal:     table[StyleColors::ColorText as usize],
-      text_hover:      table[StyleColors::ColorText as usize],
-      text_active:     table[StyleColors::ColorText as usize],
+      border_color:    table[StyleColors::ColorWindow as usize].into(),
+      text_background: table[StyleColors::ColorWindow as usize].into(),
+      text_normal:     table[StyleColors::ColorText as usize].into(),
+      text_hover:      table[StyleColors::ColorText as usize].into(),
+      text_active:     table[StyleColors::ColorText as usize].into(),
       padding:         Vec2F32::same(2f32),
       image_padding:   Vec2F32::same(0f32),
       touch_padding:   Vec2F32::same(0f32),
@@ -547,19 +582,19 @@ impl Style {
 
     let menu_button = StyleButton {
       normal:          StyleItem::Color(
-        table[StyleColors::ColorWindow as usize],
+        table[StyleColors::ColorWindow as usize].into(),
       ),
       hover:           StyleItem::Color(
-        table[StyleColors::ColorWindow as usize],
+        table[StyleColors::ColorWindow as usize].into(),
       ),
       active:          StyleItem::Color(
-        table[StyleColors::ColorWindow as usize],
+        table[StyleColors::ColorWindow as usize].into(),
       ),
-      border_color:    table[StyleColors::ColorWindow as usize],
-      text_background: table[StyleColors::ColorWindow as usize],
-      text_normal:     table[StyleColors::ColorText as usize],
-      text_hover:      table[StyleColors::ColorText as usize],
-      text_active:     table[StyleColors::ColorText as usize],
+      border_color:    table[StyleColors::ColorWindow as usize].into(),
+      text_background: table[StyleColors::ColorWindow as usize].into(),
+      text_normal:     table[StyleColors::ColorText as usize].into(),
+      text_hover:      table[StyleColors::ColorText as usize].into(),
+      text_active:     table[StyleColors::ColorText as usize].into(),
       padding:         Vec2F32::same(2f32),
       image_padding:   Vec2F32::same(0f32),
       touch_padding:   Vec2F32::same(0f32),
@@ -569,27 +604,27 @@ impl Style {
     };
 
     // checkbox toggle
-    let toggle = StyleToggle {
+    let checkbox = StyleToggle {
       normal:          StyleItem::Color(
-        table[StyleColors::ColorToggle as usize],
+        table[StyleColors::ColorToggle as usize].into(),
       ),
       hover:           StyleItem::Color(
-        table[StyleColors::ColorToggleHover as usize],
+        table[StyleColors::ColorToggleHover as usize].into(),
       ),
       active:          StyleItem::Color(
-        table[StyleColors::ColorToggleHover as usize],
+        table[StyleColors::ColorToggleHover as usize].into(),
       ),
       cursor_normal:   StyleItem::Color(
-        table[StyleColors::ColorToggleCursor as usize],
+        table[StyleColors::ColorToggleCursor as usize].into(),
       ),
       cursor_hover:    StyleItem::Color(
-        table[StyleColors::ColorToggleCursor as usize],
+        table[StyleColors::ColorToggleCursor as usize].into(),
       ),
-      text_background: table[StyleColors::ColorWindow as usize],
-      text_normal:     table[StyleColors::ColorText as usize],
-      text_hover:      table[StyleColors::ColorText as usize],
+      text_background: table[StyleColors::ColorWindow as usize].into(),
+      text_normal:     table[StyleColors::ColorText as usize].into(),
+      text_hover:      table[StyleColors::ColorText as usize].into(),
       text_alignment:  TextAlignment::Centered,
-      text_active:     table[StyleColors::ColorText as usize],
+      text_active:     table[StyleColors::ColorText as usize].into(),
       padding:         Vec2F32::same(2f32),
       touch_padding:   Vec2F32::same(0f32),
       border_color:    RGBAColor::new(0, 0, 0),
@@ -599,25 +634,25 @@ impl Style {
 
     let option = StyleToggle {
       normal:          StyleItem::Color(
-        table[StyleColors::ColorToggle as usize],
+        table[StyleColors::ColorToggle as usize].into(),
       ),
       hover:           StyleItem::Color(
-        table[StyleColors::ColorToggleHover as usize],
+        table[StyleColors::ColorToggleHover as usize].into(),
       ),
       active:          StyleItem::Color(
-        table[StyleColors::ColorToggleHover as usize],
+        table[StyleColors::ColorToggleHover as usize].into(),
       ),
       cursor_normal:   StyleItem::Color(
-        table[StyleColors::ColorToggleCursor as usize],
+        table[StyleColors::ColorToggleCursor as usize].into(),
       ),
       cursor_hover:    StyleItem::Color(
-        table[StyleColors::ColorToggleCursor as usize],
+        table[StyleColors::ColorToggleCursor as usize].into(),
       ),
-      text_background: table[StyleColors::ColorWindow as usize],
-      text_normal:     table[StyleColors::ColorText as usize],
-      text_hover:      table[StyleColors::ColorText as usize],
+      text_background: table[StyleColors::ColorWindow as usize].into(),
+      text_normal:     table[StyleColors::ColorText as usize].into(),
+      text_hover:      table[StyleColors::ColorText as usize].into(),
       text_alignment:  TextAlignment::Centered,
-      text_active:     table[StyleColors::ColorText as usize],
+      text_active:     table[StyleColors::ColorText as usize].into(),
       padding:         Vec2F32::same(3f32),
       touch_padding:   Vec2F32::same(0f32),
       border_color:    RGBAColor::new(0, 0, 0),
@@ -625,33 +660,33 @@ impl Style {
       spacing:         4f32,
     };
 
-    let select = StyleSelectable {
+    let selectable = StyleSelectable {
       normal:              StyleItem::Color(
-        table[StyleColors::ColorSelect as usize],
+        table[StyleColors::ColorSelect as usize].into(),
       ),
       hover:               StyleItem::Color(
-        table[StyleColors::ColorSelect as usize],
+        table[StyleColors::ColorSelect as usize].into(),
       ),
       pressed:             StyleItem::Color(
-        table[StyleColors::ColorSelect as usize],
+        table[StyleColors::ColorSelect as usize].into(),
       ),
       normal_active:       StyleItem::Color(
-        table[StyleColors::ColorSelectActive as usize],
+        table[StyleColors::ColorSelectActive as usize].into(),
       ),
       hover_active:        StyleItem::Color(
-        table[StyleColors::ColorSelectActive as usize],
+        table[StyleColors::ColorSelectActive as usize].into(),
       ),
       pressed_active:      StyleItem::Color(
-        table[StyleColors::ColorSelectActive as usize],
+        table[StyleColors::ColorSelectActive as usize].into(),
       ),
       text_alignment:      TextAlignment::Centered,
       text_background:     RGBAColor::new(0, 0, 0),
-      text_normal:         table[StyleColors::ColorText as usize],
-      text_hover:          table[StyleColors::ColorText as usize],
-      text_pressed:        table[StyleColors::ColorText as usize],
-      text_normal_active:  table[StyleColors::ColorText as usize],
-      text_hover_active:   table[StyleColors::ColorText as usize],
-      text_pressed_active: table[StyleColors::ColorText as usize],
+      text_normal:         table[StyleColors::ColorText as usize].into(),
+      text_hover:          table[StyleColors::ColorText as usize].into(),
+      text_pressed:        table[StyleColors::ColorText as usize].into(),
+      text_normal_active:  table[StyleColors::ColorText as usize].into(),
+      text_hover_active:   table[StyleColors::ColorText as usize].into(),
+      text_pressed_active: table[StyleColors::ColorText as usize].into(),
       padding:             Vec2F32::same(2f32),
       image_padding:       Vec2F32::same(2f32),
       touch_padding:       Vec2F32::same(0f32),
@@ -679,18 +714,18 @@ impl Style {
       normal:        StyleItem::hide(),
       hover:         StyleItem::hide(),
       active:        StyleItem::hide(),
-      bar_normal:    table[StyleColors::ColorSlider as usize],
-      bar_hover:     table[StyleColors::ColorSlider as usize],
-      bar_active:    table[StyleColors::ColorSlider as usize],
-      bar_filled:    table[StyleColors::ColorSliderCursor as usize],
+      bar_normal:    table[StyleColors::ColorSlider as usize].into(),
+      bar_hover:     table[StyleColors::ColorSlider as usize].into(),
+      bar_active:    table[StyleColors::ColorSlider as usize].into(),
+      bar_filled:    table[StyleColors::ColorSliderCursor as usize].into(),
       cursor_normal: StyleItem::Color(
-        table[StyleColors::ColorSliderCursor as usize],
+        table[StyleColors::ColorSliderCursor as usize].into(),
       ),
       cursor_hover:  StyleItem::Color(
-        table[StyleColors::ColorSliderCursorHover as usize],
+        table[StyleColors::ColorSliderCursorHover as usize].into(),
       ),
       cursor_active: StyleItem::Color(
-        table[StyleColors::ColorSliderCursorActive as usize],
+        table[StyleColors::ColorSliderCursorActive as usize].into(),
       ),
       inc_symbol:    SymbolType::TriangleRight,
       dec_symbol:    SymbolType::TriangleLeft,
@@ -708,22 +743,22 @@ impl Style {
 
     let progress = StyleProgress {
       normal:              StyleItem::Color(
-        table[StyleColors::ColorSlider as usize],
+        table[StyleColors::ColorSlider as usize].into(),
       ),
       hover:               StyleItem::Color(
-        table[StyleColors::ColorSlider as usize],
+        table[StyleColors::ColorSlider as usize].into(),
       ),
       active:              StyleItem::Color(
-        table[StyleColors::ColorSlider as usize],
+        table[StyleColors::ColorSlider as usize].into(),
       ),
       cursor_normal:       StyleItem::Color(
-        table[StyleColors::ColorSliderCursor as usize],
+        table[StyleColors::ColorSliderCursor as usize].into(),
       ),
       cursor_hover:        StyleItem::Color(
-        table[StyleColors::ColorSliderCursorHover as usize],
+        table[StyleColors::ColorSliderCursorHover as usize].into(),
       ),
       cursor_active:       StyleItem::Color(
-        table[StyleColors::ColorSliderCursorActive as usize],
+        table[StyleColors::ColorSliderCursorActive as usize].into(),
       ),
       border_color:        RGBAColor::new(0, 0, 0),
       cursor_border_color: RGBAColor::new(0, 0, 0),
@@ -753,27 +788,27 @@ impl Style {
 
     let scroll = StyleScrollbar {
       normal:              StyleItem::Color(
-        table[StyleColors::ColorScrollbar as usize],
+        table[StyleColors::ColorScrollbar as usize].into(),
       ),
       hover:               StyleItem::Color(
-        table[StyleColors::ColorScrollbar as usize],
+        table[StyleColors::ColorScrollbar as usize].into(),
       ),
       active:              StyleItem::Color(
-        table[StyleColors::ColorScrollbar as usize],
+        table[StyleColors::ColorScrollbar as usize].into(),
       ),
       cursor_normal:       StyleItem::Color(
-        table[StyleColors::ColorScrollbarCursor as usize],
+        table[StyleColors::ColorScrollbarCursor as usize].into(),
       ),
       cursor_hover:        StyleItem::Color(
-        table[StyleColors::ColorScrollbarCursorHover as usize],
+        table[StyleColors::ColorScrollbarCursorHover as usize].into(),
       ),
       cursor_active:       StyleItem::Color(
-        table[StyleColors::ColorScrollbarCursorActive as usize],
+        table[StyleColors::ColorScrollbarCursorActive as usize].into(),
       ),
       dec_symbol:          SymbolType::CircleSolid,
       inc_symbol:          SymbolType::CircleSolid,
-      border_color:        table[StyleColors::ColorScrollbar as usize],
-      cursor_border_color: table[StyleColors::ColorScrollbar as usize],
+      border_color:        table[StyleColors::ColorScrollbar as usize].into(),
+      cursor_border_color: table[StyleColors::ColorScrollbar as usize].into(),
       padding:             Vec2F32::same(0f32),
       show_buttons:        false,
       border:              0f32,
@@ -784,28 +819,31 @@ impl Style {
       dec_button:          scroll_btn,
     };
 
+    let scrollh = scroll;
+    let scrollv = scroll;
+
     let edit = StyleEdit {
       normal:               StyleItem::Color(
-        table[StyleColors::ColorEdit as usize],
+        table[StyleColors::ColorEdit as usize].into(),
       ),
       hover:                StyleItem::Color(
-        table[StyleColors::ColorEdit as usize],
+        table[StyleColors::ColorEdit as usize].into(),
       ),
       active:               StyleItem::Color(
-        table[StyleColors::ColorEdit as usize],
+        table[StyleColors::ColorEdit as usize].into(),
       ),
-      cursor_normal:        table[StyleColors::ColorText as usize],
-      cursor_hover:         table[StyleColors::ColorText as usize],
-      cursor_text_normal:   table[StyleColors::ColorEdit as usize],
-      cursor_text_hover:    table[StyleColors::ColorEdit as usize],
-      border_color:         table[StyleColors::ColorBorder as usize],
-      text_normal:          table[StyleColors::ColorText as usize],
-      text_hover:           table[StyleColors::ColorText as usize],
-      text_active:          table[StyleColors::ColorText as usize],
-      selected_normal:      table[StyleColors::ColorText as usize],
-      selected_hover:       table[StyleColors::ColorText as usize],
-      selected_text_normal: table[StyleColors::ColorEdit as usize],
-      selected_text_hover:  table[StyleColors::ColorEdit as usize],
+      cursor_normal:        table[StyleColors::ColorText as usize].into(),
+      cursor_hover:         table[StyleColors::ColorText as usize].into(),
+      cursor_text_normal:   table[StyleColors::ColorEdit as usize].into(),
+      cursor_text_hover:    table[StyleColors::ColorEdit as usize].into(),
+      border_color:         table[StyleColors::ColorBorder as usize].into(),
+      text_normal:          table[StyleColors::ColorText as usize].into(),
+      text_hover:           table[StyleColors::ColorText as usize].into(),
+      text_active:          table[StyleColors::ColorText as usize].into(),
+      selected_normal:      table[StyleColors::ColorText as usize].into(),
+      selected_hover:       table[StyleColors::ColorText as usize].into(),
+      selected_text_normal: table[StyleColors::ColorEdit as usize].into(),
+      selected_text_hover:  table[StyleColors::ColorEdit as usize].into(),
       scrollbar_size:       Vec2F32::same(10f32),
       scrollbar:            scroll,
       padding:              Vec2F32::same(4f32),
@@ -817,19 +855,19 @@ impl Style {
 
     let property_button = StyleButton {
       normal:          StyleItem::Color(
-        table[StyleColors::ColorProperty as usize],
+        table[StyleColors::ColorProperty as usize].into(),
       ),
       hover:           StyleItem::Color(
-        table[StyleColors::ColorProperty as usize],
+        table[StyleColors::ColorProperty as usize].into(),
       ),
       active:          StyleItem::Color(
-        table[StyleColors::ColorProperty as usize],
+        table[StyleColors::ColorProperty as usize].into(),
       ),
       border_color:    RGBAColor::new(0, 0, 0),
-      text_background: table[StyleColors::ColorProperty as usize],
-      text_normal:     table[StyleColors::ColorText as usize],
-      text_hover:      table[StyleColors::ColorText as usize],
-      text_active:     table[StyleColors::ColorText as usize],
+      text_background: table[StyleColors::ColorProperty as usize].into(),
+      text_normal:     table[StyleColors::ColorText as usize].into(),
+      text_hover:      table[StyleColors::ColorText as usize].into(),
+      text_active:     table[StyleColors::ColorText as usize].into(),
       padding:         Vec2F32::same(0f32),
       image_padding:   Vec2F32::same(0f32),
       touch_padding:   Vec2F32::same(0f32),
@@ -840,26 +878,26 @@ impl Style {
 
     let property_edit = StyleEdit {
       normal:               StyleItem::Color(
-        table[StyleColors::ColorProperty as usize],
+        table[StyleColors::ColorProperty as usize].into(),
       ),
       hover:                StyleItem::Color(
-        table[StyleColors::ColorProperty as usize],
+        table[StyleColors::ColorProperty as usize].into(),
       ),
       active:               StyleItem::Color(
-        table[StyleColors::ColorProperty as usize],
+        table[StyleColors::ColorProperty as usize].into(),
       ),
       border_color:         RGBAColor::new(0, 0, 0),
-      cursor_normal:        table[StyleColors::ColorText as usize],
-      cursor_hover:         table[StyleColors::ColorText as usize],
-      cursor_text_normal:   table[StyleColors::ColorEdit as usize],
-      cursor_text_hover:    table[StyleColors::ColorEdit as usize],
-      text_normal:          table[StyleColors::ColorText as usize],
-      text_hover:           table[StyleColors::ColorText as usize],
-      text_active:          table[StyleColors::ColorText as usize],
-      selected_normal:      table[StyleColors::ColorText as usize],
-      selected_hover:       table[StyleColors::ColorText as usize],
-      selected_text_normal: table[StyleColors::ColorEdit as usize],
-      selected_text_hover:  table[StyleColors::ColorEdit as usize],
+      cursor_normal:        table[StyleColors::ColorText as usize].into(),
+      cursor_hover:         table[StyleColors::ColorText as usize].into(),
+      cursor_text_normal:   table[StyleColors::ColorEdit as usize].into(),
+      cursor_text_hover:    table[StyleColors::ColorEdit as usize].into(),
+      text_normal:          table[StyleColors::ColorText as usize].into(),
+      text_hover:           table[StyleColors::ColorText as usize].into(),
+      text_active:          table[StyleColors::ColorText as usize].into(),
+      selected_normal:      table[StyleColors::ColorText as usize].into(),
+      selected_hover:       table[StyleColors::ColorText as usize].into(),
+      selected_text_normal: table[StyleColors::ColorEdit as usize].into(),
+      selected_text_hover:  table[StyleColors::ColorEdit as usize].into(),
       scrollbar_size:       Vec2F32::same(0f32),
       scrollbar:            scroll,
       padding:              Vec2F32::same(0f32),
@@ -871,18 +909,18 @@ impl Style {
 
     let property = StyleProperty {
       normal:       StyleItem::Color(
-        table[StyleColors::ColorProperty as usize],
+        table[StyleColors::ColorProperty as usize].into(),
       ),
       hover:        StyleItem::Color(
-        table[StyleColors::ColorProperty as usize],
+        table[StyleColors::ColorProperty as usize].into(),
       ),
       active:       StyleItem::Color(
-        table[StyleColors::ColorProperty as usize],
+        table[StyleColors::ColorProperty as usize].into(),
       ),
-      border_color: table[StyleColors::ColorBorder as usize],
-      label_normal: table[StyleColors::ColorText as usize],
-      label_hover:  table[StyleColors::ColorText as usize],
-      label_active: table[StyleColors::ColorText as usize],
+      border_color: table[StyleColors::ColorBorder as usize].into(),
+      label_normal: table[StyleColors::ColorText as usize].into(),
+      label_hover:  table[StyleColors::ColorText as usize].into(),
+      label_active: table[StyleColors::ColorText as usize].into(),
       sym_left:     SymbolType::TriangleLeft,
       sym_right:    SymbolType::TriangleRight,
       padding:      Vec2F32::same(4f32),
@@ -894,10 +932,13 @@ impl Style {
     };
 
     let chart = StyleChart {
-      background:     StyleItem::Color(table[StyleColors::ColorChart as usize]),
-      border_color:   table[StyleColors::ColorBorder as usize],
-      selected_color: table[StyleColors::ColorChartColorHighlight as usize],
-      color:          table[StyleColors::ColorChartColor as usize],
+      background:     StyleItem::Color(
+        table[StyleColors::ColorChart as usize].into(),
+      ),
+      border_color:   table[StyleColors::ColorBorder as usize].into(),
+      selected_color: table[StyleColors::ColorChartColorHighlight as usize]
+        .into(),
+      color:          table[StyleColors::ColorChartColor as usize].into(),
       padding:        Vec2F32::same(4f32),
       border:         0f32,
       rounding:       0f32,
@@ -905,19 +946,19 @@ impl Style {
 
     let combo_button = StyleButton {
       normal:          StyleItem::Color(
-        table[StyleColors::ColorCombo as usize],
+        table[StyleColors::ColorCombo as usize].into(),
       ),
       hover:           StyleItem::Color(
-        table[StyleColors::ColorCombo as usize],
+        table[StyleColors::ColorCombo as usize].into(),
       ),
       active:          StyleItem::Color(
-        table[StyleColors::ColorCombo as usize],
+        table[StyleColors::ColorCombo as usize].into(),
       ),
       border_color:    RGBAColor::new(0, 0, 0),
-      text_background: table[StyleColors::ColorCombo as usize],
-      text_normal:     table[StyleColors::ColorText as usize],
-      text_hover:      table[StyleColors::ColorText as usize],
-      text_active:     table[StyleColors::ColorText as usize],
+      text_background: table[StyleColors::ColorCombo as usize].into(),
+      text_normal:     table[StyleColors::ColorText as usize].into(),
+      text_hover:      table[StyleColors::ColorText as usize].into(),
+      text_active:     table[StyleColors::ColorText as usize].into(),
       padding:         Vec2F32::same(2f32),
       touch_padding:   Vec2F32::same(0f32),
       text_alignment:  TextAlignment::Centered,
@@ -928,18 +969,18 @@ impl Style {
 
     let combo = StyleCombo {
       normal:          StyleItem::Color(
-        table[StyleColors::ColorCombo as usize],
+        table[StyleColors::ColorCombo as usize].into(),
       ),
       hover:           StyleItem::Color(
-        table[StyleColors::ColorCombo as usize],
+        table[StyleColors::ColorCombo as usize].into(),
       ),
       active:          StyleItem::Color(
-        table[StyleColors::ColorCombo as usize],
+        table[StyleColors::ColorCombo as usize].into(),
       ),
-      border_color:    table[StyleColors::ColorBorder as usize],
-      label_normal:    table[StyleColors::ColorText as usize],
-      label_hover:     table[StyleColors::ColorText as usize],
-      label_active:    table[StyleColors::ColorText as usize],
+      border_color:    table[StyleColors::ColorBorder as usize].into(),
+      label_normal:    table[StyleColors::ColorText as usize].into(),
+      label_hover:     table[StyleColors::ColorText as usize].into(),
+      label_active:    table[StyleColors::ColorText as usize].into(),
       sym_normal:      SymbolType::TriangleDown,
       sym_hover:       SymbolType::TriangleDown,
       sym_active:      SymbolType::TriangleDown,
@@ -956,19 +997,19 @@ impl Style {
 
     let tab_btn = StyleButton {
       normal:          StyleItem::Color(
-        table[StyleColors::ColorTabHeader as usize],
+        table[StyleColors::ColorTabHeader as usize].into(),
       ),
       hover:           StyleItem::Color(
-        table[StyleColors::ColorTabHeader as usize],
+        table[StyleColors::ColorTabHeader as usize].into(),
       ),
       active:          StyleItem::Color(
-        table[StyleColors::ColorTabHeader as usize],
+        table[StyleColors::ColorTabHeader as usize].into(),
       ),
       border_color:    RGBAColor::new(0, 0, 0),
-      text_background: table[StyleColors::ColorTabHeader as usize],
-      text_normal:     table[StyleColors::ColorText as usize],
-      text_hover:      table[StyleColors::ColorText as usize],
-      text_active:     table[StyleColors::ColorText as usize],
+      text_background: table[StyleColors::ColorTabHeader as usize].into(),
+      text_normal:     table[StyleColors::ColorText as usize].into(),
+      text_hover:      table[StyleColors::ColorText as usize].into(),
+      text_active:     table[StyleColors::ColorText as usize].into(),
       padding:         Vec2F32::same(2f32),
       touch_padding:   Vec2F32::same(0f32),
       text_alignment:  TextAlignment::Centered,
@@ -979,19 +1020,19 @@ impl Style {
 
     let tab_node_btn = StyleButton {
       normal:          StyleItem::Color(
-        table[StyleColors::ColorWindow as usize],
+        table[StyleColors::ColorWindow as usize].into(),
       ),
       hover:           StyleItem::Color(
-        table[StyleColors::ColorWindow as usize],
+        table[StyleColors::ColorWindow as usize].into(),
       ),
       active:          StyleItem::Color(
-        table[StyleColors::ColorWindow as usize],
+        table[StyleColors::ColorWindow as usize].into(),
       ),
       border_color:    RGBAColor::new(0, 0, 0),
-      text_background: table[StyleColors::ColorTabHeader as usize],
-      text_normal:     table[StyleColors::ColorText as usize],
-      text_hover:      table[StyleColors::ColorText as usize],
-      text_active:     table[StyleColors::ColorText as usize],
+      text_background: table[StyleColors::ColorTabHeader as usize].into(),
+      text_normal:     table[StyleColors::ColorText as usize].into(),
+      text_hover:      table[StyleColors::ColorText as usize].into(),
+      text_active:     table[StyleColors::ColorText as usize].into(),
       padding:         Vec2F32::same(2f32),
       touch_padding:   Vec2F32::same(0f32),
       text_alignment:  TextAlignment::Centered,
@@ -1002,10 +1043,10 @@ impl Style {
 
     let tab = StyleTab {
       background:           StyleItem::Color(
-        table[StyleColors::ColorTabHeader as usize],
+        table[StyleColors::ColorTabHeader as usize].into(),
       ),
-      border_color:         table[StyleColors::ColorBorder as usize],
-      text:                 table[StyleColors::ColorText as usize],
+      border_color:         table[StyleColors::ColorBorder as usize].into(),
+      text:                 table[StyleColors::ColorText as usize].into(),
       sym_minimize:         SymbolType::TriangleRight,
       sym_maximize:         SymbolType::TriangleDown,
       padding:              Vec2F32::same(4f32),
@@ -1021,19 +1062,19 @@ impl Style {
 
     let win_btn_close = StyleButton {
       normal:          StyleItem::Color(
-        table[StyleColors::ColorHeader as usize],
+        table[StyleColors::ColorHeader as usize].into(),
       ),
       hover:           StyleItem::Color(
-        table[StyleColors::ColorHeader as usize],
+        table[StyleColors::ColorHeader as usize].into(),
       ),
       active:          StyleItem::Color(
-        table[StyleColors::ColorHeader as usize],
+        table[StyleColors::ColorHeader as usize].into(),
       ),
       border_color:    RGBAColor::new(0, 0, 0),
-      text_background: table[StyleColors::ColorHeader as usize],
-      text_normal:     table[StyleColors::ColorText as usize],
-      text_hover:      table[StyleColors::ColorText as usize],
-      text_active:     table[StyleColors::ColorText as usize],
+      text_background: table[StyleColors::ColorHeader as usize].into(),
+      text_normal:     table[StyleColors::ColorText as usize].into(),
+      text_hover:      table[StyleColors::ColorText as usize].into(),
+      text_active:     table[StyleColors::ColorText as usize].into(),
       padding:         Vec2F32::same(0f32),
       touch_padding:   Vec2F32::same(0f32),
       text_alignment:  TextAlignment::Centered,
@@ -1044,19 +1085,19 @@ impl Style {
 
     let win_btn_min = StyleButton {
       normal:          StyleItem::Color(
-        table[StyleColors::ColorHeader as usize],
+        table[StyleColors::ColorHeader as usize].into(),
       ),
       hover:           StyleItem::Color(
-        table[StyleColors::ColorHeader as usize],
+        table[StyleColors::ColorHeader as usize].into(),
       ),
       active:          StyleItem::Color(
-        table[StyleColors::ColorHeader as usize],
+        table[StyleColors::ColorHeader as usize].into(),
       ),
       border_color:    RGBAColor::new(0, 0, 0),
-      text_background: table[StyleColors::ColorHeader as usize],
-      text_normal:     table[StyleColors::ColorText as usize],
-      text_hover:      table[StyleColors::ColorText as usize],
-      text_active:     table[StyleColors::ColorText as usize],
+      text_background: table[StyleColors::ColorHeader as usize].into(),
+      text_normal:     table[StyleColors::ColorText as usize].into(),
+      text_hover:      table[StyleColors::ColorText as usize].into(),
+      text_active:     table[StyleColors::ColorText as usize].into(),
       padding:         Vec2F32::same(0f32),
       touch_padding:   Vec2F32::same(0f32),
       text_alignment:  TextAlignment::Centered,
@@ -1071,17 +1112,17 @@ impl Style {
       minimize_symbol: SymbolType::Minus,
       maximize_symbol: SymbolType::Plus,
       normal:          StyleItem::Color(
-        table[StyleColors::ColorHeader as usize],
+        table[StyleColors::ColorHeader as usize].into(),
       ),
       hover:           StyleItem::Color(
-        table[StyleColors::ColorHeader as usize],
+        table[StyleColors::ColorHeader as usize].into(),
       ),
       active:          StyleItem::Color(
-        table[StyleColors::ColorHeader as usize],
+        table[StyleColors::ColorHeader as usize].into(),
       ),
-      label_normal:    table[StyleColors::ColorText as usize],
-      label_hover:     table[StyleColors::ColorText as usize],
-      label_active:    table[StyleColors::ColorText as usize],
+      label_normal:    table[StyleColors::ColorText as usize].into(),
+      label_hover:     table[StyleColors::ColorText as usize].into(),
+      label_active:    table[StyleColors::ColorText as usize].into(),
       label_padding:   Vec2F32::same(4f32),
       padding:         Vec2F32::same(4f32),
       spacing:         Vec2F32::same(0f32),
@@ -1089,21 +1130,21 @@ impl Style {
       minimize_button: win_btn_min,
     };
 
-    let win = StyleWindow {
+    let window = StyleWindow {
       header:                  win_header,
-      background:              table[StyleColors::ColorWindow as usize],
+      background:              table[StyleColors::ColorWindow as usize].into(),
       fixed_background:        StyleItem::Color(
-        table[StyleColors::ColorWindow as usize],
+        table[StyleColors::ColorWindow as usize].into(),
       ),
-      border_color:            table[StyleColors::ColorBorder as usize],
-      popup_border_color:      table[StyleColors::ColorBorder as usize],
-      combo_border_color:      table[StyleColors::ColorBorder as usize],
-      contextual_border_color: table[StyleColors::ColorBorder as usize],
-      menu_border_color:       table[StyleColors::ColorBorder as usize],
-      group_border_color:      table[StyleColors::ColorBorder as usize],
-      tooltip_border_color:    table[StyleColors::ColorBorder as usize],
+      border_color:            table[StyleColors::ColorBorder as usize].into(),
+      popup_border_color:      table[StyleColors::ColorBorder as usize].into(),
+      combo_border_color:      table[StyleColors::ColorBorder as usize].into(),
+      contextual_border_color: table[StyleColors::ColorBorder as usize].into(),
+      menu_border_color:       table[StyleColors::ColorBorder as usize].into(),
+      group_border_color:      table[StyleColors::ColorBorder as usize].into(),
+      tooltip_border_color:    table[StyleColors::ColorBorder as usize].into(),
       scaler:                  StyleItem::Color(
-        table[StyleColors::ColorText as usize],
+        table[StyleColors::ColorText as usize].into(),
       ),
       rounding:                0f32,
       spacing:                 Vec2F32::same(4f32),
@@ -1125,12 +1166,33 @@ impl Style {
       menu_padding:            Vec2F32::same(4f32),
       tooltip_padding:         Vec2F32::same(4f32),
     };
+
+    Style {
+      font,
+      // pub cursors:           [Cursor; Self::CURSOR_COUNT as usize],
+      cursor_active: 0,
+      cursor_last: 0,
+      cursor_visible: false,
+      text,
+      button,
+      contextual_button,
+      menu_button,
+      option,
+      checkbox,
+      selectable,
+      slider,
+      progress,
+      property,
+      edit,
+      chart,
+      scrollh,
+      scrollv,
+      tab,
+      combo,
+      window,
+    }
   }
 }
-
-// impl std::default::Default for Style {
-//   fn default() -> Style {}
-// }
 
 struct StackSize {}
 
@@ -1153,6 +1215,30 @@ where
   pub old_value: T,
 }
 
+// impl<T> ConfigStackElement<T>
+// where
+//   T: Copy + Clone + std::fmt::Debug + std::default::Default,
+// {
+//   pub fn new() -> Self {
+//     Self {
+//       address:   std::ptr::null_mut(),
+//       old_value: T::default(),
+//     }
+//   }
+// }
+
+impl<T> std::default::Default for ConfigStackElement<T>
+where
+  T: Copy + Clone + std::fmt::Debug + std::default::Default,
+{
+  fn default() -> Self {
+    Self {
+      address:   std::ptr::null_mut(),
+      old_value: T::default(),
+    }
+  }
+}
+
 macro_rules! define_config_stack {
   ($name:ident, $tp:ty, $size:expr) => {
     #[derive(Copy, Clone, Debug)]
@@ -1161,7 +1247,14 @@ macro_rules! define_config_stack {
       pub elements: [ConfigStackElement<$tp>; $size],
     }
 
-    impl $name {}
+    impl std::default::Default for $name {
+      fn default() -> Self {
+        Self {
+          head:     0,
+          elements: [ConfigStackElement::<$tp>::default(); $size],
+        }
+      }
+    }
   };
 }
 
@@ -1181,7 +1274,7 @@ define_config_stack!(
   StackSize::BUTTON_BEHAVIOR_STACK_SIZE
 );
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct ConfigurationStacks {
   pub style_items:       ConfigStackStyleItem,
   pub floats:            ConfigStackFloat,

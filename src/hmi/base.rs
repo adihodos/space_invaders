@@ -42,6 +42,12 @@ pub enum ButtonBehaviour {
   ButtonRepeater,
 }
 
+impl std::default::Default for ButtonBehaviour {
+  fn default() -> Self {
+    ButtonBehaviour::ButtonDefault
+  }
+}
+
 #[derive(Copy, Debug, Clone)]
 pub struct UserFont {}
 
