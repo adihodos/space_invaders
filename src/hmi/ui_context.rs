@@ -127,6 +127,10 @@ impl<'a> UiContext<'a> {
     }
   }
 
+  fn get_window_index_by_handle(&self, handle: usize) -> Option<usize> {
+    self.window_list.iter().position(|wnd| wnd.handle == handle)
+  }
+
   fn get_current_window(&self) -> Option<&Window> {
     self
       .current
@@ -136,10 +140,11 @@ impl<'a> UiContext<'a> {
   }
 
   fn get_current_window_mut(&mut self) -> Option<&mut Window> {
-    self.current.as_ref().copied().and_then(|curr_win_handle| {
-      // self.window_list.iter_mut().find(|wnd| wnd.handle == curr_win_handle)
-      None
-    })
+    self
+      .current
+      .as_ref()
+      .copied()
+      .and_then(move |id| self.get_window_mut_by_handle(id))
   }
 
   pub fn clear(&mut self) {
@@ -486,13 +491,54 @@ impl<'a> UiContext<'a> {
     }
 
     // let current = self.current.as_ref().copied().unwrap();
-    // let scrollbar_size = self.style.window.scrollbar_size;
-    // let panel_padding = self.style.get_panel_padding(panel_type);
 
-    // // window movement
-    // if win.flags.contains(PanelFlags::WindowMovable)
-    //   && !win.flags.contains(PanelFlags::WindowRom)
-    // {}
+    let scrollbar_size = self.style.window.scrollbar_size;
+    let panel_padding = self.style.get_panel_padding(panel_type);
+    let idx = self
+      .current
+      .as_ref()
+      .copied()
+      .map_or(None, |handle| self.find_window_index_by_handle(handle))
+      .unwrap();
+
+    // window movement
+    let can_move = self.window_list[idx]
+      .flags
+      .contains(PanelFlags::WindowMovable)
+      && !self.window_list[idx].flags.contains(PanelFlags::WindowRom);
+
+    if can_move {
+      let mut header = self.window_list[idx].bounds;
+      if Panel::has_header(self.window_list[idx].flags, Some(title)) {
+        header.h =
+          self.style.font.scale + 2f32 * self.style.window.header.padding.y;
+        header.h += 2f32 * self.style.window.header.label_padding.y;
+      } else {
+        header.h = panel_padding.y;
+      }
+
+      // window movement by dragging
+      let left_mouse_down =
+        self.input.has_mouse_down(MouseButtonId::ButtonLeft);
+      let left_mouse_clicked = self
+        .input
+        .has_mouse_button_pressed(MouseButtonId::ButtonLeft);
+      let left_mouse_click_in_cursor = self.input.has_mouse_click_down_in_rect(
+        MouseButtonId::ButtonLeft,
+        &header,
+        true,
+      );
+
+      if left_mouse_down && left_mouse_click_in_cursor && !left_mouse_clicked {
+        self.window_list[idx].bounds.x += self.input.mouse.delta.x;
+        self.window_list[idx].bounds.y += self.input.mouse.delta.y;
+        self.input.mouse.buttons[MouseButtonId::ButtonLeft as usize]
+          .clicked_pos += self.input.mouse.delta;
+        // ctx->style.cursor_active = ctx->style.cursors[NK_CURSOR_MOVE];
+      }
+    }
+
+    // setup panel
 
     false
   }

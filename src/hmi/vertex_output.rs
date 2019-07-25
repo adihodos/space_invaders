@@ -96,14 +96,6 @@ impl<'a> DrawList<'a> {
     self.index_buff.replace(index_buff);
   }
 
-  fn path_last(&self) -> Vec2F32 {
-    if self.path.borrow().is_empty() {
-      panic!("Path is empty!");
-    }
-
-    *self.path.borrow().last().unwrap()
-  }
-
   fn push_command(&mut self, clip: RectangleF32, texture: GenericHandle) {
     assert!(
       self.cmds_buff.is_some(),
@@ -120,7 +112,6 @@ impl<'a> DrawList<'a> {
       cmds_buffer.push(cmd)
     });
 
-    // self.buffer.push(cmd);
     self.clip_rect = clip;
   }
 
