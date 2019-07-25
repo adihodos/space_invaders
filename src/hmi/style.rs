@@ -2,11 +2,14 @@ use crate::{
   hmi::{
     cursor::Cursor,
     image::Image,
-    text::{TextAlign, TextAlignment},
+    panel::{PanelFlags, PanelType},
+    text::TextAlignment,
     text_engine::Font,
   },
   math::{colors::RGBAColor, vec2::Vec2F32},
 };
+
+use enumflags2::BitFlags;
 use num_derive::{FromPrimitive, ToPrimitive};
 
 #[derive(Copy, Clone, Debug, FromPrimitive, ToPrimitive)]
@@ -1192,6 +1195,50 @@ impl Style {
       window,
     }
   }
+
+  pub fn get_panel_padding(&self, typ: PanelType) -> Vec2F32 {
+    match typ {
+      PanelType::Window => self.window.padding,
+      PanelType::Group => self.window.group_padding,
+      PanelType::Popup => self.window.popup_padding,
+      PanelType::Contextual => self.window.contextual_padding,
+      PanelType::Combo => self.window.combo_padding,
+      PanelType::Menu => self.window.menu_padding,
+      PanelType::Tooltip => self.window.menu_padding,
+    }
+  }
+
+  pub fn get_panel_border(
+    &self,
+    typ: PanelType,
+    flags: BitFlags<PanelFlags>,
+  ) -> f32 {
+    if !flags.contains(PanelFlags::WindowBorder) {
+      return 0f32;
+    }
+
+    match typ {
+      PanelType::Window => self.window.border,
+      PanelType::Group => self.window.group_border,
+      PanelType::Popup => self.window.popup_border,
+      PanelType::Contextual => self.window.contextual_border,
+      PanelType::Combo => self.window.combo_border,
+      PanelType::Menu => self.window.menu_border,
+      PanelType::Tooltip => self.window.menu_border,
+    }
+  }
+
+  pub fn get_panel_border_color(&self, typ: PanelType) -> RGBAColor {
+    match typ {
+      PanelType::Window => self.window.border_color,
+      PanelType::Group => self.window.group_border_color,
+      PanelType::Popup => self.window.popup_border_color,
+      PanelType::Contextual => self.window.contextual_border_color,
+      PanelType::Combo => self.window.combo_border_color,
+      PanelType::Menu => self.window.menu_border_color,
+      PanelType::Tooltip => self.window.menu_border_color,
+    }
+  }
 }
 
 struct StackSize {}
@@ -1214,18 +1261,6 @@ where
   pub address:   *mut T,
   pub old_value: T,
 }
-
-// impl<T> ConfigStackElement<T>
-// where
-//   T: Copy + Clone + std::fmt::Debug + std::default::Default,
-// {
-//   pub fn new() -> Self {
-//     Self {
-//       address:   std::ptr::null_mut(),
-//       old_value: T::default(),
-//     }
-//   }
-// }
 
 impl<T> std::default::Default for ConfigStackElement<T>
 where

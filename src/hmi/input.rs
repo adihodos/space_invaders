@@ -212,6 +212,16 @@ impl Input {
     btn.clicked != 0 && btn.down == false
   }
 
+  pub fn has_mouse_down(&self, id: MouseButtonId) -> bool {
+    let btn = &self.mouse.buttons[id as usize];
+    btn.down 
+  }
+
+  pub fn has_mouse_button_pressed(&self, id: MouseButtonId) -> bool {
+    let btn = &self.mouse.buttons[id as usize];
+    btn.clicked != 0
+  }
+
   pub fn has_mouse_click_in_rect(
     &self,
     id: MouseButtonId,

@@ -302,7 +302,7 @@ impl FontMetrics {
 
 #[derive(Copy, Clone, Debug)]
 pub struct Font {
-  scale:     f32,
+  pub scale:     f32,
   glyph_tbl: u32,
   face_tbl:  u32,
   atlas:     *const FontAtlas,

@@ -1,5 +1,7 @@
 use crate::math::vec2::Vec2F32;
 
+pub type HashType = u64;
+
 #[derive(Copy, Debug, Clone, PartialEq)]
 pub enum GenericHandle {
   Ptr(usize),
