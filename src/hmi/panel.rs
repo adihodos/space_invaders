@@ -1,5 +1,5 @@
 use crate::{
-  hmi::commands::CommandBuffer,
+  hmi::{base::Consts, commands::CommandBuffer},
   math::{rectangle::RectangleF32, vec2::Vec2U32},
 };
 
@@ -85,6 +85,12 @@ pub enum PanelRowLayoutType {
   Count,
 }
 
+impl std::default::Default for PanelRowLayoutType {
+  fn default() -> PanelRowLayoutType {
+    PanelRowLayoutType::Count
+  }
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct RowLayout {
   pub typ:         PanelRowLayoutType,
@@ -102,7 +108,27 @@ pub struct RowLayout {
   pub templates:   [f32; MAX_LAYOUT_ROW_TEMPLATE_COLUMNS],
 }
 
-#[derive(Copy, Clone, Debug)]
+impl std::default::Default for RowLayout {
+  fn default() -> RowLayout {
+    RowLayout {
+      typ:         PanelRowLayoutType::default(),
+      index:       0,
+      height:      0f32,
+      min_height:  0f32,
+      columns:     0,
+      ratio:       std::ptr::null_mut(),
+      item_width:  0f32,
+      item_height: 0f32,
+      item_offset: 0f32,
+      filled:      0f32,
+      item:        RectangleF32::new(0f32, 0f32, 0f32, 0f32),
+      tree_depth:  0,
+      templates:   [0f32; MAX_LAYOUT_ROW_TEMPLATE_COLUMNS],
+    }
+  }
+}
+
+#[derive(Copy, Clone, Debug, Default)]
 pub struct PopupBuffer {
   pub begin:  u64,
   pub parent: u64,
@@ -111,19 +137,19 @@ pub struct PopupBuffer {
   pub active: i32,
 }
 
-impl std::default::Default for PopupBuffer {
-  fn default() -> Self {
-    Self {
-      begin:  0,
-      parent: 0,
-      last:   0,
-      end:    0,
-      active: 0,
-    }
-  }
-}
+// impl std::default::Default for PopupBuffer {
+//   fn default() -> Self {
+//     Self {
+//       begin:  0,
+//       parent: 0,
+//       last:   0,
+//       end:    0,
+//       active: 0,
+//     }
+//   }
+// }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct MenuState {
   pub x:      f32,
   pub y:      f32,
@@ -138,7 +164,7 @@ pub struct Chart {}
 #[derive(Copy, Clone, Debug)]
 pub struct Panel {
   pub typ:           PanelType,
-  pub flags:         u32,
+  pub flags:         BitFlags<PanelFlags>,
   pub bounds:        RectangleF32,
   pub offset_x:      *mut u32,
   pub offset_y:      *mut u32,
@@ -158,6 +184,29 @@ pub struct Panel {
 }
 
 impl Panel {
+  pub fn new(typ: PanelType) -> Panel {
+    Panel {
+      typ,
+      flags: BitFlags::<PanelFlags>::empty(),
+      bounds: RectangleF32::new(0f32, 0f32, 0f32, 0f32),
+      offset_x: std::ptr::null_mut(),
+      offset_y: std::ptr::null_mut(),
+      at_x: 0f32,
+      at_y: 0f32,
+      max_x: 0f32,
+      footer_height: 0f32,
+      header_height: 0f32,
+      border: 0f32,
+      has_scrolling: 0,
+      clip: Consts::null_rect(),
+      menu: MenuState::default(),
+      row: RowLayout::default(),
+      chart: Chart {},
+      buffer: std::ptr::null_mut(),
+      parent: std::ptr::null_mut(),
+    }
+  }
+
   pub fn has_header(flags: BitFlags<PanelFlags>, title: Option<&str>) -> bool {
     let active = flags
       .contains(PanelFlags::WindowClosable | PanelFlags::WindowMinimizable);

@@ -6,8 +6,8 @@ use crate::{
   },
   math::{rectangle::RectangleF32, vec2::Vec2U32},
 };
-
 use enumflags2::BitFlags;
+use std::{cell::RefCell, rc::Rc};
 
 // pub struct WindowFlags {}
 
@@ -129,7 +129,7 @@ pub struct Window {
   pub bounds:                 RectangleF32,
   pub scrollbar:              Vec2U32,
   pub buffer:                 CommandBuffer,
-  pub layout:                 Option<Box<Panel>>,
+  pub layout:                 Box<RefCell<Panel>>,
   pub scrollbar_hiding_timer: f32,
   // persistent widget state
   pub property: PropertyState,
@@ -144,7 +144,7 @@ pub struct Window {
   // pub prev:   *mut Window,
   // pub next:   *mut Window,
   // pub parent: *mut Window,
-  pub parent: Option<usize>,
+  pub parent: Option<Rc<RefCell<Window>>>,
 }
 
 impl Window {
@@ -169,7 +169,7 @@ impl Window {
         )),
         128,
       ),
-      layout: None,
+      layout: Box::new(RefCell::new(Panel::new(PanelType::Window))),
       scrollbar_hiding_timer: 0f32,
       property: PropertyState::default(),
       popup: PopupState::default(),

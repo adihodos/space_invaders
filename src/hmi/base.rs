@@ -101,3 +101,13 @@ pub struct DrawVertexLayoutElement {
   pub format:    DrawVertexLayoutFormat,
   pub offset:    usize,
 }
+
+pub struct Consts {}
+
+impl Consts {
+  pub fn null_rect() -> crate::math::rectangle::RectangleF32 {
+    crate::math::rectangle::RectangleF32::new(
+      -8192_f32, -8192_f32, 16834_f32, 16834_f32,
+    )
+  }
+}

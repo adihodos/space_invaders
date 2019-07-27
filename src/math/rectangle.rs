@@ -3,7 +3,7 @@
 use num_traits::Num;
 use std::ops::{Add, Sub};
 
-use crate::math::minmax::MinMax;
+use crate::math::{minmax::MinMax, vec2::Vec2};
 
 #[derive(Copy, Clone, Debug)]
 pub struct TRectangle<T>
@@ -58,7 +58,7 @@ where
 
   pub fn union(a: &TRectangle<T>, b: &TRectangle<T>) -> TRectangle<T>
   where
-    T: PartialOrd + Add<Output=T> + Sub<Output=T>,
+    T: PartialOrd + Add<Output = T> + Sub<Output = T>,
   {
     let ax0 = a.x;
     let ay0 = a.y;
@@ -75,12 +75,33 @@ where
     let ux1 = <T as MinMax>::max(ax1, bx1);
     let uy1 = <T as MinMax>::max(ay1, by1);
 
-    Self::new(
-      ux0,
-      uy0,
-      ux1 - ux0,
-      uy1 - uy0
-     )
+    Self::new(ux0, uy0, ux1 - ux0, uy1 - uy0)
+  }
+
+  pub fn shrink(r: &TRectangle<T>, amount: T) -> TRectangle<T>
+  where
+    T: Add<Output = T> + Sub<Output = T> + MinMax,
+  {
+    let w = T::max(r.w, amount + amount);
+    let h = T::max(r.h, amount + amount);
+
+    TRectangle::new(
+      r.x + amount,
+      r.y + amount,
+      w - amount - amount,
+      h - amount - amount,
+    )
+  }
+
+  pub fn pad(r: &TRectangle<T>, pad: Vec2<T>) -> TRectangle<T> {
+    let w = T::max(r.w, pad.x + pad.x);
+    let h = T::max(r.h, pad.y + pad.y);
+    TRectangle::new(
+      r.x + pad.x,
+      r.y + pad.y,
+      w - pad.x - pad.x,
+      h - pad.y - pad.y,
+    )
   }
 }
 

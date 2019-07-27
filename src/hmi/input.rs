@@ -214,10 +214,15 @@ impl Input {
 
   pub fn has_mouse_down(&self, id: MouseButtonId) -> bool {
     let btn = &self.mouse.buttons[id as usize];
-    btn.down 
+    btn.down
   }
 
-  pub fn has_mouse_button_pressed(&self, id: MouseButtonId) -> bool {
+  // pub fn has_mouse_button_pressed(&self, id: MouseButtonId) -> bool {
+  //   let btn = &self.mouse.buttons[id as usize];
+  //   btn.clicked != 0
+  // }
+
+  pub fn is_button_clicked(&self, id: MouseButtonId) -> bool {
     let btn = &self.mouse.buttons[id as usize];
     btn.clicked != 0
   }
