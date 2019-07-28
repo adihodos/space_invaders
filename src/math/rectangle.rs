@@ -3,7 +3,7 @@
 use num_traits::Num;
 use std::ops::{Add, Sub};
 
-use crate::math::{minmax::MinMax, vec2::Vec2};
+use crate::math::{minmax::MinMax, vec2::TVec2};
 
 #[derive(Copy, Clone, Debug)]
 pub struct TRectangle<T>
@@ -93,7 +93,7 @@ where
     )
   }
 
-  pub fn pad(r: &TRectangle<T>, pad: Vec2<T>) -> TRectangle<T> {
+  pub fn pad(r: &TRectangle<T>, pad: TVec2<T>) -> TRectangle<T> {
     let w = T::max(r.w, pad.x + pad.x);
     let h = T::max(r.h, pad.y + pad.y);
     TRectangle::new(

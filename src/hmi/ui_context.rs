@@ -169,30 +169,32 @@ impl<'a> UiContext<'a> {
 
     // setup panel
     {
-      let mut panel = winptr.borrow().layout.borrow_mut();
-      panel.flags = win_flags;
-      
-      //       layout->flags = win->flags;
-      // layout->bounds = win->bounds;
-      // layout->bounds.x += panel_padding.x;
-      // layout->bounds.w -= 2*panel_padding.x;
-      // if (win->flags & NK_WINDOW_BORDER) {
-      //     layout->border = nk_panel_get_border(style, win->flags,
-      // panel_type);     layout->bounds = nk_shrink_rect(layout->bounds,
-      // layout->border); } else layout->border = 0;
-      // layout->at_y = layout->bounds.y;
-      // layout->at_x = layout->bounds.x;
-      // layout->max_x = 0;
-      // layout->header_height = 0;
-      // layout->footer_height = 0;
-      // nk_layout_reset_min_row_height(ctx);
-      // layout->row.index = 0;
-      // layout->row.columns = 0;
-      // layout->row.ratio = 0;
-      // layout->row.item_width = 0;
-      // layout->row.tree_depth = 0;
-      // layout->row.height = panel_padding.y;
-      // layout->has_scrolling = nk_true;
+      let win = winptr.borrow();
+      let mut layout = win.layout.borrow_mut();
+      layout.flags = win_flags;
+      layout.bounds = winptr.borrow().bounds;
+      layout.bounds.x += panel_padding.x;
+      layout.bounds.w -= 2f32 * panel_padding.x;
+      if win_flags.contains(PanelFlags::WindowBorder) {
+        layout.border = self.style.get_panel_border(panel_type, win_flags);
+        layout.bounds = RectangleF32::shrink(&layout.bounds, layout.border);
+      } else {
+        layout.border = 0f32;
+      }
+
+      layout.at_x = layout.bounds.x;
+      layout.at_y = layout.bounds.y;
+      layout.max_x = 0f32;
+      layout.header_height = 0f32;
+      layout.footer_height = 0f32;
+      // TODO : reset min row
+      layout.row.index = 0;
+      layout.row.columns = 0;
+      layout.row.ratio = std::ptr::null_mut();
+      layout.row.item_width = 0f32;
+      layout.row.tree_depth = 0;
+      layout.row.height = panel_padding.y;
+      layout.has_scrolling = true;
     }
 
     false
