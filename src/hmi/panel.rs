@@ -1,5 +1,5 @@
 use crate::{
-  hmi::{base::Consts, commands::CommandBuffer},
+  hmi::{base::Consts, commands::CommandBuffer, style::Style},
   math::{rectangle::RectangleF32, vec2::Vec2U32},
 };
 
@@ -23,28 +23,32 @@ pub enum PanelType {
 }
 
 impl PanelType {
-  pub fn is_sub(&self) -> bool {
-    *self as u8 & PanelSet::SUB != 0
+  // pub fn is_nonblock(&self) -> bool {
+  //   *self as u8 & PanelSet::NON_BLOCK != 0
+  // }
+  fn non_block() -> BitFlags<PanelType> {
+    PanelType::Contextual
+      | PanelType::Combo
+      | PanelType::Menu
+      | PanelType::Tooltip
   }
 
-  pub fn is_nonblock(&self) -> bool {
-    *self as u8 & PanelSet::NON_BLOCK != 0
+  fn popup() -> BitFlags<PanelType> {
+    PanelType::Contextual
+      | PanelType::Combo
+      | PanelType::Menu
+      | PanelType::Tooltip
+      | PanelType::Popup
   }
-}
 
-pub struct PanelSet {}
-
-impl PanelSet {
-  // PanelType::Contextual  |  PanelType::Combo | PanelType::Menu |
-  // PanelType::Tooltip
-  pub const NON_BLOCK: u8 = 240;
-  // PanelType::Contextual  |  PanelType::Combo |  PanelType::Menu |
-  // PanelType::Tooltip | PanelType::Popup
-  pub const POPUP: u8 = 244;
-  // PanelType::Contextual  |  PanelType::Combo |
-  // PanelType::Menu |  PanelType::Tooltip | PanelType::Popup
-  // | PanelType::Group
-  pub const SUB: u8 = 246;
+  fn sub() -> BitFlags<PanelType> {
+    PanelType::Contextual
+      | PanelType::Combo
+      | PanelType::Menu
+      | PanelType::Tooltip
+      | PanelType::Popup
+      | PanelType::Group
+  }
 }
 
 #[derive(
@@ -163,7 +167,7 @@ pub struct Chart {}
 
 #[derive(Copy, Clone, Debug)]
 pub struct Panel {
-  pub typ:           PanelType,
+  pub typ:           BitFlags<PanelType>,
   pub flags:         BitFlags<PanelFlags>,
   pub bounds:        RectangleF32,
   pub offset_x:      *mut u32,
@@ -184,7 +188,7 @@ pub struct Panel {
 }
 
 impl Panel {
-  pub fn new(typ: PanelType) -> Panel {
+  pub fn new(typ: BitFlags<PanelType>) -> Panel {
     Panel {
       typ,
       flags: BitFlags::<PanelFlags>::empty(),
@@ -214,5 +218,23 @@ impl Panel {
     let active =
       active && !flags.contains(PanelFlags::WindowHidden) && title.is_some();
     active
+  }
+
+  pub fn is_nonblock(&self) -> bool {
+    self.typ.contains(PanelType::non_block())
+  }
+
+  pub fn is_popup(&self) -> bool {
+    self.typ.contains(PanelType::popup())
+  }
+
+  pub fn is_sub(&self) -> bool {
+    self.typ.contains(PanelType::sub())
+  }
+
+  pub fn reset_min_row_height(&mut self, style: &Style) {
+    self.row.min_height = style.font.scale;
+    self.row.min_height += style.text.padding.y * 2f32;
+    self.row.min_height += style.window.min_row_height_padding * 2f32;
   }
 }

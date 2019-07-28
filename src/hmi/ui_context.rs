@@ -102,7 +102,11 @@ impl<'a> UiContext<'a> {
     handle
   }
 
-  pub fn panel_begin(&mut self, title: &str, panel_type: PanelType) -> bool {
+  pub fn panel_begin(
+    &mut self,
+    title: &str,
+    panel_type: BitFlags<PanelType>,
+  ) -> bool {
     debug_assert!(self.current_win.borrow().is_some());
 
     if self.current_win.borrow().is_none() {
@@ -187,7 +191,7 @@ impl<'a> UiContext<'a> {
       layout.max_x = 0f32;
       layout.header_height = 0f32;
       layout.footer_height = 0f32;
-      // TODO : reset min row
+      layout.reset_min_row_height(&self.style);
       layout.row.index = 0;
       layout.row.columns = 0;
       layout.row.ratio = std::ptr::null_mut();
@@ -195,6 +199,20 @@ impl<'a> UiContext<'a> {
       layout.row.tree_depth = 0;
       layout.row.height = panel_padding.y;
       layout.has_scrolling = true;
+
+      if !win_flags.contains(PanelFlags::WindowNoScrollbar) {
+        layout.bounds.w -= scrollbar_size.x;
+      }
+
+      if !layout.is_nonblock() {
+        layout.footer_height = 0f32;
+        if !win_flags
+          .contains(PanelFlags::WindowNoScrollbar | PanelFlags::WindowScalable)
+        {
+          layout.footer_height = scrollbar_size.y;
+        }
+        layout.bounds.h -= layout.footer_height;
+      }
     }
 
     false

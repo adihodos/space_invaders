@@ -9,19 +9,6 @@ use crate::{
 use enumflags2::BitFlags;
 use std::{cell::RefCell, rc::Rc};
 
-// pub struct WindowFlags {}
-
-// impl WindowFlags {
-//   pub const CLOSED: u32 = 1 << 14;
-//   pub const DYNAMIC: u32 = WindowFlags::PRIVATE;
-//   pub const HIDDEN: u32 = 1 << 13;
-//   pub const MINIMIZED: u32 = 1 << 15;
-//   pub const NOT_INTERACTIVE: u32 = WindowFlags::ROM | 1 << 10;
-//   pub const PRIVATE: u32 = 1 << 11;
-//   pub const REMOVE_ROM: u32 = 1 << 16;
-//   pub const ROM: u32 = 1 << 12;
-// }
-
 #[derive(Copy, Clone, Debug)]
 pub struct PopupState {
   pub win:         Option<usize>,
@@ -169,7 +156,9 @@ impl Window {
         )),
         128,
       ),
-      layout: Box::new(RefCell::new(Panel::new(PanelType::Window))),
+      layout: Box::new(RefCell::new(Panel::new(
+        PanelType::Window | PanelType::Window,
+      ))),
       scrollbar_hiding_timer: 0f32,
       property: PropertyState::default(),
       popup: PopupState::default(),
