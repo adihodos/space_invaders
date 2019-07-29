@@ -1,5 +1,5 @@
 use crate::{
-  hmi::{image::Image, text_engine::Font},
+  hmi::{base::Consts, image::Image, text_engine::Font},
   math::{colors::RGBAColor, rectangle::RectangleF32, vec2::Vec2I16},
 };
 
@@ -196,6 +196,13 @@ impl CommandBuffer {
       clip,
       base: Vec::with_capacity(min_buffer_size),
     }
+  }
+
+  pub fn clip(&self) -> RectangleF32 {
+    self
+      .clip
+      .as_ref()
+      .map_or(Consts::null_rect(), |clip_rc| *clip_rc)
   }
 
   pub fn clear(&mut self) {

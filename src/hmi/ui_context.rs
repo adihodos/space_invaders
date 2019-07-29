@@ -6,12 +6,12 @@ use crate::{
     commands::CommandBuffer,
     input::{Input, MouseButtonId},
     panel::{Panel, PanelFlags, PanelType},
-    style::{ConfigurationStacks, Style},
+    style::{ConfigurationStacks, Style, StyleItem},
     text_engine::Font,
     vertex_output::{DrawCommand, DrawIndexType, DrawList},
     window::Window,
   },
-  math::{rectangle::RectangleF32, vertex_types::VertexPTC},
+  math::{colors::RGBAColor, rectangle::RectangleF32, vertex_types::VertexPTC},
 };
 
 use enumflags2::BitFlags;
@@ -195,8 +195,118 @@ impl<'a> UiContext<'a> {
       layout.row.tree_depth = 0;
       layout.row.height = panel_padding.y;
       layout.has_scrolling = true;
+
+      if !win_flags.contains(PanelFlags::WindowNoScrollbar) {
+        layout.bounds.w -= scrollbar_size.x;
+      }
     }
 
-    false
+    // panel header
+    if Panel::has_header(win_flags, Some(title)) {
+      // calculate header bounds
+      let win = winptr.borrow();
+      let mut layout = win.layout.borrow_mut();
+      let mut header = win.bounds;
+      header.h =
+        self.style.font.scale + 2f32 * self.style.window.header.padding.y;
+      header.h += 2f32 * self.style.window.header.label_padding.y;
+
+      // shrink panel by header
+      layout.header_height = header.h;
+      layout.bounds.y += header.h;
+      layout.bounds.h -= header.h;
+      layout.at_y += header.h;
+
+      // select correct header background and text color
+      let is_active_win = self
+        .active_win
+        .borrow()
+        .as_ref()
+        .map_or(false, |active_win| active_win.borrow().handle == win.handle);
+
+      let (bk, txt_color) = if is_active_win {
+        (
+          self.style.window.header.active,
+          self.style.window.header.label_active,
+        )
+      } else if self.input.borrow().is_mouse_hovering_rect(&header) {
+        (
+          self.style.window.header.hover,
+          self.style.window.header.label_hover,
+        )
+      } else {
+        (
+          self.style.window.header.normal,
+          self.style.window.header.label_normal,
+        )
+      };
+
+      // draw header background
+      header.h += 1.0;
+      let txt_bk = match bk {
+        StyleItem::Img(ref img) => {
+          // draw image
+          win.buffer.borrow_mut().draw_image(
+            header,
+            *img,
+            RGBAColor::new(255, 255, 255),
+          );
+          RGBAColor::new_with_alpha(0, 0, 0, 0)
+        }
+
+        StyleItem::Color(clr) => {
+          // fill rect
+          win.buffer.borrow_mut().fill_rect(header, 0f32, clr);
+          clr
+        }
+      };
+
+      // window close button
+      {
+        // window minimize button
+      }
+
+      {
+        // window header title
+      }
+    }
+
+    // draw window background
+    let layout_flags = winptr.borrow().layout.borrow().flags;
+    if !layout_flags
+      .intersects(PanelFlags::WindowMinimized | PanelFlags::WindowDynamic)
+    {
+      let win = winptr.borrow();
+      let layout = win.layout.borrow();
+      let body = RectangleF32::new(
+        win.bounds.x,
+        win.bounds.y + layout.header_height,
+        win.bounds.w,
+        win.bounds.h - layout.header_height,
+      );
+
+      match self.style.window.fixed_background {
+        StyleItem::Img(ref img) => win.buffer.borrow_mut().draw_image(
+          body,
+          *img,
+          RGBAColor::new(255, 255, 255),
+        ),
+        StyleItem::Color(clr) => {
+          win.buffer.borrow_mut().fill_rect(body, 0f32, clr)
+        }
+      }
+    }
+
+    // set clipping rectangle
+    {
+      let buffer_clip = winptr.borrow().buffer.borrow().clip();
+      let layout_clip = winptr.borrow().layout.borrow().bounds;
+      let clip = RectangleF32::union(&buffer_clip, &layout_clip);
+      winptr.borrow().buffer.borrow_mut().push_scissor(clip);
+      winptr.borrow().layout.borrow_mut().clip = clip;
+    }
+
+    !layout_flags
+      .contains(PanelFlags::WindowHidden | PanelFlags::WindowMinimized)
   }
 }

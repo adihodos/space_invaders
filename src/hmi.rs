@@ -1,13 +1,14 @@
 pub mod base;
 pub mod buffer;
 pub mod commands;
+pub mod cursor;
 pub mod image;
 pub mod input;
+pub mod panel;
+mod progress;
+pub mod style;
+pub mod text;
 pub mod text_engine;
 pub mod ui_context;
 pub mod vertex_output;
-pub mod style;
-pub mod cursor;
-pub mod panel;
 pub mod window;
-pub mod text;

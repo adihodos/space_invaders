@@ -128,7 +128,7 @@ pub struct Window {
   pub flags:                  BitFlags<PanelFlags>,
   pub bounds:                 RectangleF32,
   pub scrollbar:              Vec2U32,
-  pub buffer:                 CommandBuffer,
+  pub buffer:                 RefCell<CommandBuffer>,
   pub layout:                 Box<RefCell<Panel>>,
   pub scrollbar_hiding_timer: f32,
   // persistent widget state
@@ -163,12 +163,12 @@ impl Window {
       flags,
       bounds,
       scrollbar: Vec2U32::same(0),
-      buffer: CommandBuffer::new(
+      buffer: RefCell::new(CommandBuffer::new(
         Some(RectangleF32::new(
           -8192_f32, -8192_f32, 16834_f32, 16834_f32,
         )),
         128,
-      ),
+      )),
       layout: Box::new(RefCell::new(Panel::new(PanelType::Window))),
       scrollbar_hiding_timer: 0f32,
       property: PropertyState::default(),
