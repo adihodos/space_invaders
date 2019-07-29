@@ -203,16 +203,7 @@ impl<'a> UiContext<'a> {
       if !win_flags.contains(PanelFlags::WindowNoScrollbar) {
         layout.bounds.w -= scrollbar_size.x;
       }
-
-      if !layout.is_nonblock() {
-        layout.footer_height = 0f32;
-        if !win_flags
-          .contains(PanelFlags::WindowNoScrollbar | PanelFlags::WindowScalable)
-        {
-          layout.footer_height = scrollbar_size.y;
-        }
-        layout.bounds.h -= layout.footer_height;
-      }
+<<<<<<< HEAD
     }
 
     // panel header
@@ -318,6 +309,18 @@ impl<'a> UiContext<'a> {
       let clip = RectangleF32::union(&buffer_clip, &layout_clip);
       winptr.borrow().buffer.borrow_mut().push_scissor(clip);
       winptr.borrow().layout.borrow_mut().clip = clip;
+=======
+
+      if !layout.is_nonblock() {
+        layout.footer_height = 0f32;
+        if !win_flags
+          .contains(PanelFlags::WindowNoScrollbar | PanelFlags::WindowScalable)
+        {
+          layout.footer_height = scrollbar_size.y;
+        }
+        layout.bounds.h -= layout.footer_height;
+      }
+>>>>>>> 842b55dc45779e46f52e9e64a4e3423bdeca0547
     }
 
     !layout_flags

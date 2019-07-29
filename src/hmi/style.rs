@@ -1196,47 +1196,71 @@ impl Style {
     }
   }
 
-  pub fn get_panel_padding(&self, typ: PanelType) -> Vec2F32 {
-    match typ {
-      PanelType::Window => self.window.padding,
-      PanelType::Group => self.window.group_padding,
-      PanelType::Popup => self.window.popup_padding,
-      PanelType::Contextual => self.window.contextual_padding,
-      PanelType::Combo => self.window.combo_padding,
-      PanelType::Menu => self.window.menu_padding,
-      PanelType::Tooltip => self.window.menu_padding,
+  pub fn get_panel_padding(&self, typ: BitFlags<PanelType>) -> Vec2F32 {
+    if typ == PanelType::Window {
+      self.window.padding
+    } else if typ == PanelType::Group {
+      self.window.group_padding
+    } else if typ == PanelType::Popup {
+      self.window.popup_padding
+    } else if typ == PanelType::Contextual {
+      self.window.contextual_padding
+    } else if typ == PanelType::Combo {
+      self.window.combo_padding
+    } else if typ == PanelType::Menu {
+      self.window.menu_padding
+    } else if typ == PanelType::Tooltip {
+      self.window.menu_padding
+    } else {
+      Vec2F32::same(0f32)
     }
   }
 
   pub fn get_panel_border(
     &self,
-    typ: PanelType,
+    typ: BitFlags<PanelType>,
     flags: BitFlags<PanelFlags>,
   ) -> f32 {
     if !flags.contains(PanelFlags::WindowBorder) {
       return 0f32;
     }
 
-    match typ {
-      PanelType::Window => self.window.border,
-      PanelType::Group => self.window.group_border,
-      PanelType::Popup => self.window.popup_border,
-      PanelType::Contextual => self.window.contextual_border,
-      PanelType::Combo => self.window.combo_border,
-      PanelType::Menu => self.window.menu_border,
-      PanelType::Tooltip => self.window.menu_border,
+    if typ == PanelType::Window {
+      self.window.border
+    } else if typ == PanelType::Group {
+      self.window.group_border
+    } else if typ == PanelType::Popup {
+      self.window.popup_border
+    } else if typ == PanelType::Contextual {
+      self.window.contextual_border
+    } else if typ == PanelType::Combo {
+      self.window.combo_border
+    } else if typ == PanelType::Menu {
+      self.window.menu_border
+    } else if typ == PanelType::Tooltip {
+      self.window.tooltip_border
+    } else {
+      0f32
     }
   }
 
-  pub fn get_panel_border_color(&self, typ: PanelType) -> RGBAColor {
-    match typ {
-      PanelType::Window => self.window.border_color,
-      PanelType::Group => self.window.group_border_color,
-      PanelType::Popup => self.window.popup_border_color,
-      PanelType::Contextual => self.window.contextual_border_color,
-      PanelType::Combo => self.window.combo_border_color,
-      PanelType::Menu => self.window.menu_border_color,
-      PanelType::Tooltip => self.window.menu_border_color,
+  pub fn get_panel_border_color(&self, typ: BitFlags<PanelType>) -> RGBAColor {
+    if typ == PanelType::Window {
+      self.window.border_color
+    } else if typ == PanelType::Group {
+      self.window.group_border_color
+    } else if typ == PanelType::Popup {
+      self.window.popup_border_color
+    } else if typ == PanelType::Contextual {
+      self.window.contextual_border_color
+    } else if typ == PanelType::Combo {
+      self.window.combo_border_color
+    } else if typ == PanelType::Menu {
+      self.window.menu_border_color
+    } else if typ == PanelType::Tooltip {
+      self.window.tooltip_border_color
+    } else {
+      RGBAColor::new(0, 0, 0)
     }
   }
 }
