@@ -1,11 +1,18 @@
 use crate::{
-  hmi::{base::Consts, commands::CommandBuffer, style::Style},
+  hmi::{base::Consts, commands::CommandBuffer, style::Style, window::Window},
   math::{rectangle::RectangleF32, vec2::Vec2U32},
 };
 
 use enumflags2::BitFlags;
 use enumflags2_derive::EnumFlags;
 use num_derive::{FromPrimitive, ToPrimitive};
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum LayoutFormat {
+  Dynamic,
+  Static,
+}
 
 pub const MAX_LAYOUT_ROW_TEMPLATE_COLUMNS: usize = 16;
 pub const MAX_CHART_SLOT: usize = 4;
@@ -75,7 +82,7 @@ pub enum PanelFlags {
   WindowRemoveRom = 1 << 16,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum PanelRowLayoutType {
   DynamicFixed,
   DynamicRow,
@@ -236,5 +243,9 @@ impl Panel {
     self.row.min_height = style.font.scale;
     self.row.min_height += style.text.padding.y * 2f32;
     self.row.min_height += style.window.min_row_height_padding * 2f32;
+  }
+
+  pub fn set_min_row_height(&mut self, height: f32) {
+    self.row.min_height = height;
   }
 }

@@ -1,58 +1,17 @@
 use crate::{
   hmi::{
+    base::WidgetStates,
     commands::CommandBuffer,
     input::{Input, MouseButtonId},
     style::{StyleItem, StyleProgress},
   },
-  math::{colors::RGBAColor, rectangle::RectangleF32, utility::clamp},
+  math::{
+    colors::RGBAColor, rectangle::RectangleF32, utility::clamp, vec2::Vec2F32,
+  },
 };
 use enumflags2::BitFlags;
-use enumflags2_derive::EnumFlags;
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum WidgetLayoutStates {
-  Invalid,
-  Valid,
-  Rom,
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, EnumFlags)]
-pub enum WidgetStates {
-  Modified = 1 << 1,
-  Inactive = 1 << 2,
-  Entered = 1 << 3,
-  Hover = 1 << 4,
-  Activated = 1 << 5,
-  Left = 1 << 6,
-}
-
-impl WidgetStates {
-  pub fn is_hovered(s: BitFlags<WidgetStates>) -> bool {
-    s.contains(WidgetStates::Hover | WidgetStates::Modified)
-  }
-
-  pub fn hovered() -> BitFlags<WidgetStates> {
-    WidgetStates::Hover | WidgetStates::Modified
-  }
-
-  pub fn is_active(s: BitFlags<WidgetStates>) -> bool {
-    s.contains(WidgetStates::Activated | WidgetStates::Modified)
-  }
-
-  pub fn active() -> BitFlags<WidgetStates> {
-    WidgetStates::Activated | WidgetStates::Modified
-  }
-
-  pub fn reset(s: BitFlags<WidgetStates>) -> BitFlags<WidgetStates> {
-    if s.contains(WidgetStates::Modified) {
-      WidgetStates::Inactive | WidgetStates::Modified
-    } else {
-      WidgetStates::Inactive | WidgetStates::Inactive
-    }
-  }
-}
-
-pub fn progress_behaviour(
+fn progress_behaviour(
   state: BitFlags<WidgetStates>,
   input: Option<&mut Input>,
   r: &RectangleF32,
@@ -102,7 +61,7 @@ pub fn progress_behaviour(
   })
 }
 
-pub fn draw_progress(
+fn draw_progress(
   cmdbuff: &mut CommandBuffer,
   state: BitFlags<WidgetStates>,
   style: &StyleProgress,
@@ -152,4 +111,47 @@ pub fn draw_progress(
       );
     }
   }
+}
+
+pub fn do_progress(
+  state: BitFlags<WidgetStates>,
+  cmd_buff: &mut CommandBuffer,
+  bounds: &RectangleF32,
+  value: u32,
+  max: u32,
+  modifiable: bool,
+  style: &StyleProgress,
+  input: Option<&mut Input>,
+) -> (BitFlags<WidgetStates>, u32) {
+  // compute progressbar cursor
+
+  // let cursor = RectangleF32::new(
+  //   bounds.x,
+  //   bounds.y,
+  //   bounds.w.max(2f32 * style.padding.x + 2f32 * style.border),
+  //   bounds.h.max(2f32 * style.padding.y + 2f32 * style.border),
+  // );
+
+  let cursor = RectangleF32::pad(
+    bounds,
+    Vec2F32::new(
+      style.padding.x + style.border,
+      style.padding.y + style.border,
+    ),
+  );
+  let prog_scale = value as f32 / max as f32;
+
+  // update progressbar
+  let prog_value = value.min(max);
+  let (state, prog_value) = progress_behaviour(
+    state, input, bounds, &cursor, max, prog_value, modifiable,
+  );
+  let cursor = RectangleF32 {
+    w: cursor.w * prog_scale,
+    ..cursor
+  };
+
+  // draw progressbar
+  draw_progress(cmd_buff, state, style, bounds, &cursor, value, max);
+  (state, prog_value)
 }

@@ -1,4 +1,6 @@
 use crate::math::vec2::Vec2F32;
+use enumflags2::BitFlags;
+use enumflags2_derive::EnumFlags;
 
 pub type HashType = u64;
 
@@ -109,5 +111,48 @@ impl Consts {
     crate::math::rectangle::RectangleF32::new(
       -8192_f32, -8192_f32, 16834_f32, 16834_f32,
     )
+  }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum WidgetLayoutStates {
+  Invalid,
+  Valid,
+  Rom,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, EnumFlags)]
+pub enum WidgetStates {
+  Modified = 1 << 1,
+  Inactive = 1 << 2,
+  Entered = 1 << 3,
+  Hover = 1 << 4,
+  Activated = 1 << 5,
+  Left = 1 << 6,
+}
+
+impl WidgetStates {
+  pub fn is_hovered(s: BitFlags<WidgetStates>) -> bool {
+    s.contains(WidgetStates::Hover | WidgetStates::Modified)
+  }
+
+  pub fn hovered() -> BitFlags<WidgetStates> {
+    WidgetStates::Hover | WidgetStates::Modified
+  }
+
+  pub fn is_active(s: BitFlags<WidgetStates>) -> bool {
+    s.contains(WidgetStates::Activated | WidgetStates::Modified)
+  }
+
+  pub fn active() -> BitFlags<WidgetStates> {
+    WidgetStates::Activated | WidgetStates::Modified
+  }
+
+  pub fn reset(s: BitFlags<WidgetStates>) -> BitFlags<WidgetStates> {
+    if s.contains(WidgetStates::Modified) {
+      WidgetStates::Inactive | WidgetStates::Modified
+    } else {
+      WidgetStates::Inactive | WidgetStates::Inactive
+    }
   }
 }
