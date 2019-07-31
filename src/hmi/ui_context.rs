@@ -416,7 +416,7 @@ impl<'a> UiContext<'a> {
       .current_win
       .borrow()
       .as_ref()
-      .and_then(|winptr| Some(winptr.clone()))
+      // .and_then(|winptr| Some(winptr.clone()))
       .and_then(|winptr| {
         self.panel_layout(&winptr.borrow(), height, cols);
         if fmt == LayoutFormat::Dynamic {
@@ -898,5 +898,319 @@ impl<'a> UiContext<'a> {
       })
   }
 
-  // pub fn layout_space_rect_to_screen(&self, )
+  pub fn layout_space_rect_to_screen(
+    &self,
+    ret: &RectangleF32,
+  ) -> RectangleF32 {
+    debug_assert!(self.current_win.borrow().is_some());
+    self.current_win.borrow().as_ref().map_or(
+      RectangleF32::new(0f32, 0f32, 0f32, 0f32),
+      |winptr| {
+        let win = winptr.borrow();
+        let layout = win.layout.borrow_mut();
+
+        RectangleF32::new(
+          ret.x + layout.at_x - unsafe { *layout.offset_x as f32 },
+          ret.y + layout.at_y - unsafe { *layout.offset_y as f32 },
+          ret.w,
+          ret.h,
+        )
+      },
+    )
+  }
+
+  pub fn layout_space_rect_to_local(&self, ret: &RectangleF32) -> RectangleF32 {
+    debug_assert!(self.current_win.borrow().is_some());
+    self.current_win.borrow().as_ref().map_or(
+      RectangleF32::new(0f32, 0f32, 0f32, 0f32),
+      |winptr| {
+        let win = winptr.borrow();
+        let layout = win.layout.borrow_mut();
+
+        RectangleF32::new(
+          ret.x - layout.at_x + unsafe { *layout.offset_x as f32 },
+          ret.y - layout.at_y + unsafe { *layout.offset_y as f32 },
+          ret.w,
+          ret.h,
+        )
+      },
+    )
+  }
+
+  pub fn panel_alloc_row(&self, win: &Window) {
+    let (row_height, num_columns) = {
+      let spacing = self.style.window.spacing;
+      let layout = win.layout.borrow();
+      (layout.row.height - spacing.y, layout.row.columns)
+    };
+
+    self.panel_layout(win, row_height, num_columns)
+  }
+
+  pub fn layout_widget_space(
+    &self,
+    bounds: &RectangleF32,
+    modify: bool,
+  ) -> RectangleF32 {
+    debug_assert!(self.current_win.borrow().is_some());
+
+    self
+      .current_win
+      .borrow()
+      .as_ref()
+      .map_or(*bounds, |winptr| {
+        let win = winptr.borrow();
+        let mut layout = win.layout.borrow_mut();
+        let mut bounds = *bounds;
+
+        let spacing = self.style.window.spacing;
+        let padding = self.style.get_panel_padding(layout.typ);
+        let panel_space = Self::layout_row_calculate_usable_space(
+          &self.style,
+          layout.typ,
+          layout.bounds.w,
+          layout.row.columns,
+        );
+
+        struct ItemSpacingInfo {
+          item_offset:  f32,
+          item_width:   f32,
+          item_spacing: f32,
+        }
+
+        let frac_fn = |x: f32| x - (x as i32) as f32;
+        // calculate the width of one item inside the current layout space.
+
+        match layout.row.typ {
+          PanelRowLayoutType::DynamicFixed => {
+            // scaling fixed size widgets item width
+            let w = panel_space.max(1f32) / layout.row.columns as f32;
+            let item_offset = layout.row.index as f32 * w;
+            let item_width = w + frac_fn(item_offset);
+            let item_spacing = layout.row.index as f32 + spacing.x;
+
+            Some(ItemSpacingInfo {
+              item_offset,
+              item_spacing,
+              item_width,
+            })
+          }
+
+          PanelRowLayoutType::DynamicRow => {
+            // scaling single ratio widget width
+            let w = layout.row.item_width * panel_space;
+            let item_offset = layout.row.item_offset;
+            let item_width = w + frac_fn(item_offset);
+            let item_spacing = 0f32;
+
+            if modify {
+              layout.row.item_offset += w + spacing.x;
+              layout.row.filled += layout.row.item_width;
+              layout.row.index = 0;
+            }
+
+            Some(ItemSpacingInfo {
+              item_offset,
+              item_spacing,
+              item_width,
+            })
+          }
+
+          PanelRowLayoutType::DynamicFree => {
+            // free widget placing
+            bounds.x = layout.at_x + (layout.bounds.w * layout.row.item.x);
+            bounds.x -= unsafe { *layout.offset_x as f32 };
+            bounds.y = layout.at_y + (layout.row.height * layout.row.item.y);
+            bounds.y -= unsafe { *layout.offset_y as f32 };
+            bounds.w = layout.bounds.w * layout.row.item.w + frac_fn(bounds.x);
+            bounds.h =
+              layout.row.height * layout.row.item.h + frac_fn(bounds.y);
+            None
+          }
+
+          PanelRowLayoutType::Dynamic => {
+            // scaling arrays of panel width rations for every widget
+            assert!(layout.row.ratio != std::ptr::null_mut());
+            let ratio = unsafe {
+              let idx = layout.row.index as isize;
+              if *layout.row.ratio.offset(idx) < 0f32 {
+                layout.row.item_width
+              } else {
+                *layout.row.ratio.offset(idx)
+              }
+            };
+
+            let w = ratio * panel_space;
+            if modify {
+              layout.row.item_offset += w;
+              layout.row.filled += ratio;
+            }
+
+            Some(ItemSpacingInfo {
+              item_spacing: layout.row.index as f32 * spacing.x,
+              item_offset:  layout.row.item_offset,
+              item_width:   w + frac_fn(layout.row.item_offset),
+            })
+          }
+
+          PanelRowLayoutType::StaticFixed => {
+            // non-scaling fixed widgets item width
+            let item_width = layout.row.item_width;
+            let item_offset = layout.row.index as f32 * item_width;
+            let item_spacing = layout.row.index as f32 * spacing.x;
+
+            Some(ItemSpacingInfo {
+              item_width,
+              item_offset,
+              item_spacing,
+            })
+          }
+
+          PanelRowLayoutType::StaticRow => {
+            // scaling single ratio widget width
+            let item_width = layout.row.item_width;
+            let item_offset = layout.row.item_offset;
+            let item_spacing = layout.row.index as f32 * spacing.x;
+            if modify {
+              layout.row.item_offset += item_width;
+            }
+
+            Some(ItemSpacingInfo {
+              item_width,
+              item_offset,
+              item_spacing,
+            })
+          }
+
+          PanelRowLayoutType::StaticFree => {
+            // free widget placing
+            bounds.x = layout.at_x + layout.row.item.x;
+            bounds.w = layout.row.item.w;
+            if (bounds.x + bounds.w) > layout.max_x && modify {
+              layout.max_x = bounds.x + bounds.w;
+            }
+            bounds.x -= unsafe { *layout.offset_x as f32 };
+            bounds.y = layout.at_y + layout.row.item.y;
+            bounds.y -= unsafe { *layout.offset_y as f32 };
+            bounds.h = layout.row.item.h;
+
+            None
+          }
+
+          PanelRowLayoutType::Static => {
+            // non-scaling array of panel pixel width for every widget
+            let item_spacing = layout.row.index as f32 * spacing.x;
+            let item_width = unsafe {
+              let idx = layout.row.index as isize;
+              *layout.row.ratio.offset(idx)
+            };
+
+            let item_offset = layout.row.item_offset;
+            if modify {
+              layout.row.item_offset += item_width;
+            }
+
+            Some(ItemSpacingInfo {
+              item_spacing,
+              item_width,
+              item_offset,
+            })
+          }
+
+          PanelRowLayoutType::Template => {
+            // stretchy row layout with combined dynamic/static widget width
+            assert!(layout.row.index < layout.row.columns);
+            assert!(
+              layout.row.index
+                < crate::hmi::panel::MAX_LAYOUT_ROW_TEMPLATE_COLUMNS as i32
+            );
+
+            let w = layout.row.templates[layout.row.index as usize];
+
+            let item_offset = layout.row.item_offset;
+            let item_width = w + frac_fn(item_offset);
+            let item_spacing = layout.row.index as f32 * spacing.x;
+            if modify {
+              layout.row.item_offset += w;
+            }
+
+            Some(ItemSpacingInfo {
+              item_offset,
+              item_width,
+              item_spacing,
+            })
+          }
+
+          _ => {
+            debug_assert!(false, "No layout defined!");
+            None
+          }
+        }
+        .and_then(|spc| {
+          bounds.w = spc.item_width;
+          bounds.h = layout.row.height - spacing.y;
+          bounds.y = layout.at_y - unsafe { *layout.offset_y as f32 };
+          bounds.x =
+            layout.at_x + spc.item_offset + spc.item_spacing + padding.x;
+
+          if (bounds.x + bounds.w) > layout.max_x && modify {
+            layout.max_x = bounds.x + bounds.w;
+          }
+
+          Some(())
+        });
+
+        bounds
+      })
+  }
+
+  fn panel_alloc_space(&self, bounds: &mut RectangleF32) {
+    debug_assert!(self.current_win.borrow().is_some());
+
+    self.current_win.borrow().as_ref().map(|winptr| {
+      // check if the end of the row was hit and begin a new row if true
+      let win = winptr.borrow();
+      let alloc_row = {
+        let layout = win.layout.borrow();
+        layout.row.index >= layout.row.columns
+      };
+
+      if alloc_row {
+        self.panel_alloc_row(&win);
+      }
+
+      *bounds = self.layout_widget_space(&bounds, true);
+      win.layout.borrow_mut().row.index += 1;
+      Some(())
+    });
+  }
+
+  fn layout_peek(&self, bounds: &mut RectangleF32) {
+    debug_assert!(self.current_win.borrow().is_some());
+    self.current_win.borrow().as_ref().map(|winptr| {
+      let win = winptr.borrow();
+
+      let (y, index) = {
+        // make this go out of scope because it's mut borrowed by
+        // layout_widget_space() below
+        let mut layout = win.layout.borrow_mut();
+        if layout.row.index >= layout.row.columns {
+          layout.at_y += layout.row.height;
+          layout.row.index = 0;
+        }
+
+        (layout.at_y, layout.row.index)
+      };
+
+      *bounds = self.layout_widget_space(&bounds, true);
+      let mut layout = win.layout.borrow_mut();
+      if layout.row.index == 0 {
+        bounds.x -= layout.row.item_offset;
+      }
+      layout.at_y = y;
+      layout.row.index = index;
+
+      Some(())
+    });
+  }
 }
