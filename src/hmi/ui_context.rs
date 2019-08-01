@@ -1,7 +1,8 @@
 use crate::{
   hmi::{
     base::{
-      AntialiasingType, ButtonBehaviour, ConvertConfig, GenericHandle, HashType,
+      AntialiasingType, ButtonBehaviour, ConvertConfig, GenericHandle,
+      HashType, WidgetLayoutStates,
     },
     commands::CommandBuffer,
     input::{Input, MouseButtonId},
@@ -1319,5 +1320,134 @@ impl<'a> UiContext<'a> {
     })
   }
 
-  
+  fn widget(
+    &self,
+    bounds: &RectangleF32,
+  ) -> (WidgetLayoutStates, RectangleF32) {
+    debug_assert!(self.current_win.borrow().is_some());
+
+    self.current_win.borrow().as_ref().map_or(
+      (
+        WidgetLayoutStates::Invalid,
+        RectangleF32::new(0f32, 0f32, 0f32, 0f32),
+      ),
+      |winptr| {
+        let mut bounds = *bounds;
+
+        // allocate space and check if the widget needs to be updated and drawn
+        self.panel_alloc_space(&mut bounds);
+        let win = winptr.borrow();
+        let layout = win.layout.borrow();
+
+        //  if one of these triggers you forgot to add an `if` condition around
+        // either a window, group, popup, combobox or contextual menu
+        // `begin` and `end` block. Example:
+        // if (nk_begin(...) {...} nk_end(...); or
+        // if (nk_group_begin(...) { nk_group_end(...);}
+        debug_assert!(!(layout.flags.contains(PanelFlags::WindowMinimized)));
+        debug_assert!(!(layout.flags.contains(PanelFlags::WindowHidden)));
+        debug_assert!(!(layout.flags.contains(PanelFlags::WindowClosed)));
+
+        // need to convert to int here to remove floating point errors
+        bounds.x = (bounds.x as i32) as f32;
+        bounds.y = (bounds.y as i32) as f32;
+        bounds.w = (bounds.w as i32) as f32;
+        bounds.h = (bounds.h as i32) as f32;
+
+        let c = RectangleF32::new(
+          (layout.clip.x as i32) as f32,
+          (layout.clip.y as i32) as f32,
+          (layout.clip.w as i32) as f32,
+          (layout.clip.h as i32) as f32,
+        );
+
+        if !c.intersect(&bounds) {
+          return (WidgetLayoutStates::Invalid, bounds);
+        }
+
+        let v = RectangleF32::union(&bounds, &c);
+        if !v.contains_point(
+          self.input.borrow().mouse.pos.x,
+          self.input.borrow().mouse.pos.y,
+        ) {
+          return (WidgetLayoutStates::Rom, bounds);
+        }
+
+        (WidgetLayoutStates::Valid, bounds)
+      },
+    )
+  }
+
+  fn widget_fitting(
+    &self,
+    bounds: &RectangleF32,
+    item_padding: Vec2F32,
+  ) -> (WidgetLayoutStates, RectangleF32) {
+    debug_assert!(self.current_win.borrow().is_some());
+
+    self.current_win.borrow().as_ref().map_or(
+      (
+        WidgetLayoutStates::Invalid,
+        RectangleF32::new(0f32, 0f32, 0f32, 0f32),
+      ),
+      |winptr| {
+        // update the bounds to have no padding
+        let (state, mut bounds) = self.widget(bounds);
+
+        let win = winptr.borrow();
+        let layout = win.layout.borrow();
+        let panel_padding = self.style.get_panel_padding(layout.typ);
+        if layout.row.index == 1 {
+          bounds.w += panel_padding.x;
+          bounds.x -= panel_padding.x;
+        } else {
+          bounds.x -= item_padding.x;
+        }
+
+        if layout.row.index == layout.row.columns {
+          bounds.w += panel_padding.x;
+        } else {
+          bounds.w += item_padding.x;
+        }
+
+        (state, bounds)
+      },
+    )
+  }
+
+  fn spacing(&self, cols: i32) {
+    debug_assert!(self.current_win.borrow().is_some());
+
+    self.current_win.borrow().as_ref().and_then(|winptr| {
+      // spacing over row boundaries
+      let win = winptr.borrow();
+      let (index, rows) = {
+        let layout = win.layout.borrow();
+        (
+          (layout.row.index + cols) % layout.row.columns,
+          (layout.row.index + cols) / layout.row.columns,
+        )
+      };
+
+      let cols = if rows > 0 {
+        (0 .. rows).for_each(|_| self.panel_alloc_row(&win));
+        index
+      } else {
+        cols
+      };
+
+      // non table laout need to allocate space
+      let layout_type = win.layout.borrow().row.typ;
+      if layout_type != PanelRowLayoutType::DynamicFixed
+        && layout_type != PanelRowLayoutType::StaticFixed
+      {
+        let mut none = RectangleF32::new(0f32, 0f32, 0f32, 0f32);
+        (0 .. cols).for_each(|_| self.panel_alloc_space(&mut none));
+      } else {
+        win.layout.borrow_mut().row.index = index;
+      }
+
+      Some(())
+    });
+  }
 }
