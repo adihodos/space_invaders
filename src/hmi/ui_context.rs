@@ -1213,4 +1213,111 @@ impl<'a> UiContext<'a> {
       Some(())
     });
   }
+
+  fn widget_bounds(&self) -> RectangleF32 {
+    debug_assert!(self.current_win.borrow().is_some());
+    self.current_win.borrow().as_ref().map_or(
+      RectangleF32::new(0f32, 0f32, 0f32, 0f32),
+      |_| {
+        let mut bounds = RectangleF32::new(0f32, 0f32, 0f32, 0f32);
+        self.layout_peek(&mut bounds);
+        bounds
+      },
+    )
+  }
+
+  fn widget_position(&self) -> Vec2F32 {
+    let bounds = self.widget_bounds();
+    Vec2F32::new(bounds.x, bounds.y)
+  }
+
+  fn widget_size(&self) -> Vec2F32 {
+    let bounds = self.widget_bounds();
+    Vec2F32::new(bounds.x, bounds.y)
+  }
+
+  fn widget_width(&self) -> f32 {
+    let bounds = self.widget_bounds();
+    bounds.w
+  }
+
+  fn widget_height(&self) -> f32 {
+    let bounds = self.widget_bounds();
+    bounds.h
+  }
+
+  fn widget_is_hovered(&self) -> bool {
+    debug_assert!(self.current_win.borrow().is_some());
+    self.current_win.borrow().as_ref().map_or(false, |winptr| {
+      let clip = winptr.borrow().layout.borrow().clip;
+      let clip = RectangleF32::new(
+        (clip.x as i32) as f32,
+        (clip.y as i32) as f32,
+        (clip.w as i32) as f32,
+        (clip.h as i32) as f32,
+      );
+
+      let mut bounds = RectangleF32::new(0f32, 0f32, 0f32, 0f32);
+      self.layout_peek(&mut bounds);
+
+      if !clip.intersect(&bounds) {
+        false
+      } else {
+        self.input.borrow().is_mouse_hovering_rect(&bounds)
+      }
+    })
+  }
+
+  fn widget_is_mouse_clicked(&self, btn: MouseButtonId) -> bool {
+    debug_assert!(self.current_win.borrow().is_some());
+    self.current_win.borrow().as_ref().map_or(false, |winptr| {
+      let clip = winptr.borrow().layout.borrow().clip;
+      let clip = RectangleF32::new(
+        (clip.x as i32) as f32,
+        (clip.y as i32) as f32,
+        (clip.w as i32) as f32,
+        (clip.h as i32) as f32,
+      );
+
+      let mut bounds = RectangleF32::new(0f32, 0f32, 0f32, 0f32);
+      self.layout_peek(&mut bounds);
+
+      if !clip.intersect(&bounds) {
+        false
+      } else {
+        self.input.borrow().mouse_clicked(btn, &bounds)
+      }
+    })
+  }
+
+  fn widget_has_mouse_click_down(
+    &self,
+    btn: MouseButtonId,
+    down: bool,
+  ) -> bool {
+    debug_assert!(self.current_win.borrow().is_some());
+    self.current_win.borrow().as_ref().map_or(false, |winptr| {
+      let clip = winptr.borrow().layout.borrow().clip;
+      let clip = RectangleF32::new(
+        (clip.x as i32) as f32,
+        (clip.y as i32) as f32,
+        (clip.w as i32) as f32,
+        (clip.h as i32) as f32,
+      );
+
+      let mut bounds = RectangleF32::new(0f32, 0f32, 0f32, 0f32);
+      self.layout_peek(&mut bounds);
+
+      if !clip.intersect(&bounds) {
+        false
+      } else {
+        self
+          .input
+          .borrow()
+          .has_mouse_click_down_in_rect(btn, &bounds, down)
+      }
+    })
+  }
+
+  
 }
