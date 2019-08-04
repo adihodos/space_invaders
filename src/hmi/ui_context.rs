@@ -1,7 +1,7 @@
 use crate::{
   hmi::{
     base::{
-      AntialiasingType, ButtonBehaviour, ConvertConfig, GenericHandle,
+      AntialiasingType, ButtonBehaviour, Consts, ConvertConfig, GenericHandle,
       HashType, WidgetLayoutStates,
     },
     commands::CommandBuffer,
@@ -26,7 +26,7 @@ use murmurhash64::murmur_hash64a;
 use num::ToPrimitive;
 use std::{cell::RefCell, rc::Rc};
 
-pub struct Consts {}
+// pub struct Consts {}
 
 impl Consts {
   pub const VALUE_PAGE_CAPACITY: usize = 48;
@@ -174,6 +174,7 @@ impl<'a> UiContext<'a> {
         input.mouse.buttons[MouseButtonId::ButtonLeft as usize].clicked_pos +=
           mouse_delta;
 
+        // TODO: fix this shite
         // ctx->style.cursor_active = ctx->style.cursors[NK_CURSOR_MOVE];
       }
     }
@@ -328,7 +329,132 @@ impl<'a> UiContext<'a> {
     }
 
     !layout_flags
-      .contains(PanelFlags::WindowHidden | PanelFlags::WindowMinimized)
+      .intersects(PanelFlags::WindowHidden | PanelFlags::WindowMinimized)
+  }
+
+  pub fn panel_end(&self) {
+    debug_assert!(self.current_win.borrow().is_some());
+
+    self
+      .current_win
+      .borrow()
+      .as_ref()
+      .and_then(|winptr| Some(winptr.clone()))
+      .and_then(|win| {
+        let win = win.borrow();
+        let mut layout = win.layout.borrow_mut();
+
+        if !layout.is_sub() {
+          win.buffer.borrow_mut().push_scissor(Consts::null_rect());
+        }
+
+        let scrollbar_size = self.style.window.scrollbar_size;
+        let panel_padding = self.style.get_panel_padding(layout.typ);
+
+        // update the current cursor Y-position to point over the last added
+        // widget
+        layout.at_y += layout.row.height;
+
+        // dynamic panels
+        if layout.flags.contains(PanelFlags::WindowDynamic)
+          && !layout.flags.contains(PanelFlags::WindowMinimized)
+        {
+          // update panel height to fit dynamic growth
+          if layout.at_y < (layout.bounds.y + layout.bounds.h) {
+            layout.bounds.h = layout.at_y - layout.bounds.y;
+          }
+
+          // fill top empty space
+          let empty_space = RectangleF32 {
+            h: panel_padding.y,
+            ..win.bounds
+          };
+          win.buffer.borrow_mut().fill_rect(
+            empty_space,
+            0f32,
+            self.style.window.background,
+          );
+
+          // fill left empty space
+          let empty_space = RectangleF32 {
+            x: win.bounds.x,
+            y: layout.bounds.y,
+            w: panel_padding.x + layout.border,
+            h: layout.bounds.h,
+          };
+          win.buffer.borrow_mut().fill_rect(
+            empty_space,
+            0f32,
+            self.style.window.background,
+          );
+
+          // fill right empty space
+          let adjust_for_scrollbar = if unsafe { *layout.offset_y } == 0
+            && !layout.flags.contains(PanelFlags::WindowNoScrollbar)
+          {
+            scrollbar_size.x
+          } else {
+            0f32
+          };
+
+          let empty_space = RectangleF32 {
+            x: layout.bounds.x + layout.bounds.w,
+            y: layout.bounds.y,
+            w: panel_padding.x + layout.border + adjust_for_scrollbar,
+            h: layout.bounds.h,
+          };
+          win.buffer.borrow_mut().fill_rect(
+            empty_space,
+            0f32,
+            self.style.window.background,
+          );
+
+          // fill bottom empty space
+          if layout.footer_height > 0f32 {
+            let empty_space = RectangleF32 {
+              y: layout.bounds.y + layout.bounds.h,
+              h: layout.footer_height,
+              ..win.bounds
+            };
+            win.buffer.borrow_mut().fill_rect(
+              empty_space,
+              0f32,
+              self.style.window.background,
+            );
+          }
+        }
+
+        // TODO: scrollbars
+        // TODO: hide scroll if no user input
+
+        // window border
+        if layout.flags.contains(PanelFlags::WindowBorder) {
+          let padding_y = if layout.flags.contains(PanelFlags::WindowMinimized)
+          {
+            self.style.window.border + win.bounds.y + layout.header_height
+          } else {
+            if layout.flags.contains(PanelFlags::WindowDynamic) {
+              layout.bounds.y + layout.bounds.h + layout.footer_height
+            } else {
+              win.bounds.y + win.bounds.h
+            }
+          };
+
+          let border = RectangleF32 {
+            h: padding_y - win.bounds.y,
+            ..win.bounds
+          };
+          win.buffer.borrow_mut().fill_rect(
+            border,
+            0f32,
+            self.style.get_panel_border_color(layout.typ);
+          );
+        }
+
+        // scaler
+        
+        Some(())
+      });
   }
 
   /// progress bar
