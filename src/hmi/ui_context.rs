@@ -447,12 +447,96 @@ impl<'a> UiContext<'a> {
           win.buffer.borrow_mut().fill_rect(
             border,
             0f32,
-            self.style.get_panel_border_color(layout.typ);
+            self.style.get_panel_border_color(layout.typ),
           );
         }
 
         // scaler
-        
+        let draw_scaler = layout.flags.contains(PanelFlags::WindowScalable)
+          && !layout.flags.intersects(
+            PanelFlags::WindowMinimized
+              | PanelFlags::WindowRom
+              | PanelFlags::WindowNoInput,
+          );
+
+        if draw_scaler {
+          // calculate scaler bounds
+          let x = layout.flags.contains(PanelFlags::WindowNoScrollbar) as i32
+            as f32
+            * (-scrollbar_size.x)
+            + if layout.flags.contains(PanelFlags::WindowScaleLeft) {
+              layout.bounds.x - panel_padding.x * 0.5f32
+            } else {
+              layout.bounds.x + layout.bounds.w + panel_padding.x
+            };
+
+          let scaler = RectangleF32 {
+            x,
+            y: layout.bounds.y + layout.bounds.h,
+            w: scrollbar_size.x,
+            h: scrollbar_size.y,
+          };
+
+          // draw scaler
+          match self.style.window.scaler {
+            StyleItem::Img(ref img) => {
+              win.buffer.borrow_mut().draw_image(
+                scaler,
+                *img,
+                RGBAColor::new(255, 255, 255),
+              );
+            }
+
+            StyleItem::Color(c) => {
+              if layout.flags.contains(PanelFlags::WindowScaleLeft) {
+                win.buffer.borrow_mut().fill_triangle(
+                  scaler.x,
+                  scaler.y,
+                  scaler.x,
+                  scaler.y + scaler.h,
+                  scaler.x + scaler.w,
+                  scaler.y + scaler.h,
+                  c,
+                );
+              } else {
+                win.buffer.borrow_mut().fill_triangle(
+                  scaler.x + scaler.w,
+                  scaler.y,
+                  scaler.x + scaler.w,
+                  scaler.y + scaler.h,
+                  scaler.x,
+                  scaler.y + scaler.h,
+                  c,
+                );
+              }
+            }
+          }
+
+          // do window scaling
+          if !win.flags.contains(PanelFlags::WindowRom) {
+            let left_mouse_down = self
+              .input
+              .borrow()
+              .has_mouse_down(MouseButtonId::ButtonLeft);
+            let left_mouse_click_in_scaler =
+              self.input.borrow().has_mouse_click_down_in_rect(
+                MouseButtonId::ButtonLeft,
+                &scaler,
+                true,
+              );
+
+            if left_mouse_down && left_mouse_click_in_scaler {
+              let delta_x =
+                if layout.flags.contains(PanelFlags::WindowScaleLeft) {
+                  win.bounds.x += self.input.borrow().mouse.delta.x;
+                  -self.input.borrow().mouse.delta.x
+                } else {
+                  self.input.borrow().mouse.delta.x
+                };
+            }
+          }
+        }
+
         Some(())
       });
   }
