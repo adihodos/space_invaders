@@ -209,6 +209,60 @@ impl<'a> UiContext<'a> {
       });
   }
 
+  pub fn begin(
+    &mut self,
+    title: &str,
+    bounds: RectangleF32,
+    flags: BitFlags<PanelFlags>,
+  ) -> bool {
+    self.begin_titled(title, title, bounds, flags)
+  }
+
+  pub fn begin_titled(
+    &mut self,
+    name: &str,
+    title: &str,
+    bounds: RectangleF32,
+    flags: BitFlags<PanelFlags>,
+  ) -> bool {
+    debug_assert!(
+      self.current_win.borrow().is_none(),
+      "if this triggers you missed an end() call"
+    );
+
+    self
+      .find_window(murmur_hash64a(name.as_bytes(), 64), name)
+      .map_or(Some(()), |wndptr| {
+        // existing window, needs updating
+        let flags = {
+          let mut f = wndptr.borrow().flags;
+          f.remove(PanelFlags::WindowDynamic);
+          f.insert(flags);
+
+          if !f.contains(PanelFlags::WindowMovable | PanelFlags::WindowScalable)
+          {
+            wndptr.borrow().bounds.replace(bounds);
+          }
+          f
+        };
+
+        wndptr.borrow_mut().flags = flags;
+
+        debug_assert!(
+          wndptr.borrow().seq != self.seq,
+          "If this triggers you either have more than one window with the \
+           same name or you forgot to actually draw the window"
+        );
+
+        wndptr.borrow_mut().seq = self.seq;
+        // no active window so set this as the active window
+
+        None
+      });
+
+    false
+  }
+
   pub fn panel_begin(
     &mut self,
     title: &str,
