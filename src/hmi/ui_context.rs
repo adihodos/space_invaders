@@ -109,6 +109,106 @@ impl<'a> UiContext<'a> {
     handle
   }
 
+  fn find_window(&self, hash: HashType, name: &str) -> Option<WindowPtr> {
+    self
+      .windows
+      .borrow()
+      .iter()
+      .find(|winptr| {
+        let wnd = winptr.borrow();
+        let res =
+          wnd.id.borrow().name == hash && wnd.id.borrow().name_str == name;
+        res
+      })
+      .and_then(|winptr| Some(winptr.clone()))
+  }
+
+  fn insert_window(&self, win: WindowPtr, loc: WindowInsertLocation) {
+    // check if not already inserted
+    self
+      .windows
+      .borrow()
+      .iter()
+      .find(|winptr| {
+        winptr.borrow().id.borrow().handle == win.borrow().id.borrow().handle
+      })
+      .map_or(
+        Some(()), /* Return something so that we know that we must insert
+                   * the window */
+        |_| {
+          // window already inserted, so do nothing
+          None
+        },
+      )
+      .and_then(|_| {
+        let mut win_list = self.windows.borrow_mut();
+        if win_list.is_empty() {
+          win_list.push(win);
+          return Some(());
+        }
+
+        win.borrow_mut().flags.remove(PanelFlags::WindowRom);
+
+        match loc {
+          WindowInsertLocation::Back => {
+            // set ROM mode for the previous window
+            win_list.last_mut().and_then(|last_wnd| {
+              Some(last_wnd.borrow_mut().flags.insert(PanelFlags::WindowRom))
+            });
+
+            self.active_win.replace(Some(win.clone()));
+            win_list.push(win);
+          }
+
+          WindowInsertLocation::Front => {
+            win_list.insert(0, win);
+          }
+        }
+
+        Some(())
+      });
+  }
+
+  fn remove_window(&self, win: WindowPtr) {
+    self
+      .windows
+      .borrow()
+      .iter()
+      .position(|winptr| *winptr.borrow() == *win.borrow())
+      .and_then(|win_idx| {
+        self.windows.borrow_mut().remove(win_idx);
+        Some(())
+      });
+
+    self
+      .active_win
+      .borrow()
+      .as_ref()
+      .map_or(
+        Some(()), // no active window yet
+        |winptr| {
+          // the window to be removed was the active window
+          if *winptr.borrow() == *win.borrow() {
+            Some(())
+          } else {
+            None
+          }
+        },
+      )
+      .and_then(|_| {
+        // remove read-only from the last window
+        // last window becomes active window
+        let last_wnd =
+          self.windows.borrow_mut().last_mut().and_then(|winptr| {
+            winptr.borrow_mut().flags.remove(PanelFlags::WindowRom);
+            Some(Rc::clone(winptr))
+          });
+
+        self.active_win.replace(last_wnd);
+        Some(())
+      });
+  }
+
   pub fn panel_begin(
     &mut self,
     title: &str,
@@ -142,7 +242,7 @@ impl<'a> UiContext<'a> {
     if win_flags.contains(PanelFlags::WindowMovable)
       && !win_flags.contains(PanelFlags::WindowRom)
     {
-      let mut header = winptr.borrow().bounds;
+      let mut header = *winptr.borrow().bounds.borrow();
       if Panel::has_header(win_flags, Some(title)) {
         header.h =
           self.style.font.scale + 2f32 * self.style.window.header.padding.y;
@@ -165,9 +265,10 @@ impl<'a> UiContext<'a> {
         .has_mouse_click_down_in_rect(MouseButtonId::ButtonLeft, &header, true);
 
       if left_mouse_down && left_mouse_click_in_cursor && !left_mouse_clicked {
-        let mut w = winptr.borrow_mut();
-        w.bounds.x += self.input.borrow().mouse.delta.x;
-        w.bounds.y += self.input.borrow().mouse.delta.y;
+        let win = winptr.borrow();
+        let mut bounds = win.bounds.borrow_mut();
+        bounds.x += self.input.borrow().mouse.delta.x;
+        bounds.y += self.input.borrow().mouse.delta.y;
 
         let mut input = self.input.borrow_mut();
         let mouse_delta = input.mouse.delta;
@@ -184,7 +285,7 @@ impl<'a> UiContext<'a> {
       let win = winptr.borrow();
       let mut layout = win.layout.borrow_mut();
       layout.flags = win_flags;
-      layout.bounds = winptr.borrow().bounds;
+      layout.bounds = *winptr.borrow().bounds.borrow();
       layout.bounds.x += panel_padding.x;
       layout.bounds.w -= 2f32 * panel_padding.x;
       if win_flags.contains(PanelFlags::WindowBorder) {
@@ -228,7 +329,7 @@ impl<'a> UiContext<'a> {
       // calculate header bounds
       let win = winptr.borrow();
       let mut layout = win.layout.borrow_mut();
-      let mut header = win.bounds;
+      let mut header = *win.bounds.borrow();
       header.h =
         self.style.font.scale + 2f32 * self.style.window.header.padding.y;
       header.h += 2f32 * self.style.window.header.label_padding.y;
@@ -244,7 +345,7 @@ impl<'a> UiContext<'a> {
         .active_win
         .borrow()
         .as_ref()
-        .map_or(false, |active_win| active_win.borrow().handle == win.handle);
+        .map_or(false, |active_win| *active_win.borrow() == *win);
 
       let (bk, txt_color) = if is_active_win {
         (
@@ -300,12 +401,12 @@ impl<'a> UiContext<'a> {
     {
       let win = winptr.borrow();
       let layout = win.layout.borrow();
-      let body = RectangleF32::new(
-        win.bounds.x,
-        win.bounds.y + layout.header_height,
-        win.bounds.w,
-        win.bounds.h - layout.header_height,
-      );
+      let bounds = win.bounds.borrow();
+      let body = RectangleF32 {
+        y: bounds.y + layout.header_height,
+        h: bounds.h - layout.header_height,
+        ..*bounds
+      };
 
       match self.style.window.fixed_background {
         StyleItem::Img(ref img) => win.buffer.borrow_mut().draw_image(
@@ -341,9 +442,9 @@ impl<'a> UiContext<'a> {
       .as_ref()
       .and_then(|winptr| Some(winptr.clone()))
       .and_then(|win| {
+        let winptr = win.clone();
         let win = win.borrow();
         let mut layout = win.layout.borrow_mut();
-
         if !layout.is_sub() {
           win.buffer.borrow_mut().push_scissor(Consts::null_rect());
         }
@@ -367,7 +468,7 @@ impl<'a> UiContext<'a> {
           // fill top empty space
           let empty_space = RectangleF32 {
             h: panel_padding.y,
-            ..win.bounds
+            ..*win.bounds.borrow()
           };
           win.buffer.borrow_mut().fill_rect(
             empty_space,
@@ -377,7 +478,7 @@ impl<'a> UiContext<'a> {
 
           // fill left empty space
           let empty_space = RectangleF32 {
-            x: win.bounds.x,
+            x: win.bounds.borrow().x,
             y: layout.bounds.y,
             w: panel_padding.x + layout.border,
             h: layout.bounds.h,
@@ -414,7 +515,7 @@ impl<'a> UiContext<'a> {
             let empty_space = RectangleF32 {
               y: layout.bounds.y + layout.bounds.h,
               h: layout.footer_height,
-              ..win.bounds
+              ..*win.bounds.borrow()
             };
             win.buffer.borrow_mut().fill_rect(
               empty_space,
@@ -431,18 +532,20 @@ impl<'a> UiContext<'a> {
         if layout.flags.contains(PanelFlags::WindowBorder) {
           let padding_y = if layout.flags.contains(PanelFlags::WindowMinimized)
           {
-            self.style.window.border + win.bounds.y + layout.header_height
+            self.style.window.border
+              + win.bounds.borrow().y
+              + layout.header_height
           } else {
             if layout.flags.contains(PanelFlags::WindowDynamic) {
               layout.bounds.y + layout.bounds.h + layout.footer_height
             } else {
-              win.bounds.y + win.bounds.h
+              win.bounds.borrow().y + win.bounds.borrow().h
             }
           };
 
           let border = RectangleF32 {
-            h: padding_y - win.bounds.y,
-            ..win.bounds
+            h: padding_y - win.bounds.borrow().y,
+            ..*win.bounds.borrow()
           };
           win.buffer.borrow_mut().fill_rect(
             border,
@@ -514,10 +617,12 @@ impl<'a> UiContext<'a> {
 
           // do window scaling
           if !win.flags.contains(PanelFlags::WindowRom) {
+            let mut scaler = scaler;
             let left_mouse_down = self
               .input
               .borrow()
               .has_mouse_down(MouseButtonId::ButtonLeft);
+
             let left_mouse_click_in_scaler =
               self.input.borrow().has_mouse_click_down_in_rect(
                 MouseButtonId::ButtonLeft,
@@ -525,17 +630,75 @@ impl<'a> UiContext<'a> {
                 true,
               );
 
+            let mut win_bounds = win.bounds.borrow_mut();
+
             if left_mouse_down && left_mouse_click_in_scaler {
               let delta_x =
                 if layout.flags.contains(PanelFlags::WindowScaleLeft) {
-                  win.bounds.x += self.input.borrow().mouse.delta.x;
+                  win_bounds.x += self.input.borrow().mouse.delta.x;
                   -self.input.borrow().mouse.delta.x
                 } else {
                   self.input.borrow().mouse.delta.x
                 };
+
+              let window_size = self.style.window.min_size;
+
+              // dragging in x-direction
+              if (win_bounds.w + delta_x) >= window_size.x {
+                if delta_x < 0f32
+                  || (delta_x > 0f32
+                    && self.input.borrow().mouse.pos.x >= scaler.x)
+                {
+                  win_bounds.w += delta_x;
+                  scaler.x += self.input.borrow().mouse.delta.x;
+                }
+              }
+
+              // dragging in y-direction (only possible if static window)
+              if !layout.flags.contains(PanelFlags::WindowDynamic) {
+                let inp = self.input.borrow();
+                if window_size.y < win_bounds.h + inp.mouse.delta.y {
+                  if inp.mouse.delta.y < 0f32
+                    || (inp.mouse.delta.y > 0f32 && inp.mouse.pos.y >= scaler.y)
+                  {
+                    win_bounds.h += inp.mouse.delta.y;
+                    scaler.y += inp.mouse.delta.y;
+                  }
+                }
+              }
+
+              // TODO : fix cursor!
+              // ctx->style.cursor_active =
+              // ctx->style.cursors[NK_CURSOR_RESIZE_TOP_RIGHT_DOWN_LEFT];
+              self.input.borrow_mut().mouse.buttons
+                [MouseButtonId::ButtonLeft as usize]
+                .clicked_pos = Vec2F32::new(
+                scaler.x + scaler.w / 2f32,
+                scaler.y + scaler.h / 2f32,
+              );
             }
           }
         }
+
+        if !layout.is_sub() {
+          // window is hidden so clear command buffer
+          if layout.flags.contains(PanelFlags::WindowHidden) {
+            win.buffer.borrow_mut().clear();
+          }
+        }
+
+        // remove window read only mode flag was set so remove read only mode
+        if layout.flags.contains(PanelFlags::WindowRemoveRom) {
+          layout
+            .flags
+            .remove(PanelFlags::WindowRom | PanelFlags::WindowRemoveRom);
+        }
+
+        Some((winptr, layout.flags))
+      })
+      .and_then(|(winptr, win_flags)| {
+        winptr.borrow_mut().flags = win_flags;
+        // TODO: properties fix
 
         Some(())
       });
@@ -601,12 +764,12 @@ impl<'a> UiContext<'a> {
 
     if layout.flags.contains(PanelFlags::WindowDynamic) {
       // draw background for dynamic panels
-      let bk = RectangleF32::new(
-        win.bounds.x,
-        layout.at_y - 1f32,
-        win.bounds.w,
-        layout.row.height + 1f32,
-      );
+      let bk = RectangleF32 {
+        y: layout.at_y - 1f32,
+        h: layout.row.height + 1f32,
+        ..*win.bounds.borrow()
+      };
+
       win
         .buffer
         .borrow_mut()
@@ -650,7 +813,7 @@ impl<'a> UiContext<'a> {
 
   pub fn layout_ratio_from_pixel(&self, pixel_width: f32) -> f32 {
     self.current_win.borrow().as_ref().map_or(0f32, |winptr| {
-      clamp(0f32, pixel_width / winptr.borrow().bounds.x, 1f32)
+      clamp(0f32, pixel_width / winptr.borrow().bounds.borrow().x, 1f32)
     })
   }
 

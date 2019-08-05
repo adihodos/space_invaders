@@ -106,14 +106,29 @@ impl std::default::Default for PropertyState {
   }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct WindowId {
+  pub handle:   usize,
+  pub name:     HashType,
+  pub name_str: String,
+}
+
+impl std::default::Default for WindowId {
+  fn default() -> WindowId {
+    WindowId {
+      handle:   0,
+      name:     0,
+      name_str: String::new(),
+    }
+  }
+}
+
 #[derive(Debug)]
 pub struct Window {
-  pub handle:                 usize,
+  pub id:                     RefCell<WindowId>,
   pub seq:                    u32,
-  pub name:                   HashType,
-  pub name_str:               String,
   pub flags:                  BitFlags<PanelFlags>,
-  pub bounds:                 RectangleF32,
+  pub bounds:                 RefCell<RectangleF32>,
   pub scrollbar:              Vec2U32,
   pub buffer:                 RefCell<CommandBuffer>,
   pub layout:                 Box<RefCell<Panel>>,
@@ -143,12 +158,14 @@ impl Window {
     bounds: RectangleF32,
   ) -> Window {
     Window {
-      handle,
+      id: RefCell::new(WindowId {
+        handle,
+        name,
+        name_str: String::from(name_str),
+      }),
       seq: 0,
-      name,
-      name_str: name_str.to_owned(),
       flags,
-      bounds,
+      bounds: RefCell::new(bounds),
       scrollbar: Vec2U32::same(0),
       buffer: RefCell::new(CommandBuffer::new(
         Some(RectangleF32::new(
@@ -164,5 +181,11 @@ impl Window {
       scrolled: 0,
       parent: None,
     }
+  }
+}
+
+impl std::cmp::PartialEq for Window {
+  fn eq(&self, other: &Self) -> bool {
+    self.id.borrow().handle == other.id.borrow().handle
   }
 }
