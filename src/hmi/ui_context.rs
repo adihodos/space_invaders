@@ -120,7 +120,7 @@ impl<'a> UiContext<'a> {
           wnd.id.borrow().name == hash && wnd.id.borrow().name_str == name;
         res
       })
-      .and_then(|winptr| Some(winptr.clone()))
+      .and_then(|winptr| Some(Rc::clone(&winptr)))
   }
 
   fn insert_window(&self, win: WindowPtr, loc: WindowInsertLocation) {
@@ -230,9 +230,9 @@ impl<'a> UiContext<'a> {
       "if this triggers you missed an end() call"
     );
 
-    self
+    let winptr = self
       .find_window(murmur_hash64a(name.as_bytes(), 64), name)
-      .map_or(Some(()), |wndptr| {
+      .map_or(None, |wndptr| {
         // existing window, needs updating
         let flags = {
           let mut f = wndptr.borrow().flags;
@@ -256,11 +256,51 @@ impl<'a> UiContext<'a> {
 
         wndptr.borrow_mut().seq = self.seq;
         // no active window so set this as the active window
+        if self.active_win.borrow().is_none()
+          && !flags.contains(PanelFlags::WindowHidden)
+        {
+          self.active_win.borrow_mut().replace(Rc::clone(&wndptr));
+        }
 
-        None
-      });
+        Some(wndptr)
+      })
+      .map_or_else(
+        || {
+          // window does no exist, create it
+          let wndptr = Rc::new(RefCell::new(Window::new(
+            self.alloc_win_handle(),
+            murmur_hash64a(name.as_bytes(), 64),
+            name,
+            flags,
+            bounds,
+          )));
 
-    false
+          if flags.contains(PanelFlags::WindowBackground) {
+            self.insert_window(Rc::clone(&wndptr), WindowInsertLocation::Front);
+          } else {
+            self.insert_window(Rc::clone(&wndptr), WindowInsertLocation::Back);
+          }
+
+          if self.active_win.borrow().is_none() {
+            self.active_win.borrow_mut().replace(Rc::clone(&wndptr));
+          }
+
+          wndptr
+        },
+        |existing_wnd_ptr| existing_wnd_ptr,
+      );
+
+    if winptr.borrow().flags.contains(PanelFlags::WindowHidden) {
+      self.current_win.borrow_mut().replace(winptr);
+      return false;
+    }
+
+    // window overlapping
+    self.current_win.borrow_mut().replace(Rc::clone(&winptr));
+    let res = self.panel_begin(title, PanelType::Window.into());
+    // offset_x, offset_y
+
+    res
   }
 
   pub fn panel_begin(
