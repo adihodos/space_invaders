@@ -9,9 +9,9 @@ use crate::{
 use enumflags2::BitFlags;
 use std::{cell::RefCell, rc::Rc};
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct PopupState {
-  pub win:         Option<usize>,
+  pub win:         Option<Rc<RefCell<Window>>>,
   pub typ:         PanelType,
   pub buf:         PopupBuffer,
   pub name:        u32,
@@ -123,21 +123,36 @@ impl std::default::Default for WindowId {
   }
 }
 
+#[derive(Copy, Clone, Debug)]
+pub struct ScrollState {
+  pub scrollbar:    Vec2U32,
+  pub hiding_timer: f32,
+  pub scrolled:     u32,
+}
+
+impl std::default::Default for ScrollState {
+  fn default() -> ScrollState {
+    ScrollState {
+      scrollbar:    Vec2U32::same(0),
+      hiding_timer: 0f32,
+      scrolled:     0,
+    }
+  }
+}
+
 #[derive(Debug)]
 pub struct Window {
-  pub id:                     RefCell<WindowId>,
-  pub seq:                    u32,
-  pub flags:                  BitFlags<PanelFlags>,
-  pub bounds:                 RefCell<RectangleF32>,
-  pub scrollbar:              Vec2U32,
-  pub buffer:                 RefCell<CommandBuffer>,
-  pub layout:                 Box<RefCell<Panel>>,
-  pub scrollbar_hiding_timer: f32,
+  pub id:     RefCell<WindowId>,
+  pub seq:    u32,
+  pub flags:  BitFlags<PanelFlags>,
+  pub bounds: RefCell<RectangleF32>,
+  pub scroll: Rc<RefCell<ScrollState>>,
+  pub buffer: RefCell<CommandBuffer>,
+  pub layout: Box<RefCell<Panel>>,
   // persistent widget state
   pub property: PropertyState,
   pub popup:    PopupState,
   pub edit:     EditState,
-  pub scrolled: u32,
 
   // tables ??!!
 
@@ -157,6 +172,8 @@ impl Window {
     flags: BitFlags<PanelFlags>,
     bounds: RectangleF32,
   ) -> Window {
+    let scroll_state = Rc::new(RefCell::new(ScrollState::default()));
+
     Window {
       id: RefCell::new(WindowId {
         handle,
@@ -166,21 +183,26 @@ impl Window {
       seq: 0,
       flags,
       bounds: RefCell::new(bounds),
-      scrollbar: Vec2U32::same(0),
+      scroll: Rc::clone(&scroll_state),
       buffer: RefCell::new(CommandBuffer::new(
         Some(RectangleF32::new(
           -8192_f32, -8192_f32, 16834_f32, 16834_f32,
         )),
         128,
       )),
-      layout: Box::new(RefCell::new(Panel::new(PanelType::Window.into()))),
-      scrollbar_hiding_timer: 0f32,
+      layout: Box::new(RefCell::new(Panel::new(
+        Rc::clone(&scroll_state),
+        PanelType::Window.into(),
+      ))),
       property: PropertyState::default(),
       popup: PopupState::default(),
       edit: EditState::default(),
-      scrolled: 0,
       parent: None,
     }
+  }
+
+  pub fn bounds(&self) -> RectangleF32 {
+    *self.bounds.borrow()
   }
 }
 

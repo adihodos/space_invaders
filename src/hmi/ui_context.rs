@@ -296,11 +296,232 @@ impl<'a> UiContext<'a> {
     }
 
     // window overlapping
+    self.do_window_overlapping(Rc::clone(&winptr));
     self.current_win.borrow_mut().replace(Rc::clone(&winptr));
-    let res = self.panel_begin(title, PanelType::Window.into());
-    // offset_x, offset_y
+    self.panel_begin(title, PanelType::Window.into())
+  }
 
-    res
+  fn find_window_index_by_handle(&self, handle: usize) -> Option<usize> {
+    self
+      .windows
+      .borrow()
+      .iter()
+      .position(|winptr| winptr.borrow().id.borrow().handle == handle)
+  }
+
+  fn is_active_window(&self, wndptr: &WindowPtr) -> bool {
+    self
+      .active_win
+      .borrow()
+      .as_ref()
+      .map_or(false, |active_win| {
+        *active_win.borrow().id.borrow() == *wndptr.borrow().id.borrow()
+      })
+  }
+
+  fn is_last_window(&self, wndptr: &WindowPtr) -> bool {
+    self
+      .windows
+      .borrow()
+      .last()
+      .map_or(false, |last_wnd| *last_wnd.borrow() == *wndptr.borrow())
+  }
+
+  fn do_window_overlapping(&mut self, winptr: WindowPtr) {
+    let flags = winptr.borrow().flags;
+
+    if flags.contains(PanelFlags::WindowHidden)
+      || flags.contains(PanelFlags::WindowNoInput)
+    {
+      return;
+    }
+
+    let h = self.style.font.scale
+      + 2f32 * self.style.window.header.padding.y
+      + 2f32 * self.style.window.header.label_padding.y;
+
+    let win_bounds = if !flags.contains(PanelFlags::WindowMinimized) {
+      *winptr.borrow().bounds.borrow()
+    } else {
+      RectangleF32 {
+        h,
+        ..*winptr.borrow().bounds.borrow()
+      }
+    };
+
+    let inpanel = self.input.borrow().has_mouse_click_down_in_rect(
+      MouseButtonId::ButtonLeft,
+      &win_bounds,
+      true,
+    ) && self
+      .input
+      .borrow()
+      .is_button_clicked(MouseButtonId::ButtonLeft);
+
+    // activate window if hovered and no other window is overlapping this window
+    if !self.is_active_window(&winptr)
+      && self.input.borrow().is_mouse_hovering_rect(&win_bounds)
+      && !self.input.borrow().is_mouse_down(MouseButtonId::ButtonLeft)
+    {
+      self
+        .find_window_index_by_handle(winptr.borrow().id.borrow().handle)
+        .and_then(|idx| {
+          if self.windows.borrow().len() >= (idx + 1) {
+            return None;
+          }
+
+          let iter = self.windows.borrow()[idx + 1 ..]
+            .iter()
+            .find(|itr| {
+              let iter_flags = itr.borrow().flags;
+
+              let iter_bounds =
+                if !iter_flags.contains(PanelFlags::WindowMinimized) {
+                  *itr.borrow().bounds.borrow()
+                } else {
+                  RectangleF32 {
+                    h,
+                    ..*itr.borrow().bounds.borrow()
+                  }
+                };
+
+              if iter_bounds.intersect(&win_bounds)
+                && !iter_flags.contains(PanelFlags::WindowHidden)
+              {
+                return true;
+              }
+
+              let res = itr.borrow().popup.active
+                && !iter_flags.contains(PanelFlags::WindowHidden)
+                && itr.borrow().popup.win.as_ref().map_or(false, |popup_win| {
+                  win_bounds.intersect(&popup_win.borrow().bounds())
+                });
+
+              res
+            })
+            .map(|wp| Rc::clone(wp));
+
+          // activate window if clicked
+          let iter = iter.and_then(|win| {
+            if !inpanel || self.is_last_window(&winptr) {
+              return None;
+            }
+            // try to find a panel with higher priority in the same position
+            self
+              .find_window_index_by_handle(win.borrow().id.borrow().handle)
+              .and_then(|idx| {
+                let window_list = self.windows.borrow();
+
+                if window_list.len() >= (idx + 1) {
+                  return None;
+                }
+
+                window_list[idx + 1 ..]
+                  .iter()
+                  .find(|iter| {
+                    let iter_flags = iter.borrow().flags;
+                    let iter_bounds =
+                      if !iter_flags.contains(PanelFlags::WindowMinimized) {
+                        *iter.borrow().bounds.borrow()
+                      } else {
+                        RectangleF32 {
+                          h,
+                          ..*iter.borrow().bounds.borrow()
+                        }
+                      };
+
+                    let mouse_pos = self.input.borrow().mouse.pos;
+                    if iter_bounds.contains_point(mouse_pos.x, mouse_pos.y)
+                      && !iter_flags.contains(PanelFlags::WindowHidden)
+                    {
+                      return true;
+                    }
+
+                    let res = iter.borrow().popup.active
+                      && !iter_flags.contains(PanelFlags::WindowHidden)
+                      && iter.borrow().popup.win.as_ref().map_or(
+                        false,
+                        |popup_win| {
+                          win_bounds.intersect(&popup_win.borrow().bounds())
+                        },
+                      );
+
+                    res
+                  })
+                  .map(|wp| Rc::clone(wp))
+              })
+          });
+
+          if iter.is_some()
+            && !flags.contains(PanelFlags::WindowRom)
+            && flags.contains(PanelFlags::WindowBackground)
+          {
+            winptr.borrow_mut().flags.insert(PanelFlags::WindowRom);
+            let iter = iter.unwrap();
+            iter.borrow_mut().flags.remove(PanelFlags::WindowRom);
+            self.active_win.borrow_mut().replace(Rc::clone(&iter));
+            if !iter.borrow().flags.contains(PanelFlags::WindowBackground) {
+              // current window is active in that position so transfer to top
+              // at the highest priority in stack
+              self.remove_window(Rc::clone(&iter));
+              self.insert_window(iter, WindowInsertLocation::Back);
+            }
+          } else {
+            if iter.is_none() && !self.is_last_window(&winptr) {
+              if !winptr.borrow().flags.contains(PanelFlags::WindowBackground) {
+                // current window is active in that position so transfer to top
+                // at the highest priority in stack
+                self.remove_window(Rc::clone(&winptr));
+                self.insert_window(
+                  Rc::clone(&winptr),
+                  WindowInsertLocation::Back,
+                );
+              }
+
+              winptr.borrow_mut().flags.remove(PanelFlags::WindowRom);
+              self.active_win.borrow_mut().replace(Rc::clone(&winptr));
+            }
+
+            if !self.is_last_window(&winptr)
+              && !winptr.borrow().flags.contains(PanelFlags::WindowBackground)
+            {
+              winptr.borrow_mut().flags.insert(PanelFlags::WindowRom);
+            }
+          }
+
+          Some(())
+        });
+    }
+  }
+
+  pub fn end(&mut self) {
+    debug_assert!(
+      self.current_win.borrow().is_some(),
+      "If this triggers you forgot to call begin()"
+    );
+
+    let end_panel =
+      self.current_win.borrow().as_ref().map_or(true, |curr_win| {
+        curr_win.borrow().flags.contains(PanelFlags::WindowHidden)
+          && curr_win.borrow().layout.borrow().typ == PanelType::Window
+      });
+
+    if end_panel {
+      self.panel_end();
+    }
+
+    *self.current_win.borrow_mut() = None;
+  }
+
+  pub fn window_get_bounds(&self) -> RectangleF32 {
+    debug_assert!(self.current_win.borrow().is_some());
+    self
+      .current_win
+      .borrow()
+      .as_ref()
+      .map_or(RectangleF32::new(0f32, 0f32, 0f32, 0f32), |curr_win| {
+        *curr_win.borrow().bounds.borrow()
+      })
   }
 
   pub fn panel_begin(
@@ -322,7 +543,11 @@ impl<'a> UiContext<'a> {
       .expect("Invalid current window!");
 
     // reset panel to default state
-    winptr.borrow_mut().layout = Box::new(RefCell::new(Panel::new(panel_type)));
+    winptr.borrow_mut().layout = Box::new(RefCell::new(Panel::new(
+      Rc::clone(&winptr.borrow().scroll),
+      panel_type,
+    )));
+
     let win_flags = winptr.borrow().flags;
 
     if win_flags.contains(PanelFlags::WindowHidden | PanelFlags::WindowClosed) {
@@ -584,7 +809,7 @@ impl<'a> UiContext<'a> {
           );
 
           // fill right empty space
-          let adjust_for_scrollbar = if unsafe { *layout.offset_y } == 0
+          let adjust_for_scrollbar = if layout.offsets.borrow().scrollbar.y == 0
             && !layout.flags.contains(PanelFlags::WindowNoScrollbar)
           {
             scrollbar_size.x
@@ -1340,12 +1565,14 @@ impl<'a> UiContext<'a> {
       .as_ref()
       .map_or(Vec2F32::same(0f32), |winptr| {
         let win = winptr.borrow();
-        let layout = win.layout.borrow_mut();
+        let layout = win.layout.borrow();
 
-        Vec2F32::new(
-          ret.x + layout.at_x - unsafe { *layout.offset_x as f32 },
-          ret.y + layout.at_y - unsafe { *layout.offset_y as f32 },
-        )
+        let res = Vec2F32::new(
+          ret.x + layout.at_x - layout.offsets.borrow().scrollbar.x as f32,
+          ret.y + layout.at_y - layout.offsets.borrow().scrollbar.y as f32,
+        );
+
+        res
       })
   }
 
@@ -1357,12 +1584,14 @@ impl<'a> UiContext<'a> {
       .as_ref()
       .map_or(Vec2F32::same(0f32), |winptr| {
         let win = winptr.borrow();
-        let layout = win.layout.borrow_mut();
+        let layout = win.layout.borrow();
 
-        Vec2F32::new(
-          ret.x - layout.at_x + unsafe { *layout.offset_x as f32 },
-          ret.y - layout.at_y + unsafe { *layout.offset_y as f32 },
-        )
+        let res = Vec2F32::new(
+          ret.x - layout.at_x + layout.offsets.borrow().scrollbar.x as f32,
+          ret.y - layout.at_y + layout.offsets.borrow().scrollbar.y as f32,
+        );
+
+        res
       })
   }
 
@@ -1375,14 +1604,16 @@ impl<'a> UiContext<'a> {
       RectangleF32::new(0f32, 0f32, 0f32, 0f32),
       |winptr| {
         let win = winptr.borrow();
-        let layout = win.layout.borrow_mut();
+        let layout = win.layout.borrow();
 
-        RectangleF32::new(
-          ret.x + layout.at_x - unsafe { *layout.offset_x as f32 },
-          ret.y + layout.at_y - unsafe { *layout.offset_y as f32 },
+        let res = RectangleF32::new(
+          ret.x + layout.at_x - layout.offsets.borrow().scrollbar.x as f32,
+          ret.y + layout.at_y - layout.offsets.borrow().scrollbar.y as f32,
           ret.w,
           ret.h,
-        )
+        );
+
+        res
       },
     )
   }
@@ -1393,14 +1624,16 @@ impl<'a> UiContext<'a> {
       RectangleF32::new(0f32, 0f32, 0f32, 0f32),
       |winptr| {
         let win = winptr.borrow();
-        let layout = win.layout.borrow_mut();
+        let layout = win.layout.borrow();
 
-        RectangleF32::new(
-          ret.x - layout.at_x + unsafe { *layout.offset_x as f32 },
-          ret.y - layout.at_y + unsafe { *layout.offset_y as f32 },
+        let res = RectangleF32::new(
+          ret.x - layout.at_x + layout.offsets.borrow().scrollbar.x as f32,
+          ret.y - layout.at_y + layout.offsets.borrow().scrollbar.y as f32,
           ret.w,
           ret.h,
-        )
+        );
+
+        res
       },
     )
   }
@@ -1487,9 +1720,9 @@ impl<'a> UiContext<'a> {
           PanelRowLayoutType::DynamicFree => {
             // free widget placing
             bounds.x = layout.at_x + (layout.bounds.w * layout.row.item.x);
-            bounds.x -= unsafe { *layout.offset_x as f32 };
+            bounds.x -= layout.offsets.borrow().scrollbar.x as f32;
             bounds.y = layout.at_y + (layout.row.height * layout.row.item.y);
-            bounds.y -= unsafe { *layout.offset_y as f32 };
+            bounds.y -= layout.offsets.borrow().scrollbar.y as f32;
             bounds.w = layout.bounds.w * layout.row.item.w + frac_fn(bounds.x);
             bounds.h =
               layout.row.height * layout.row.item.h + frac_fn(bounds.y);
@@ -1557,9 +1790,9 @@ impl<'a> UiContext<'a> {
             if (bounds.x + bounds.w) > layout.max_x && modify {
               layout.max_x = bounds.x + bounds.w;
             }
-            bounds.x -= unsafe { *layout.offset_x as f32 };
+            bounds.x -= layout.offsets.borrow().scrollbar.x as f32;
             bounds.y = layout.at_y + layout.row.item.y;
-            bounds.y -= unsafe { *layout.offset_y as f32 };
+            bounds.y -= layout.offsets.borrow().scrollbar.y as f32;
             bounds.h = layout.row.item.h;
 
             None
@@ -1617,7 +1850,7 @@ impl<'a> UiContext<'a> {
         .and_then(|spc| {
           bounds.w = spc.item_width;
           bounds.h = layout.row.height - spacing.y;
-          bounds.y = layout.at_y - unsafe { *layout.offset_y as f32 };
+          bounds.y = layout.at_y - layout.offsets.borrow().scrollbar.y as f32;
           bounds.x =
             layout.at_x + spc.item_offset + spc.item_spacing + padding.x;
 

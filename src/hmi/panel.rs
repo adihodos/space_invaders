@@ -1,7 +1,11 @@
 use crate::{
-  hmi::{base::Consts, commands::CommandBuffer, style::Style, window::Window},
+  hmi::{
+    base::Consts, commands::CommandBuffer, style::Style, window::ScrollState,
+  },
   math::{rectangle::RectangleF32, vec2::Vec2U32},
 };
+
+use std::{cell::RefCell, rc::Rc};
 
 use enumflags2::BitFlags;
 use enumflags2_derive::EnumFlags;
@@ -172,13 +176,12 @@ pub struct MenuState {
 #[derive(Copy, Clone, Debug)]
 pub struct Chart {}
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct Panel {
   pub typ:           BitFlags<PanelType>,
   pub flags:         BitFlags<PanelFlags>,
   pub bounds:        RectangleF32,
-  pub offset_x:      *mut u32,
-  pub offset_y:      *mut u32,
+  pub offsets:       Rc<RefCell<ScrollState>>,
   pub at_x:          f32,
   pub at_y:          f32,
   pub max_x:         f32,
@@ -195,13 +198,15 @@ pub struct Panel {
 }
 
 impl Panel {
-  pub fn new(typ: BitFlags<PanelType>) -> Panel {
+  pub fn new(
+    offsets: Rc<RefCell<ScrollState>>,
+    typ: BitFlags<PanelType>,
+  ) -> Panel {
     Panel {
       typ,
       flags: BitFlags::<PanelFlags>::empty(),
       bounds: RectangleF32::new(0f32, 0f32, 0f32, 0f32),
-      offset_x: std::ptr::null_mut(),
-      offset_y: std::ptr::null_mut(),
+      offsets,
       at_x: 0f32,
       at_y: 0f32,
       max_x: 0f32,
