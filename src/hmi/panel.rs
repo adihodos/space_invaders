@@ -34,9 +34,6 @@ pub enum PanelType {
 }
 
 impl PanelType {
-  // pub fn is_nonblock(&self) -> bool {
-  //   *self as u8 & PanelSet::NON_BLOCK != 0
-  // }
   fn non_block() -> BitFlags<PanelType> {
     PanelType::Contextual
       | PanelType::Combo
@@ -151,18 +148,6 @@ pub struct PopupBuffer {
   pub end:    u64,
   pub active: i32,
 }
-
-// impl std::default::Default for PopupBuffer {
-//   fn default() -> Self {
-//     Self {
-//       begin:  0,
-//       parent: 0,
-//       last:   0,
-//       end:    0,
-//       active: 0,
-//     }
-//   }
-// }
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct MenuState {

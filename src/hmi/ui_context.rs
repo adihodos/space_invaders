@@ -1,15 +1,15 @@
 use crate::{
   hmi::{
     base::{
-      AntialiasingType, ButtonBehaviour, Consts, ConvertConfig, GenericHandle,
-      HashType, WidgetLayoutStates,
+      AntialiasingType, ButtonBehaviour, Consts, ConvertConfig, HashType,
+      WidgetLayoutStates,
     },
     commands::CommandBuffer,
     input::{Input, MouseButtonId},
     panel::{LayoutFormat, Panel, PanelFlags, PanelRowLayoutType, PanelType},
     style::{ConfigurationStacks, Style, StyleItem},
     text_engine::Font,
-    vertex_output::{DrawCommand, DrawIndexType, DrawList},
+    vertex_output::DrawList,
     window::Window,
   },
   math::{
@@ -17,16 +17,24 @@ use crate::{
     rectangle::RectangleF32,
     utility::{clamp, saturate},
     vec2::Vec2F32,
-    vertex_types::VertexPTC,
   },
 };
 
 use enumflags2::BitFlags;
 use murmurhash64::murmur_hash64a;
-use num::ToPrimitive;
 use std::{cell::RefCell, rc::Rc};
 
-// pub struct Consts {}
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum CollapseStates {
+  Minimized,
+  Maximized,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum ShowStates {
+  Hidden,
+  Shown,
+}
 
 impl Consts {
   pub const VALUE_PAGE_CAPACITY: usize = 48;
@@ -522,6 +530,276 @@ impl<'a> UiContext<'a> {
       .map_or(RectangleF32::new(0f32, 0f32, 0f32, 0f32), |curr_win| {
         *curr_win.borrow().bounds.borrow()
       })
+  }
+
+  pub fn window_get_position(&self) -> Vec2F32 {
+    let bounds = self.window_get_bounds();
+    Vec2F32::new(bounds.x, bounds.y)
+  }
+
+  pub fn window_get_size(&self) -> Vec2F32 {
+    let bounds = self.window_get_bounds();
+    Vec2F32::new(bounds.w, bounds.h)
+  }
+
+  pub fn window_get_width(&self) -> f32 {
+    self.window_get_bounds().w
+  }
+
+  pub fn window_get_height(&self) -> f32 {
+    self.window_get_bounds().h
+  }
+
+  pub fn window_get_content_region(&self) -> RectangleF32 {
+    debug_assert!(self.current_win.borrow().is_some());
+    self
+      .current_win
+      .borrow()
+      .as_ref()
+      .map_or(RectangleF32::new(0f32, 0f32, 0f32, 0f32), |curr_win| {
+        curr_win.borrow().layout.borrow().clip
+      })
+  }
+
+  pub fn window_get_content_region_min(&self) -> Vec2F32 {
+    let content_region = self.window_get_content_region();
+    Vec2F32::new(content_region.x, content_region.y)
+  }
+
+  pub fn window_get_content_region_max(&self) -> Vec2F32 {
+    let content_rect = self.window_get_content_region();
+    Vec2F32 {
+      x: content_rect.x + content_rect.w,
+      y: content_rect.y + content_rect.h,
+    }
+  }
+
+  pub fn window_get_content_region_size(&self) -> Vec2F32 {
+    let content_region = self.window_get_content_region();
+    Vec2F32 {
+      x: content_region.w,
+      y: content_region.h,
+    }
+  }
+
+  pub fn window_has_focus(&self) -> bool {
+    debug_assert!(self.current_win.borrow().is_some());
+    self
+      .current_win
+      .borrow()
+      .as_ref()
+      .map_or(false, |curr_win| {
+        self
+          .active_win
+          .borrow()
+          .as_ref()
+          .map_or(false, |active_win| {
+            *curr_win.borrow() == *active_win.borrow()
+          })
+      })
+  }
+
+  pub fn window_is_hovered(&self) -> bool {
+    debug_assert!(self.current_win.borrow().is_some());
+    self
+      .current_win
+      .borrow()
+      .as_ref()
+      .map_or(false, |curr_win| {
+        if curr_win.borrow().flags.contains(PanelFlags::WindowHidden) {
+          return false;
+        }
+
+        self
+          .input
+          .borrow()
+          .is_mouse_hovering_rect(&curr_win.borrow().bounds.borrow())
+      })
+  }
+
+  pub fn window_is_any_hovered(&self) -> bool {
+    self.windows.borrow().iter().any(|winptr| {
+      let win = winptr.borrow();
+      // check if window is hovered
+      if win.flags.contains(PanelFlags::WindowHidden) {
+        return false;
+      }
+
+      // check if popup is hovered
+      let popup_hovered = win.popup.active
+        && win.popup.win.as_ref().map_or(false, |popup_win| {
+          self
+            .input
+            .borrow()
+            .is_mouse_hovering_rect(&popup_win.borrow().bounds.borrow())
+        });
+
+      if popup_hovered {
+        return true;
+      }
+
+      if win.flags.contains(PanelFlags::WindowMinimized) {
+        let header = RectangleF32 {
+          h: self.style.font.scale + 2f32 * self.style.window.header.padding.y,
+          ..*win.bounds.borrow()
+        };
+
+        self.input.borrow().is_mouse_hovering_rect(&header)
+      } else if self
+        .input
+        .borrow()
+        .is_mouse_hovering_rect(&win.bounds.borrow())
+      {
+        true
+      } else {
+        false
+      }
+    })
+  }
+
+  pub fn window_is_collapsed(&self, name: &str) -> bool {
+    self
+      .find_window(murmur_hash64a(name.as_bytes(), 64), name)
+      .map_or(false, |win| {
+        win.borrow().flags.contains(PanelFlags::WindowMinimized)
+      })
+  }
+
+  pub fn window_is_closed(&self, name: &str) -> bool {
+    self
+      .find_window(murmur_hash64a(name.as_bytes(), 64), name)
+      .map_or(true, |win| {
+        win.borrow().flags.contains(PanelFlags::WindowClosed)
+      })
+  }
+
+  pub fn window_is_hidden(&self, name: &str) -> bool {
+    self
+      .find_window(murmur_hash64a(name.as_bytes(), 64), name)
+      .map_or(true, |win| {
+        win.borrow().flags.contains(PanelFlags::WindowHidden)
+      })
+  }
+
+  pub fn window_is_active(&self, name: &str) -> bool {
+    self
+      .find_window(murmur_hash64a(name.as_bytes(), 64), name)
+      .map_or(false, |win| self.is_active_window(&win))
+  }
+
+  pub fn window_find(&self, name: &str) -> Option<WindowPtr> {
+    self.find_window(murmur_hash64a(name.as_bytes(), 64), name)
+  }
+
+  pub fn window_close(&mut self, name: &str) {
+    self.window_find(name).and_then(|wnd| {
+      debug_assert!(
+        !self.is_active_window(&wnd),
+        "Cannot close the currently active window!"
+      );
+      if !self.is_active_window(&wnd) {
+        wnd
+          .borrow_mut()
+          .flags
+          .insert(PanelFlags::WindowHidden | PanelFlags::WindowClosed);
+      }
+
+      Some(())
+    });
+  }
+
+  pub fn window_set_bounds(&mut self, name: &str, bounds: RectangleF32) {
+    self.window_find(name).and_then(|wnd| {
+      debug_assert!(
+        !self.is_active_window(&wnd),
+        "Cannot close the currently active window!"
+      );
+      if !self.is_active_window(&wnd) {
+        *wnd.borrow().bounds.borrow_mut() = bounds;
+      }
+
+      Some(())
+    });
+  }
+
+  pub fn window_set_position(&mut self, name: &str, pos: Vec2F32) {
+    self.window_find(name).and_then(|win| {
+      let win = win.borrow();
+      let mut bounds = win.bounds.borrow_mut();
+      bounds.x = pos.x;
+      bounds.y = pos.y;
+
+      Some(())
+    });
+  }
+
+  pub fn window_set_size(&mut self, name: &str, size: Vec2F32) {
+    self.window_find(name).and_then(|win| {
+      let win = win.borrow();
+      let mut bounds = win.bounds.borrow_mut();
+      bounds.w = size.x;
+      bounds.h = size.y;
+
+      Some(())
+    });
+  }
+
+  pub fn window_collapse(&mut self, name: &str, collapse: CollapseStates) {
+    self.window_find(name).and_then(|win| {
+      if collapse == CollapseStates::Minimized {
+        win.borrow_mut().flags.insert(PanelFlags::WindowMinimized);
+      } else {
+        win.borrow_mut().flags.remove(PanelFlags::WindowMinimized);
+      }
+
+      Some(())
+    });
+  }
+
+  pub fn window_collapse_if<F: FnOnce() -> CollapseStates>(
+    &mut self,
+    name: &str,
+    condition: F,
+  ) {
+    self.window_collapse(name, condition());
+  }
+
+  pub fn window_show(&mut self, name: &str, s: ShowStates) {
+    self.window_find(name).and_then(|win| {
+      match s {
+        ShowStates::Hidden => {
+          win.borrow_mut().flags.insert(PanelFlags::WindowHidden);
+        }
+        ShowStates::Shown => {
+          win.borrow_mut().flags.remove(PanelFlags::WindowHidden);
+        }
+      }
+
+      Some(())
+    });
+  }
+
+  pub fn window_show_if<F: FnOnce() -> ShowStates>(
+    &mut self,
+    name: &str,
+    show_cond: F,
+  ) {
+    self.window_show(name, show_cond());
+  }
+
+  pub fn window_set_focus(&mut self, name: &str) {
+    let win = self.window_find(name);
+
+    win
+      .as_ref()
+      .filter(|winptr| !self.is_last_window(&winptr))
+      .and_then(|winptr| {
+        self.remove_window(Rc::clone(&winptr));
+        self.insert_window(Rc::clone(&winptr), WindowInsertLocation::Back);
+        Some(())
+      });
+
+    self.active_win.replace(win);
   }
 
   pub fn panel_begin(
