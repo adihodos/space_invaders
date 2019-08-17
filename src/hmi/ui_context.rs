@@ -62,14 +62,14 @@ enum WindowInsertLocation {
 
 type WindowPtr = Rc<RefCell<Window>>;
 
-pub struct UiContext<'a> {
+pub struct UiContext {
   pub input:             RefCell<Input>,
   pub style:             Style,
   pub last_widget_state: u32,
   pub button_behviour:   ButtonBehaviour,
   pub stacks:            ConfigurationStacks,
   pub delta_time_sec:    f32,
-  draw_list:             DrawList<'a>,
+  draw_list:             DrawList,
   // TODO: text edit support
   overlay: RefCell<CommandBuffer>,
   // windows
@@ -81,13 +81,13 @@ pub struct UiContext<'a> {
   win_handle_seq: usize,
 }
 
-impl<'a> UiContext<'a> {
+impl<'a> UiContext {
   pub fn new(
     font: Font,
     config: ConvertConfig,
     line_aa: AntialiasingType,
     shape_aa: AntialiasingType,
-  ) -> UiContext<'a> {
+  ) -> UiContext {
     Self {
       input:             RefCell::new(Input::new()),
       style:             Style::new(font),

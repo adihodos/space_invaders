@@ -232,14 +232,8 @@ fn main() {
     vertex_size:          std::mem::size_of::<VertexPTC>(),
   };
 
-  let mut drawlist = DrawList::new_with_buffers(
-    convert_cfg,
-    AntialiasingType::On,
-    AntialiasingType::Off,
-    &mut buff_draw_commands,
-    &mut buff_vertices,
-    &mut buff_indices,
-  );
+  let mut drawlist =
+    DrawList::new(convert_cfg, AntialiasingType::On, AntialiasingType::Off);
 
   let mut commands = Vec::<Command>::new();
 
@@ -425,7 +419,12 @@ fn main() {
     &mut commands,
   );
 
-  drawlist.convert(&commands);
+  drawlist.convert(
+    &commands,
+    &mut buff_vertices,
+    &mut buff_indices,
+    &mut buff_draw_commands,
+  );
 
   fn slice_bytes_size<T: Sized>(s: &[T]) -> gl::types::GLsizeiptr {
     (s.len() * std::mem::size_of::<T>()) as gl::types::GLsizeiptr
