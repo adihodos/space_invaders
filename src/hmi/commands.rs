@@ -210,6 +210,19 @@ impl CommandBuffer {
     self.clip = None;
   }
 
+  pub fn len(&self) -> usize {
+    self.base.len()
+  }
+
+  pub fn last(&self) -> usize {
+    self.base.len()
+  }
+
+  pub fn reset(&mut self) {
+    self.base.clear();
+    self.clip = Some(crate::hmi::base::Consts::null_rect());
+  }
+
   pub fn stroke_line(
     &mut self,
     x0: f32,

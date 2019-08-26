@@ -6,7 +6,7 @@ use crate::math::{
 };
 
 use crate::hmi::{
-  base::{AntialiasingType, ConvertConfig, GenericHandle},
+  base::{AntialiasingType, ConvertConfig, GenericHandle, Consts},
   commands::Command,
   image::Image,
   text_engine::Font,
@@ -27,10 +27,10 @@ pub struct DrawCommand {
   pub texture:       GenericHandle,
 }
 
-struct BufferOutput<'a> {
-  cmds_buff:   &'a mut Vec<DrawCommand>,
-  vertex_buff: &'a mut Vec<VertexPTC>,
-  index_buff:  &'a mut Vec<DrawIndexType>,
+pub struct BufferOutput<'a> {
+  pub cmds_buff:   &'a mut Vec<DrawCommand>,
+  pub vertex_buff: &'a mut Vec<VertexPTC>,
+  pub index_buff:  &'a mut Vec<DrawIndexType>,
 }
 
 #[derive(Debug)]
@@ -44,9 +44,9 @@ pub struct DrawList {
 }
 
 impl DrawList {
-  fn null_rectangle() -> RectangleF32 {
-    RectangleF32::new(-8192_f32, -8192_f32, 16834_f32, 16834_f32)
-  }
+  // fn null_rect() -> RectangleF32 {
+  //   RectangleF32::new(-8192_f32, -8192_f32, 16834_f32, 16834_f32)
+  // }
 
   pub fn new(
     config: ConvertConfig,
@@ -56,7 +56,7 @@ impl DrawList {
     const GEN_CIRCLE_VERTICES_COUNT: i32 = 12;
 
     DrawList {
-      clip_rect: Self::null_rectangle(),
+      clip_rect: Consts::null_rect(),
       circle_vtx: (0 .. GEN_CIRCLE_VERTICES_COUNT)
         .map(|idx| {
           let a = idx as f32
@@ -106,7 +106,7 @@ impl DrawList {
   fn push_image(&mut self, outbuff: &mut BufferOutput, texture: GenericHandle) {
     // if the command buffer is empty push a new command.
     if outbuff.cmds_buff.is_empty() {
-      self.push_command(outbuff, Self::null_rectangle(), texture);
+      self.push_command(outbuff, Consts::null_rect(), texture);
     }
 
     outbuff
@@ -257,7 +257,7 @@ impl DrawList {
   fn path_line_to(&mut self, outbuff: &mut BufferOutput, pos: Vec2F32) {
     // if no previous commands, push the null clipping rectangle
     if outbuff.cmds_buff.is_empty() {
-      self.add_clip(outbuff, Self::null_rectangle());
+      self.add_clip(outbuff, Consts::null_rect());
     }
 
     // if the last command has a non null texture, we need to push a null

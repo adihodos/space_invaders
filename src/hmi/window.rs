@@ -204,6 +204,26 @@ impl Window {
   pub fn bounds(&self) -> RectangleF32 {
     *self.bounds.borrow()
   }
+
+  pub fn start(&self) {
+    self.buffer.borrow_mut().reset();
+  }
+
+  pub fn start_popup(&mut self) {
+    // save buffer fill state for popup
+    let mut buf = &mut self.popup.buf;
+    buf.begin = self.buffer.borrow().len();
+    buf.end = buf.begin;
+    buf.parent = buf.begin;
+    buf.last = buf.begin;
+    buf.active = true;
+  }
+
+  pub fn finish_popup(&mut self) {
+    let mut buf = &mut self.popup.buf;
+    buf.last = self.buffer.borrow().len();
+    buf.end = self.buffer.borrow().len();
+  }
 }
 
 impl std::cmp::PartialEq for Window {

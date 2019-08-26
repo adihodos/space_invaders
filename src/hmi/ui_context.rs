@@ -111,6 +111,17 @@ impl<'a> UiContext {
     }
   }
 
+  fn finish(&mut self, _win: WindowPtr) {
+  }
+
+  fn build(&mut self) {
+    // TODO: draw cursor overlay
+
+    // build one big draw command list out of all window buffers
+    self.windows.borrow().iter().for_each(|winptr| {});
+    
+  }
+
   fn alloc_win_handle(&mut self) -> usize {
     let handle = self.win_handle_seq;
     self.win_handle_seq += 1;

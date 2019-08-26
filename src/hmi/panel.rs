@@ -142,11 +142,11 @@ impl std::default::Default for RowLayout {
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct PopupBuffer {
-  pub begin:  u64,
-  pub parent: u64,
-  pub last:   u64,
-  pub end:    u64,
-  pub active: i32,
+  pub begin:  usize,
+  pub parent: usize,
+  pub last:   usize,
+  pub end:    usize,
+  pub active: bool,
 }
 
 #[derive(Copy, Clone, Debug, Default)]
