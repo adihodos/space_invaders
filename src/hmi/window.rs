@@ -153,6 +153,7 @@ pub struct Window {
   pub property: PropertyState,
   pub popup:    PopupState,
   pub edit:     EditState,
+  pub killed:   bool,
 
   // tables ??!!
 
@@ -197,6 +198,7 @@ impl Window {
       property: PropertyState::default(),
       popup: PopupState::default(),
       edit: EditState::default(),
+      killed: false,
       parent: None,
     }
   }

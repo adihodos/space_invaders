@@ -157,7 +157,9 @@ impl UiContext {
     // ctx->style.cursor_active = ctx->style.cursors[NK_CURSOR_ARROW];
     self.overlay.borrow_mut().clear();
 
+    // TODO: bad code, rewrite later
     let win_count = self.windows.borrow().len();
+    let mut removed_windows = vec![];
     (0 .. win_count).fold(None, |prev_win: Option<WindowPtr>, win_idx| {
       let win = Rc::clone(&self.windows.borrow()[win_idx]);
       let win_flags = win.borrow().flags;
@@ -191,10 +193,15 @@ impl UiContext {
       });
       must_free_popup.map(|_| win.borrow_mut().popup.win = None);
 
-      // window not used anymore, so it can be freed
-
+      // window not used anymore, so we marked to be freed later
+      // win.borrow_mut().killed = true;
+      removed_windows.push(Rc::clone(&win));
       Some(win)
     });
+
+    removed_windows
+      .into_iter()
+      .for_each(|win| self.remove_window(win));
 
     self.seq += 1;
   }
