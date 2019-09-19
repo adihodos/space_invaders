@@ -4,12 +4,12 @@ use crate::{
       AntialiasingType, ButtonBehaviour, Consts, ConvertConfig, HashType,
       WidgetLayoutStates,
     },
-    commands::CommandBuffer,
+    commands::{Command, CommandBuffer},
     input::{Input, MouseButtonId},
     panel::{LayoutFormat, Panel, PanelFlags, PanelRowLayoutType, PanelType},
     style::{ConfigurationStacks, Style, StyleItem},
     text_engine::Font,
-    vertex_output::DrawList,
+    vertex_output::{DrawCommand, DrawIndexType, DrawList},
     window::Window,
   },
   math::{
@@ -17,6 +17,7 @@ use crate::{
     rectangle::RectangleF32,
     utility::{clamp, saturate},
     vec2::Vec2F32,
+    vertex_types::VertexPTC,
   },
 };
 
@@ -62,6 +63,36 @@ enum WindowInsertLocation {
 
 type WindowPtr = Rc<RefCell<Window>>;
 
+pub struct CommandsIterator<'a> {
+  cmds:   Vec<*const Command>,
+  pos:    usize,
+  marker: std::marker::PhantomData<&'a Command>,
+}
+
+impl<'a> CommandsIterator<'a> {
+  fn new(cmds: Vec<*const Command>) -> CommandsIterator<'a> {
+    CommandsIterator {
+      cmds,
+      pos: 0usize,
+      marker: std::marker::PhantomData,
+    }
+  }
+}
+
+impl<'a> std::iter::Iterator for CommandsIterator<'a> {
+  type Item = &'a Command;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    if self.pos < self.cmds.len() {
+      let res = Some(unsafe { &*self.cmds[self.pos] });
+      self.pos += 1;
+      res
+    } else {
+      None
+    }
+  }
+}
+
 pub struct UiContext {
   pub input:             RefCell<Input>,
   pub style:             Style,
@@ -73,15 +104,15 @@ pub struct UiContext {
   // TODO: text edit support
   overlay: RefCell<CommandBuffer>,
   // windows
-  build:          i32,
   windows:        RefCell<Vec<WindowPtr>>,
   active_win:     RefCell<Option<WindowPtr>>,
   current_win:    RefCell<Option<WindowPtr>>,
   seq:            u32,
   win_handle_seq: usize,
+  commands_buff:  Vec<*const Command>,
 }
 
-impl<'a> UiContext {
+impl UiContext {
   pub fn new(
     font: Font,
     config: ConvertConfig,
@@ -102,24 +133,135 @@ impl<'a> UiContext {
         )),
         128,
       )),
-      build:             0,
       windows:           RefCell::new(vec![]),
       current_win:       RefCell::new(None),
       active_win:        RefCell::new(None),
       seq:               0,
       win_handle_seq:    0,
+      commands_buff:     vec![],
     }
   }
 
-  fn finish(&mut self, _win: WindowPtr) {
+  pub fn input_mut(&self) -> std::cell::RefMut<Input> {
+    self.input.borrow_mut()
   }
 
-  fn build(&mut self) {
+  pub fn input(&self) -> std::cell::Ref<Input> {
+    self.input.borrow()
+  }
+
+  pub fn clear(&mut self) {
+    self.commands_buff.clear();
+    self.last_widget_state = 0;
+    // TODO: fix cursors
+    // ctx->style.cursor_active = ctx->style.cursors[NK_CURSOR_ARROW];
+    self.overlay.borrow_mut().clear();
+
+    let win_count = self.windows.borrow().len();
+    (0 .. win_count).fold(None, |prev_win: Option<WindowPtr>, win_idx| {
+      let win = Rc::clone(&self.windows.borrow()[win_idx]);
+      let win_flags = win.borrow().flags;
+
+      // make sure valid minimized windows don't get removed
+      if win_flags.contains(PanelFlags::WindowMinimized)
+        && !win_flags.contains(PanelFlags::WindowClosed)
+        && win.borrow().seq == self.seq
+      {
+        return Some(win);
+      }
+
+      // remove hotness from hidden or closed windows
+      if win_flags.contains(PanelFlags::WindowHidden | PanelFlags::WindowClosed)
+        && self.is_active_window(&win)
+      {
+        *self.active_win.borrow_mut() = prev_win;
+        // remove ROM from the active window
+        self.active_win.borrow().as_ref().map(|active_wnd| {
+          active_wnd.borrow_mut().flags.remove(PanelFlags::WindowRom)
+        });
+      }
+
+      // free unused popup windows
+      let must_free_popup = win.borrow().popup.win.as_ref().map(|popup_wnd| {
+        if popup_wnd.borrow().seq != self.seq {
+          Some(())
+        } else {
+          None
+        }
+      });
+      must_free_popup.map(|_| win.borrow_mut().popup.win = None);
+
+      // window not used anymore, so it can be freed
+
+      Some(win)
+    });
+
+    self.seq += 1;
+  }
+
+  fn finish(&mut self, _win: WindowPtr) {}
+
+  fn build(&mut self) -> Vec<*const Command> {
     // TODO: draw cursor overlay
 
     // build one big draw command list out of all window buffers
-    self.windows.borrow().iter().for_each(|winptr| {});
-    
+    let mut cmds_buff: Vec<*const Command> = vec![];
+    let ctx_seq = self.seq;
+    self
+      .windows
+      .borrow()
+      .iter()
+      .filter(|wndptr| {
+        // empty draw command buffer, so window is not shown
+        if wndptr.borrow().buffer.borrow().is_empty() {
+          return false;
+        }
+
+        // hidden flag active, window is not shown
+        if wndptr.borrow().flags.contains(PanelFlags::WindowHidden) {
+          return false;
+        }
+
+        // seq number mismatch, window is not shown
+        if wndptr.borrow().seq != ctx_seq {
+          return false;
+        }
+
+        true
+      })
+      .for_each(|wndptr| {
+        // collect all draw commands for this window into the draw command
+        // buffer
+        let (cmds_ptr, cmds_len) =
+          wndptr.borrow().buffer.borrow().commands_range();
+        (0 .. cmds_len).for_each(|cmd_offset| unsafe {
+          cmds_buff.push(cmds_ptr.offset(cmd_offset as isize));
+        })
+      });
+
+    // append all popup draw commands into lists
+    self.windows.borrow().iter().for_each(|_wndptr| {
+      // let wnd = wndptr.borrow();
+
+    });
+
+    // append overlay commands
+
+    cmds_buff
+  }
+
+  pub fn commands_iter(&mut self) -> CommandsIterator {
+    CommandsIterator::new(self.build())
+  }
+
+  pub fn convert<'a>(
+    &mut self,
+    cmds: &'a mut Vec<DrawCommand>,
+    vertices: &'a mut Vec<VertexPTC>,
+    elements: &'a mut Vec<DrawIndexType>,
+  ) {
+    let commands = self.build();
+    self.draw_list.convert(&commands, vertices, elements, cmds);
   }
 
   fn alloc_win_handle(&mut self) -> usize {
@@ -144,7 +286,7 @@ impl<'a> UiContext {
 
   fn insert_window(&self, win: WindowPtr, loc: WindowInsertLocation) {
     // check if not already inserted
-    self
+    let do_insert_window = self
       .windows
       .borrow()
       .iter()
@@ -158,74 +300,72 @@ impl<'a> UiContext {
           // window already inserted, so do nothing
           None
         },
-      )
-      .and_then(|_| {
-        let mut win_list = self.windows.borrow_mut();
-        if win_list.is_empty() {
+      );
+
+    do_insert_window.map(|_| {
+      let mut win_list = self.windows.borrow_mut();
+      if win_list.is_empty() {
+        win_list.push(win);
+        return ();
+      }
+
+      win.borrow_mut().flags.remove(PanelFlags::WindowRom);
+
+      match loc {
+        WindowInsertLocation::Back => {
+          // set ROM mode for the previous window
+          win_list.last_mut().and_then(|last_wnd| {
+            Some(last_wnd.borrow_mut().flags.insert(PanelFlags::WindowRom))
+          });
+
+          self.active_win.replace(Some(win.clone()));
           win_list.push(win);
-          return Some(());
         }
 
-        win.borrow_mut().flags.remove(PanelFlags::WindowRom);
-
-        match loc {
-          WindowInsertLocation::Back => {
-            // set ROM mode for the previous window
-            win_list.last_mut().and_then(|last_wnd| {
-              Some(last_wnd.borrow_mut().flags.insert(PanelFlags::WindowRom))
-            });
-
-            self.active_win.replace(Some(win.clone()));
-            win_list.push(win);
-          }
-
-          WindowInsertLocation::Front => {
-            win_list.insert(0, win);
-          }
+        WindowInsertLocation::Front => {
+          win_list.insert(0, win);
         }
+      }
 
-        Some(())
-      });
+      ()
+    });
   }
 
   fn remove_window(&self, win: WindowPtr) {
-    self
+    let window_pos = self
       .windows
       .borrow()
       .iter()
-      .position(|winptr| *winptr.borrow() == *win.borrow())
-      .and_then(|win_idx| {
-        self.windows.borrow_mut().remove(win_idx);
-        Some(())
+      .position(|winptr| *winptr.borrow() == *win.borrow());
+
+    window_pos.map(|win_idx| {
+      self.windows.borrow_mut().remove(win_idx);
+      ()
+    });
+
+    let when_last_active_window = self.active_win.borrow().as_ref().map_or(
+      Some(()), // no active window yet
+      |winptr| {
+        // the window to be removed was the active window
+        if *winptr.borrow() == *win.borrow() {
+          Some(())
+        } else {
+          None
+        }
+      },
+    );
+
+    when_last_active_window.map(|_| {
+      // remove read-only from the last window
+      // last window becomes active window
+      let last_wnd = self.windows.borrow_mut().last_mut().and_then(|winptr| {
+        winptr.borrow_mut().flags.remove(PanelFlags::WindowRom);
+        Some(Rc::clone(winptr))
       });
 
-    self
-      .active_win
-      .borrow()
-      .as_ref()
-      .map_or(
-        Some(()), // no active window yet
-        |winptr| {
-          // the window to be removed was the active window
-          if *winptr.borrow() == *win.borrow() {
-            Some(())
-          } else {
-            None
-          }
-        },
-      )
-      .and_then(|_| {
-        // remove read-only from the last window
-        // last window becomes active window
-        let last_wnd =
-          self.windows.borrow_mut().last_mut().and_then(|winptr| {
-            winptr.borrow_mut().flags.remove(PanelFlags::WindowRom);
-            Some(Rc::clone(winptr))
-          });
-
-        self.active_win.replace(last_wnd);
-        Some(())
-      });
+      self.active_win.replace(last_wnd);
+      Some(())
+    });
   }
 
   pub fn begin(
@@ -832,10 +972,11 @@ impl<'a> UiContext {
       .expect("Invalid current window!");
 
     // reset panel to default state
-    winptr.borrow_mut().layout = Box::new(RefCell::new(Panel::new(
+    let layout = Box::new(RefCell::new(Panel::new(
       Rc::clone(&winptr.borrow().scroll),
       panel_type,
     )));
+    winptr.borrow_mut().layout = layout;
 
     let win_flags = winptr.borrow().flags;
 

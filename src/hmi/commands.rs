@@ -205,9 +205,22 @@ impl CommandBuffer {
       .map_or(Consts::null_rect(), |clip_rc| *clip_rc)
   }
 
+  pub fn commands_range(&self) -> (*const Command, usize) {
+    debug_assert!(!self.is_empty(), "Command buffer is empty!");
+    if self.is_empty() {
+      (std::ptr::null(), 0)
+    } else {
+      (self.base.as_ptr(), self.base.len())
+    }
+  }
+
   pub fn clear(&mut self) {
     self.base.clear();
     self.clip = None;
+  }
+
+  pub fn is_empty(&self) -> bool {
+    self.base.is_empty()
   }
 
   pub fn len(&self) -> usize {

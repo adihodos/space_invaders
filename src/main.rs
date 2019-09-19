@@ -7,6 +7,7 @@ mod sys;
 
 use crate::math::{
   colors::{HslColor, HsvColor, RGBAColor, RGBAColorF32, XyzColor},
+  rectangle::RectangleF32,
   vec2::{Vec2F32, Vec2I16},
   vertex_types::VertexPTC,
 };
@@ -18,10 +19,12 @@ use crate::{
       CmdArc, CmdCircle, CmdCircleFilled, CmdLine, CmdPolygon, CmdPolyline,
       CmdRect, CmdText, CmdTriangleFilled, Command,
     },
+    panel::PanelFlags,
     text_engine::{
       Font, FontAtlas, FontAtlasBuilder, FontConfig, FontConfigBuilder,
       TTFDataSource,
     },
+    ui_context::UiContext,
     vertex_output::{DrawCommand, DrawIndexType, DrawList},
   },
   render_gl::OpenGLStateSaveSetRestore,
@@ -29,6 +32,10 @@ use crate::{
 };
 
 use glfw::{Action, Context, Key, WindowHint};
+
+fn slice_bytes_size<T: Sized>(s: &[T]) -> gl::types::GLsizeiptr {
+  (s.len() * std::mem::size_of::<T>()) as gl::types::GLsizeiptr
+}
 
 #[rustfmt::skip]
 fn orthographic_projection(
@@ -193,11 +200,6 @@ fn main() {
   unsafe {
     gl::Viewport(0, 0, 900, 700);
     let cc = RGBAColorF32::from(HsvColor::new(217f32, 87f32, 46f32));
-
-    println!("{:?}", cc);
-    // println!("{}", 7.4 % 6.0);
-
-    // RGBAColorF32::new(0.85f32, 0.15f32, 0.15f32);
     gl::ClearColor(cc.r, cc.g, cc.b, cc.a);
   }
 
@@ -210,7 +212,6 @@ fn main() {
   }
 
   // main loop
-
   let null_tex = DrawNullTexture {
     texture: GenericHandle::Id(white_pixel_tex),
     uv:      Vec2F32::new(0_f32, 0_f32),
@@ -231,74 +232,6 @@ fn main() {
     vertex_layout:        vec![],
     vertex_size:          std::mem::size_of::<VertexPTC>(),
   };
-
-  let mut drawlist =
-    DrawList::new(convert_cfg, AntialiasingType::On, AntialiasingType::Off);
-
-  let mut commands = Vec::<Command>::new();
-
-  let polygon_pts = vec![
-    Vec2I16::new(100, 100),
-    Vec2I16::new(300, 100),
-    Vec2I16::new(500, 200),
-    Vec2I16::new(300, 300),
-    Vec2I16::new(100, 300),
-  ];
-
-  let cmd_polygon = CmdPolygon {
-    color:          RGBAColor::new(0, 255, 255),
-    points:         polygon_pts.clone(),
-    line_thickness: 2,
-  };
-
-  commands.push(Command::Polygon(cmd_polygon));
-
-  let cmd_polyline = CmdPolyline {
-    color:          RGBAColor::new(255, 0, 0),
-    line_thickness: 2,
-    points:         polygon_pts
-      .iter()
-      .map(|v| *v + Vec2I16::new(400, 300))
-      .collect(),
-  };
-  commands.push(Command::Polyline(cmd_polyline));
-
-  let cmd_circle = CmdCircleFilled {
-    x:     400,
-    y:     400,
-    w:     300,
-    h:     300,
-    color: RGBAColor::new(128, 255, 64),
-  };
-  commands.push(Command::CircleFilled(cmd_circle));
-
-  let cmd_circle = CmdCircle {
-    x:              400,
-    y:              400,
-    line_thickness: 2,
-    w:              100,
-    h:              100,
-    color:          RGBAColor::new(64, 128, 255),
-  };
-  commands.push(Command::Circle(cmd_circle));
-
-  let triangle = CmdTriangleFilled {
-    a:     Vec2I16::new(0, 500),
-    b:     Vec2I16::new(200, 100),
-    c:     Vec2I16::new(400, 500),
-    color: RGBAColor::new(0, 255, 0),
-  };
-  commands.push(Command::TriangleFilled(triangle));
-
-  let cmd_arc = CmdArc {
-    cx:             400,
-    cy:             100,
-    r:              100,
-    line_thickness: 3,
-    a:              [0_f32, -std::f32::consts::PI],
-    color:          RGBAColor::new(255, 64, 32),
-  };
-  commands.push(Command::Arc(cmd_arc));
 
   let mut fonts = vec![];
   let font_atlas = FontAtlasBuilder::new(300)
@@ -358,77 +291,12 @@ fn main() {
     })
     .expect("Failed to initialize font engine!");
 
-  fn write_string(
-    font: &Font,
-    fg: RGBAColor,
-    bk: RGBAColor,
-    x: i16,
-    y: i16,
-    w: u16,
-    h: u16,
-    text: &str,
-    lst: &mut Vec<Command>,
-  ) {
-    let text_cmd = CmdText {
-      font: *font,
-      background: bk,
-      foreground: fg,
-      x,
-      y,
-      w,
-      h,
-      height: 0f32,
-      text: text.to_owned(),
-    };
-
-    lst.push(Command::Text(text_cmd));
-  }
-
-  let text_rect = CmdRect {
-    rounding:       0,
-    line_thickness: 1,
-    x:              100,
-    y:              100,
-    w:              300,
-    h:              100,
-    color:          RGBAColor::new(255, 0, 0),
-  };
-  commands.push(Command::Rect(text_rect));
-
-  write_string(
-    &fonts[0],
-    RGBAColor::new(255, 0, 255),
-    RGBAColor::new(0, 255, 0),
-    100,
-    100,
-    400,
-    200,
-    "Some text here",
-    &mut commands,
+  let mut ui_ctx = UiContext::new(
+    fonts[0],
+    convert_cfg,
+    AntialiasingType::Off,
+    AntialiasingType::Off,
   );
-
-  write_string(
-    &fonts[1],
-    RGBAColor::new(0, 255, 255),
-    RGBAColor::new(0, 0, 255),
-    100,
-    200,
-    1024,
-    400,
-    "This is some text",
-    &mut commands,
-  );
-
-  drawlist.convert(
-    &commands,
-    &mut buff_vertices,
-    &mut buff_indices,
-    &mut buff_draw_commands,
-  );
-
-  fn slice_bytes_size<T: Sized>(s: &[T]) -> gl::types::GLsizeiptr {
-    (s.len() * std::mem::size_of::<T>()) as gl::types::GLsizeiptr
-  }
 
   let nk_vbuff = unsafe {
     let mut buffid: gl::types::GLuint = 0;
@@ -484,6 +352,8 @@ fn main() {
 
   while !window.should_close() {
     glfw.poll_events();
+    // pass input to UI
+    ui_ctx.input_mut().begin();
     for (_, event) in glfw::flush_messages(&events) {
       match event {
         glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
@@ -492,6 +362,22 @@ fn main() {
         _ => {}
       }
     }
+    ui_ctx.input_mut().end();
+
+    // UI here
+    ui_ctx.begin(
+      "Simple window v 0.1.0.0.1",
+      RectangleF32::new(20f32, 20f32, 255f32, 255f32),
+      PanelFlags::WindowBorder | PanelFlags::WindowDynamic,
+    );
+
+    ui_ctx.end();
+
+    ui_ctx.convert(
+      &mut buff_draw_commands,
+      &mut buff_vertices,
+      &mut buff_indices,
+    );
 
     let (wnd_w, wnd_h) = window.get_size();
     let (dpy_w, dpy_h) = window.get_framebuffer_size();
@@ -548,6 +434,8 @@ fn main() {
         );
         offset += cmd.element_count;
       });
+
+      ui_ctx.clear();
     }
 
     window.swap_buffers();
