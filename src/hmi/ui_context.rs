@@ -173,7 +173,7 @@ impl UiContext {
       }
 
       // remove hotness from hidden or closed windows
-      if win_flags.contains(PanelFlags::WindowHidden | PanelFlags::WindowClosed)
+      if win_flags.intersects(PanelFlags::WindowHidden | PanelFlags::WindowClosed)
         && self.is_active_window(&win)
       {
         *self.active_win.borrow_mut() = prev_win;
@@ -405,7 +405,7 @@ impl UiContext {
           f.remove(PanelFlags::WindowDynamic);
           f.insert(flags);
 
-          if !f.contains(PanelFlags::WindowMovable | PanelFlags::WindowScalable)
+          if !f.intersects(PanelFlags::WindowMovable | PanelFlags::WindowScalable)
           {
             wndptr.borrow().bounds.replace(bounds);
           }
