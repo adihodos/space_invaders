@@ -987,7 +987,7 @@ impl UiContext {
 
     let win_flags = winptr.borrow().flags;
 
-    if win_flags.contains(PanelFlags::WindowHidden | PanelFlags::WindowClosed) {
+    if win_flags.intersects(PanelFlags::WindowHidden | PanelFlags::WindowClosed) {
       return false;
     }
 

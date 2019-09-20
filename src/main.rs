@@ -368,16 +368,45 @@ fn main() {
     ui_ctx.begin(
       "Simple window v 0.1.0.0.1",
       RectangleF32::new(20f32, 20f32, 255f32, 255f32),
-      PanelFlags::WindowBorder | PanelFlags::WindowDynamic,
+      PanelFlags::WindowBorder | PanelFlags::WindowMovable,
     );
 
     ui_ctx.end();
+
+    println!("Draw commands {}", buff_indices.len());
+
+    buff_draw_commands.clear();
+    buff_indices.clear();
+    buff_vertices.clear();
 
     ui_ctx.convert(
       &mut buff_draw_commands,
       &mut buff_vertices,
       &mut buff_indices,
     );
+
+    unsafe {
+      // upload data to GPU
+      let mem_addr_vb = gl::MapNamedBuffer(nk_vbuff, gl::WRITE_ONLY);
+      if !mem_addr_vb.is_null() {
+        std::ptr::copy_nonoverlapping(
+          buff_vertices.as_ptr(),
+          mem_addr_vb as *mut VertexPTC,
+          buff_vertices.len(),
+        );
+        gl::UnmapNamedBuffer(nk_vbuff);
+      }
+
+      let mem_addr_ib = gl::MapNamedBuffer(nk_ibuff, gl::WRITE_ONLY);
+      if !mem_addr_ib.is_null() {
+        std::ptr::copy_nonoverlapping(
+          buff_indices.as_ptr(),
+          mem_addr_ib as *mut DrawIndexType,
+          buff_indices.len(),
+        );
+        gl::UnmapNamedBuffer(nk_ibuff);
+      }
+    }
 
     let (wnd_w, wnd_h) = window.get_size();
     let (dpy_w, dpy_h) = window.get_framebuffer_size();
