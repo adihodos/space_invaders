@@ -23,22 +23,22 @@
     //     }
     //   ]
     // },
-    // {
-    //   "name": "(Windows) Launch",
-    //   "type": "cppvsdbg",
-    //   "request": "launch",
-    //   "program": "${workspaceFolder}/target/debug/simple_ui.exe",
-    //   "args": [],
-    //   "stopAtEntry": false,
-    //   "cwd": "${workspaceFolder}",
-    //   "environment": [],
-    //   "externalConsole": false,
-    // },
+    {
+      "name": "(Windows) Launch",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/target/debug/simple_ui.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+    },
     {
       "name": "(LLDB) Launch",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/target/debug/simple_ui.exe",
+      "program": "${workspaceFolder}/target/debug/simple_ui",
+      "sourceLanguages": [
+        "rust"
+      ],
       "args": [],
       "cwd": "${workspaceFolder}",
     }

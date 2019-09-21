@@ -303,9 +303,9 @@ fn main() {
     gl::CreateBuffers(1, &mut buffid as *mut _);
     gl::NamedBufferStorage(
       buffid,
-      slice_bytes_size(&buff_vertices),
-      buff_vertices.as_ptr() as *const gl::types::GLvoid,
-      0,
+      (2048 * std::mem::size_of::<VertexPTC>()) as isize,
+      std::ptr::null_mut(),
+      gl::MAP_WRITE_BIT,
     );
     buffid
   };
@@ -315,9 +315,9 @@ fn main() {
     gl::CreateBuffers(1, &mut buffid as *mut _);
     gl::NamedBufferStorage(
       buffid,
-      slice_bytes_size(&buff_indices),
-      buff_indices.as_ptr() as *const gl::types::GLvoid,
-      0,
+      (2048 * std::mem::size_of::<DrawIndexType>()) as isize,
+      std::ptr::null_mut(),
+      gl::MAP_WRITE_BIT,
     );
 
     buffid
@@ -373,7 +373,7 @@ fn main() {
 
     ui_ctx.end();
 
-    println!("Draw commands {}", buff_indices.len());
+    println!("Draw commands {}", buff_draw_commands.len());
 
     buff_draw_commands.clear();
     buff_indices.clear();
@@ -434,6 +434,7 @@ fn main() {
       let _gl_state_save_restore = OpenGLStateSaveSetRestore::new();
 
       buff_draw_commands.iter().for_each(|cmd| {
+        dbg!(cmd);
         if cmd.element_count == 0 {
           return;
         }

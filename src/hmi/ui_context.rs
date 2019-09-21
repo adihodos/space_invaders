@@ -173,10 +173,13 @@ impl UiContext {
       }
 
       // remove hotness from hidden or closed windows
-      if win_flags.intersects(PanelFlags::WindowHidden | PanelFlags::WindowClosed)
+      if win_flags
+        .intersects(PanelFlags::WindowHidden | PanelFlags::WindowClosed)
         && self.is_active_window(&win)
       {
-        *self.active_win.borrow_mut() = prev_win;
+        *self.active_win.borrow_mut() = prev_win
+          .as_ref()
+          .map_or(None, |prev_wnd| Some(Rc::clone(prev_wnd)));
         // remove ROM from the active window
         self.active_win.borrow().as_ref().map(|active_wnd| {
           active_wnd.borrow_mut().flags.remove(PanelFlags::WindowRom)
@@ -193,10 +196,15 @@ impl UiContext {
       });
       must_free_popup.map(|_| win.borrow_mut().popup.win = None);
 
-      // window not used anymore, so we marked to be freed later
-      // win.borrow_mut().killed = true;
-      removed_windows.push(Rc::clone(&win));
-      Some(win)
+      // window itself not used anymore so add it to the free list
+      if win.borrow().seq != self.seq
+        || win_flags.intersects(PanelFlags::WindowClosed)
+      {
+        removed_windows.push(Rc::clone(&win));
+        prev_win
+      } else {
+        Some(win)
+      }
     });
 
     removed_windows
@@ -405,7 +413,8 @@ impl UiContext {
           f.remove(PanelFlags::WindowDynamic);
           f.insert(flags);
 
-          if !f.intersects(PanelFlags::WindowMovable | PanelFlags::WindowScalable)
+          if !f
+            .intersects(PanelFlags::WindowMovable | PanelFlags::WindowScalable)
           {
             wndptr.borrow().bounds.replace(bounds);
           }
@@ -459,6 +468,8 @@ impl UiContext {
     if winptr.borrow().flags.contains(PanelFlags::WindowHidden) {
       self.current_win.borrow_mut().replace(winptr);
       return false;
+    } else {
+      winptr.borrow().start();
     }
 
     // window overlapping
@@ -987,7 +998,8 @@ impl UiContext {
 
     let win_flags = winptr.borrow().flags;
 
-    if win_flags.intersects(PanelFlags::WindowHidden | PanelFlags::WindowClosed) {
+    if win_flags.intersects(PanelFlags::WindowHidden | PanelFlags::WindowClosed)
+    {
       return false;
     }
 

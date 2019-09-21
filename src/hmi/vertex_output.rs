@@ -240,13 +240,13 @@ impl DrawList {
         .push(Self::draw_vertex(vertex, null_uv, col));
     });
 
-    let element_count = outbuff.index_buff.len();
-
     (2 .. points.len()).into_iter().for_each(|offset| {
       outbuff.index_buff.push(idx as DrawIndexType);
       outbuff.index_buff.push((idx + offset - 1) as DrawIndexType);
       outbuff.index_buff.push((idx + offset) as DrawIndexType);
     });
+
+    let element_count = outbuff.index_buff.len();
 
     outbuff
       .cmds_buff
@@ -539,13 +539,13 @@ impl DrawList {
         .push(Self::draw_vertex(pos, null_uv, col));
     });
 
-    let element_count = outbuff.index_buff.len() as u32;
-
     [0, 1, 2, 0, 2, 3].into_iter().for_each(|&offset| {
       outbuff
         .index_buff
         .push(idx as DrawIndexType + offset as DrawIndexType)
     });
+
+    let element_count = outbuff.index_buff.len() as u32;
 
     outbuff
       .cmds_buff
@@ -673,13 +673,13 @@ impl DrawList {
         outbuff.vertex_buff.push(Self::draw_vertex(v, uv, col));
       });
 
-    let element_count = outbuff.index_buff.len() as u32;
-
     [0, 1, 2, 0, 2, 3].into_iter().for_each(|&offset| {
       outbuff
         .index_buff
         .push(offset as DrawIndexType + idx as u16)
     });
+
+    let element_count = outbuff.index_buff.len() as u32;
 
     outbuff
       .cmds_buff
