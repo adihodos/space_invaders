@@ -5,8 +5,9 @@ use crate::{
     },
     commands::CommandBuffer,
     input::{Input, MouseButtonId},
-    style::{StyleButton, StyleItem, SymbolType},
+    style::{Style, StyleItem, SymbolType},
     text_engine::Font,
+    ui_context::WindowPtr,
   },
   math::{
     colors::RGBAColor, rectangle::RectangleF32, utility::clamp, vec2::Vec2F32,
@@ -131,4 +132,52 @@ pub fn widget_text_wrap(
     let (fres, _) = f.clamp_text(&s[done ..], line.w);
     fitting = fres;
   }
+}
+
+pub fn text_colored(
+  win: WindowPtr,
+  style: &Style,
+  bounds: RectangleF32,
+  s: &str,
+  align: BitFlags<TextAlign>,
+  color: RGBAColor,
+) {
+  // let item_padding = style.text.padding;
+  let text = Text {
+    padding:    style.text.padding,
+    background: style.window.background,
+    text:       color,
+  };
+
+  widget_text(
+    &mut win.borrow().buffer.borrow_mut(),
+    bounds,
+    s,
+    &text,
+    align,
+    style.font,
+  );
+}
+
+pub fn text_wrap_colored(
+  win: WindowPtr,
+  style: &Style,
+  bounds: RectangleF32,
+  s: &str,
+  color: RGBAColor,
+) {
+  // let item_padding = style.text.padding;
+  let text = Text {
+    padding:    style.text.padding,
+    background: style.window.background,
+    text:       color,
+  };
+
+  widget_text_wrap(
+    &mut win.borrow().buffer.borrow_mut(),
+    bounds,
+    s,
+    &text,
+    style.font,
+  );
 }

@@ -2,7 +2,7 @@ use crate::{
   hmi::{
     base::{
       AntialiasingType, ButtonBehaviour, Consts, ConvertConfig, HashType,
-      WidgetLayoutStates,
+      TextAlign, WidgetLayoutStates,
     },
     commands::{Command, CommandBuffer},
     input::{Input, MouseButtonId},
@@ -61,7 +61,7 @@ enum WindowInsertLocation {
   Back,
 }
 
-type WindowPtr = Rc<RefCell<Window>>;
+pub type WindowPtr = Rc<RefCell<Window>>;
 
 pub struct CommandsIterator<'a> {
   cmds:   Vec<*const Command>,
@@ -2597,6 +2597,43 @@ impl UiContext {
       }
 
       Some(())
+    });
+  }
+
+  // text widgets
+  pub fn text_colored(
+    &mut self,
+    txt: &str,
+    alignment: BitFlags<TextAlign>,
+    color: RGBAColor,
+  ) {
+    debug_assert!(self.current_win.borrow().is_some());
+
+    self.current_win.borrow().as_ref().map(|curr_win| {
+      let mut bounds = RectangleF32::new(0f32, 0f32, 0f32, 0f32);
+      self.panel_alloc_space(&mut bounds);
+
+      use crate::hmi::text::text_colored;
+      text_colored(
+        Rc::clone(curr_win),
+        &self.style,
+        bounds,
+        txt,
+        alignment,
+        color,
+      );
+    });
+  }
+
+  pub fn text_wrap_colored(&mut self, txt: &str, color: RGBAColor) {
+    debug_assert!(self.current_win.borrow().is_some());
+
+    self.current_win.borrow().as_ref().map(|curr_win| {
+      let mut bounds = RectangleF32::new(0f32, 0f32, 0f32, 0f32);
+      self.panel_alloc_space(&mut bounds);
+
+      use crate::hmi::text::text_wrap_colored;
+      text_wrap_colored(Rc::clone(curr_win), &self.style, bounds, txt, color);
     });
   }
 }
