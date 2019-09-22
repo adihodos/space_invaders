@@ -12,7 +12,7 @@ use crate::{
 use enumflags2::BitFlags;
 use num_derive::{FromPrimitive, ToPrimitive};
 
-#[derive(Copy, Clone, Debug, FromPrimitive, ToPrimitive)]
+#[derive(Copy, Clone, Debug, FromPrimitive, ToPrimitive, Eq, PartialEq)]
 pub enum SymbolType {
   X,
   None_,

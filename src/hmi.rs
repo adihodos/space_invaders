@@ -1,5 +1,6 @@
 pub mod base;
 pub mod buffer;
+pub mod button;
 pub mod commands;
 pub mod cursor;
 pub mod image;

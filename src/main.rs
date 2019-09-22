@@ -368,7 +368,10 @@ fn main() {
     ui_ctx.begin(
       "Simple window v 0.1.0.0.1",
       RectangleF32::new(20f32, 20f32, 255f32, 255f32),
-      PanelFlags::WindowBorder | PanelFlags::WindowMovable,
+      PanelFlags::WindowBorder
+        | PanelFlags::WindowMovable
+        | PanelFlags::WindowClosable
+        | PanelFlags::WindowMinimizable,
     );
 
     ui_ctx.end();

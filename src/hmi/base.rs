@@ -1,6 +1,59 @@
-use crate::math::vec2::Vec2F32;
+use crate::math::{rectangle::RectangleF32, vec2::Vec2F32};
 use enumflags2::BitFlags;
 use enumflags2_derive::EnumFlags;
+
+#[derive(Copy, Debug, Clone, Eq, PartialEq)]
+pub enum Heading {
+  Right,
+  Left,
+  Up,
+  Down,
+}
+
+pub fn triangle_from_direction(
+  r: RectangleF32,
+  pad_x: f32,
+  pad_y: f32,
+  direction: Heading,
+) -> (Vec2F32, Vec2F32, Vec2F32) {
+  let mut r = r;
+  r.w = (2f32 * pad_x).max(r.w);
+  r.h = (2f32 * pad_y).max(r.h);
+  r.w -= 2f32 * pad_x;
+  r.h -= 2f32 * pad_y;
+
+  r.x += pad_x;
+  r.y += pad_y;
+
+  let w_half = r.w * 0.5f32;
+  let h_half = r.h * 0.5f32;
+
+  match direction {
+    Heading::Up => (
+      Vec2F32::new(r.x + w_half, r.y),
+      Vec2F32::new(r.x + r.w, r.y + r.h),
+      Vec2F32::new(r.x, r.y + r.h),
+    ),
+
+    Heading::Right => (
+      Vec2F32::new(r.x, r.y),
+      Vec2F32::new(r.x + r.w, r.y + h_half),
+      Vec2F32::new(r.x, r.y + r.h),
+    ),
+
+    Heading::Down => (
+      Vec2F32::new(r.x, r.y),
+      Vec2F32::new(r.x + r.w, r.y),
+      Vec2F32::new(r.x + w_half, r.y + r.h),
+    ),
+
+    Heading::Left => (
+      Vec2F32::new(r.x, r.y + h_half),
+      Vec2F32::new(r.x + r.w, r.y),
+      Vec2F32::new(r.w + r.w, r.y + r.h),
+    ),
+  }
+}
 
 pub type HashType = u64;
 
