@@ -1,9 +1,9 @@
 use crate::{
   hmi::{
+    base::TextAlign,
     cursor::Cursor,
     image::Image,
     panel::{PanelFlags, PanelType},
-    text::TextAlignment,
     text_engine::Font,
   },
   math::{colors::RGBAColor, vec2::Vec2F32},
@@ -67,7 +67,7 @@ pub struct StyleButton {
   pub text_normal:     RGBAColor,
   pub text_hover:      RGBAColor,
   pub text_active:     RGBAColor,
-  pub text_alignment:  u32,
+  pub text_alignment:  BitFlags<TextAlign>,
 
   // properties
   pub border:        f32,
@@ -94,7 +94,7 @@ pub struct StyleToggle {
   pub text_normal:     RGBAColor,
   pub text_hover:      RGBAColor,
   pub text_active:     RGBAColor,
-  pub text_alignment:  u32,
+  pub text_alignment:  BitFlags<TextAlign>,
 
   // properties
   pub border:        f32,
@@ -125,7 +125,7 @@ pub struct StyleSelectable {
   pub text_hover_active:   RGBAColor,
   pub text_pressed_active: RGBAColor,
   pub text_background:     RGBAColor,
-  pub text_alignment:      u32,
+  pub text_alignment:      BitFlags<TextAlign>,
 
   // properties
   pub rounding:      f32,
@@ -555,7 +555,7 @@ impl Style {
       padding:         Vec2F32::same(2f32),
       image_padding:   Vec2F32::same(0f32),
       touch_padding:   Vec2F32::same(0f32),
-      text_alignment:  TextAlignment::CENTERED,
+      text_alignment:  TextAlign::centered(),
       border:          1f32,
       rounding:        4f32,
     };
@@ -578,7 +578,7 @@ impl Style {
       padding:         Vec2F32::same(2f32),
       image_padding:   Vec2F32::same(0f32),
       touch_padding:   Vec2F32::same(0f32),
-      text_alignment:  TextAlignment::CENTERED,
+      text_alignment:  TextAlign::centered(),
       border:          0f32,
       rounding:        0f32,
     };
@@ -601,7 +601,7 @@ impl Style {
       padding:         Vec2F32::same(2f32),
       image_padding:   Vec2F32::same(0f32),
       touch_padding:   Vec2F32::same(0f32),
-      text_alignment:  TextAlignment::CENTERED,
+      text_alignment:  TextAlign::centered(),
       border:          0f32,
       rounding:        1f32,
     };
@@ -626,7 +626,7 @@ impl Style {
       text_background: table[StyleColors::ColorWindow as usize].into(),
       text_normal:     table[StyleColors::ColorText as usize].into(),
       text_hover:      table[StyleColors::ColorText as usize].into(),
-      text_alignment:  TextAlignment::CENTERED,
+      text_alignment:  TextAlign::centered(),
       text_active:     table[StyleColors::ColorText as usize].into(),
       padding:         Vec2F32::same(2f32),
       touch_padding:   Vec2F32::same(0f32),
@@ -654,7 +654,7 @@ impl Style {
       text_background: table[StyleColors::ColorWindow as usize].into(),
       text_normal:     table[StyleColors::ColorText as usize].into(),
       text_hover:      table[StyleColors::ColorText as usize].into(),
-      text_alignment:  TextAlignment::CENTERED,
+      text_alignment:  TextAlign::centered(),
       text_active:     table[StyleColors::ColorText as usize].into(),
       padding:         Vec2F32::same(3f32),
       touch_padding:   Vec2F32::same(0f32),
@@ -682,7 +682,7 @@ impl Style {
       pressed_active:      StyleItem::Color(
         table[StyleColors::ColorSelectActive as usize].into(),
       ),
-      text_alignment:      TextAlignment::CENTERED,
+      text_alignment:      TextAlign::centered(),
       text_background:     RGBAColor::new(0, 0, 0),
       text_normal:         table[StyleColors::ColorText as usize].into(),
       text_hover:          table[StyleColors::ColorText as usize].into(),
@@ -708,7 +708,7 @@ impl Style {
       padding:         Vec2F32::same(8f32),
       image_padding:   Vec2F32::same(0f32),
       touch_padding:   Vec2F32::same(0f32),
-      text_alignment:  TextAlignment::CENTERED,
+      text_alignment:  TextAlign::centered(),
       border:          1f32,
       rounding:        0f32,
     };
@@ -784,7 +784,7 @@ impl Style {
       padding:         Vec2F32::same(4f32),
       image_padding:   Vec2F32::same(0f32),
       touch_padding:   Vec2F32::same(0f32),
-      text_alignment:  TextAlignment::CENTERED,
+      text_alignment:  TextAlign::centered(),
       border:          1f32,
       rounding:        0f32,
     };
@@ -874,7 +874,7 @@ impl Style {
       padding:         Vec2F32::same(0f32),
       image_padding:   Vec2F32::same(0f32),
       touch_padding:   Vec2F32::same(0f32),
-      text_alignment:  TextAlignment::CENTERED,
+      text_alignment:  TextAlign::centered(),
       border:          0f32,
       rounding:        0f32,
     };
@@ -964,7 +964,7 @@ impl Style {
       text_active:     table[StyleColors::ColorText as usize].into(),
       padding:         Vec2F32::same(2f32),
       touch_padding:   Vec2F32::same(0f32),
-      text_alignment:  TextAlignment::CENTERED,
+      text_alignment:  TextAlign::centered(),
       border:          0f32,
       rounding:        0f32,
       image_padding:   Vec2F32::same(0f32),
@@ -1015,7 +1015,7 @@ impl Style {
       text_active:     table[StyleColors::ColorText as usize].into(),
       padding:         Vec2F32::same(2f32),
       touch_padding:   Vec2F32::same(0f32),
-      text_alignment:  TextAlignment::CENTERED,
+      text_alignment:  TextAlign::centered(),
       border:          0f32,
       rounding:        0f32,
       image_padding:   Vec2F32::same(0f32),
@@ -1038,7 +1038,7 @@ impl Style {
       text_active:     table[StyleColors::ColorText as usize].into(),
       padding:         Vec2F32::same(2f32),
       touch_padding:   Vec2F32::same(0f32),
-      text_alignment:  TextAlignment::CENTERED,
+      text_alignment:  TextAlign::centered(),
       border:          0f32,
       rounding:        0f32,
       image_padding:   Vec2F32::same(0f32),
@@ -1080,7 +1080,7 @@ impl Style {
       text_active:     table[StyleColors::ColorText as usize].into(),
       padding:         Vec2F32::same(0f32),
       touch_padding:   Vec2F32::same(0f32),
-      text_alignment:  TextAlignment::CENTERED,
+      text_alignment:  TextAlign::centered(),
       border:          0f32,
       rounding:        0f32,
       image_padding:   Vec2F32::same(0f32),
@@ -1103,7 +1103,7 @@ impl Style {
       text_active:     table[StyleColors::ColorText as usize].into(),
       padding:         Vec2F32::same(0f32),
       touch_padding:   Vec2F32::same(0f32),
-      text_alignment:  TextAlignment::CENTERED,
+      text_alignment:  TextAlign::centered(),
       border:          0f32,
       rounding:        0f32,
       image_padding:   Vec2F32::same(0f32),
