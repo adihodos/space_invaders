@@ -93,7 +93,7 @@ pub struct ConvertConfig {
   pub vertex_size:          usize,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ButtonBehaviour {
   ButtonDefault,
   ButtonRepeater,

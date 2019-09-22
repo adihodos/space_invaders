@@ -1,11 +1,12 @@
 use crate::{
   hmi::{
     base::{
-      triangle_from_direction, Heading, WidgetLayoutStates, WidgetStates,
+      triangle_from_direction, ButtonBehaviour, Heading, WidgetLayoutStates,
+      WidgetStates,
     },
     commands::CommandBuffer,
     input::{Input, MouseButtonId},
-    style::{StyleItem, SymbolType},
+    style::{StyleButton, StyleItem, SymbolType},
     text_engine::Font,
   },
   math::{
@@ -84,4 +85,96 @@ fn draw_symbol(
   };
 }
 
-fn button_behaviour(state: &mut WidgetLayoutStates) -> bool {}
+fn button_behaviour(
+  state: &mut BitFlags<WidgetStates>,
+  r: RectangleF32,
+  i: &Input,
+  behavior: ButtonBehaviour,
+) -> bool {
+  *state = WidgetStates::reset(*state);
+  let result = if i.is_mouse_hovering_rect(&r) {
+    *state = WidgetStates::Hover.into();
+
+    if i.is_mouse_down(MouseButtonId::ButtonLeft) {
+      *state = WidgetStates::active();
+    }
+
+    if i.has_mouse_click_in_rect(MouseButtonId::ButtonLeft, &r) {
+      if behavior != ButtonBehaviour::ButtonDefault {
+        i.is_mouse_down(MouseButtonId::ButtonLeft)
+      } else {
+        i.is_mouse_pressed(MouseButtonId::ButtonLeft)
+      }
+    } else {
+      false
+    }
+  } else {
+    false
+  };
+
+  if state.contains(WidgetStates::Hover) && !i.is_mouse_prev_hovering_rect(&r) {
+    state.insert(WidgetStates::Entered);
+  } else if i.is_mouse_prev_hovering_rect(&r) {
+    state.insert(WidgetStates::Left);
+  }
+
+  result
+}
+
+fn draw_button<'a>(
+  out: &mut CommandBuffer,
+  bounds: &RectangleF32,
+  state: BitFlags<WidgetStates>,
+  style: &'a StyleButton,
+) -> &'a StyleItem {
+  let background = if state.contains(WidgetStates::Hover) {
+    &style.hover
+  } else if state.contains(WidgetStates::Activated) {
+    &style.active
+  } else {
+    &style.normal
+  };
+
+  match background {
+    StyleItem::Img(ref i) => {
+      out.draw_image(*bounds, *i, RGBAColor::new(255, 255, 255));
+    }
+
+    StyleItem::Color(ref c) => {
+      out.fill_rect(*bounds, style.rounding, *c);
+      out.stroke_rect(
+        *bounds,
+        style.rounding,
+        style.border,
+        style.border_color,
+      );
+    }
+  }
+
+  background
+}
+
+fn do_button(
+  state: &mut BitFlags<WidgetStates>,
+  _out: &mut CommandBuffer,
+  r: RectangleF32,
+  style: &StyleButton,
+  i: &Input,
+  behavior: ButtonBehaviour,
+) -> (bool, RectangleF32) {
+  let bounds = RectangleF32 {
+    x: r.x - style.touch_padding.x,
+    y: r.y - style.touch_padding.y,
+    w: r.w + 2f32 * style.touch_padding.x,
+    h: r.h + 2f32 * style.touch_padding.y,
+  };
+
+  let content = RectangleF32 {
+    x: r.x + style.padding.x + style.border + style.rounding,
+    y: r.y + style.padding.y + style.border + style.rounding,
+    w: r.w - (2f32 * style.padding.x + style.border + 2f32 * style.rounding),
+    h: r.h - (2f32 * style.padding.y + style.border + 2f32 * style.rounding),
+  };
+
+  (button_behaviour(state, bounds, i, behavior), content)
+}
