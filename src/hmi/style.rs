@@ -351,7 +351,7 @@ pub struct StyleTab {
   pub spacing:  Vec2F32,
 }
 
-#[derive(Copy, Clone, Debug, FromPrimitive, ToPrimitive)]
+#[derive(Copy, Clone, Debug, FromPrimitive, ToPrimitive, Eq, PartialEq)]
 pub enum StyleHeaderAlign {
   Left,
   Right,

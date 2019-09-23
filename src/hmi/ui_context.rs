@@ -2,12 +2,16 @@ use crate::{
   hmi::{
     base::{
       AntialiasingType, ButtonBehaviour, Consts, ConvertConfig, HashType,
-      TextAlign, WidgetLayoutStates,
+      TextAlign, WidgetLayoutStates, WidgetStates,
     },
     commands::{Command, CommandBuffer},
+    image::Image,
     input::{Input, MouseButtonId},
     panel::{LayoutFormat, Panel, PanelFlags, PanelRowLayoutType, PanelType},
-    style::{ConfigurationStacks, Style, StyleItem},
+    style::{
+      ConfigurationStacks, Style, StyleButton, StyleHeaderAlign, StyleItem,
+      SymbolType,
+    },
     text_engine::Font,
     vertex_output::{DrawCommand, DrawIndexType, DrawList},
     window::Window,
@@ -96,7 +100,7 @@ impl<'a> std::iter::Iterator for CommandsIterator<'a> {
 pub struct UiContext {
   pub input:             RefCell<Input>,
   pub style:             Style,
-  pub last_widget_state: u32,
+  pub last_widget_state: RefCell<BitFlags<WidgetStates>>,
   pub button_behviour:   ButtonBehaviour,
   pub stacks:            ConfigurationStacks,
   pub delta_time_sec:    f32,
@@ -122,7 +126,7 @@ impl UiContext {
     Self {
       input:             RefCell::new(Input::new()),
       style:             Style::new(font),
-      last_widget_state: 0,
+      last_widget_state: RefCell::new(BitFlags::default()),
       button_behviour:   ButtonBehaviour::default(),
       stacks:            ConfigurationStacks::default(),
       delta_time_sec:    0f32,
@@ -152,7 +156,7 @@ impl UiContext {
 
   pub fn clear(&mut self) {
     self.commands_buff.clear();
-    self.last_widget_state = 0;
+    self.last_widget_state.replace(BitFlags::default());
     // TODO: fix cursors
     // ctx->style.cursor_active = ctx->style.cursors[NK_CURSOR_ARROW];
     self.overlay.borrow_mut().clear();
@@ -1152,9 +1156,25 @@ impl UiContext {
         }
       };
 
-      // window close button
       {
-        // window minimize button
+        let mut button = RectangleF32::new(
+          0f32,
+          header.y + self.style.window.header.padding.y,
+          header.h - 2f32 * self.style.window.header.padding.y,
+          header.h - 2f32 * self.style.window.header.padding.y,
+        );
+
+        if win_flags.intersects(PanelFlags::WindowClosable) {
+          if self.style.window.header.align == StyleHeaderAlign::Right {
+            button.x = (header.w + header.x)
+              - (button.w + self.style.window.header.padding.x);
+            header.w -= button.w
+              + self.style.window.header.spacing.x
+              + self.style.window.header.padding.x;
+          }
+        }
+
+        {}
       }
 
       {
@@ -2600,7 +2620,12 @@ impl UiContext {
     });
   }
 
-  // text widgets
+  /// text widgets
+
+  pub fn text(&mut self, s: &str, alignment: BitFlags<TextAlign>) {
+    self.text_colored(s, alignment, self.style.text.color);
+  }
+
   pub fn text_colored(
     &mut self,
     txt: &str,
@@ -2625,6 +2650,10 @@ impl UiContext {
     });
   }
 
+  pub fn text_wrap(&mut self, s: &str) {
+    self.text_wrap_colored(s, self.style.text.color);
+  }
+
   pub fn text_wrap_colored(&mut self, txt: &str, color: RGBAColor) {
     debug_assert!(self.current_win.borrow().is_some());
 
@@ -2635,5 +2664,386 @@ impl UiContext {
       use crate::hmi::text::text_wrap_colored;
       text_wrap_colored(Rc::clone(curr_win), &self.style, bounds, txt, color);
     });
+  }
+
+  pub fn label(&mut self, s: &str, align: BitFlags<TextAlign>) {
+    self.text(s, align);
+  }
+
+  pub fn label_colored(
+    &mut self,
+    s: &str,
+    alignment: BitFlags<TextAlign>,
+    color: RGBAColor,
+  ) {
+    self.text_colored(s, alignment, color);
+  }
+
+  pub fn label_wrap(&mut self, s: &str) {
+    self.text_wrap(s);
+  }
+
+  pub fn label_colored_wrap(&mut self, s: &str, color: RGBAColor) {
+    self.text_wrap_colored(s, color);
+  }
+
+  pub fn image(&mut self, img: Image) {
+    self.image_color(img, RGBAColor::new(255, 255, 255));
+  }
+
+  pub fn image_color(&mut self, img: Image, color: RGBAColor) {
+    debug_assert!(self.current_win.borrow().is_some());
+
+    self.current_win.borrow().as_ref().map(|curr_win| {
+      let (widget_states, bounds) =
+        self.widget(&RectangleF32::new(0f32, 0f32, 0f32, 0f32));
+      if widget_states == WidgetLayoutStates::Invalid {
+        return;
+      }
+
+      curr_win
+        .borrow()
+        .buffer
+        .borrow_mut()
+        .draw_image(bounds, img, color);
+    });
+  }
+
+  pub fn value<T: std::fmt::Display>(&mut self, prefix: &str, val: T) {
+    self.label(&format!("{} : {}", prefix, val), TextAlign::left());
+  }
+
+  /// buttons
+  pub fn button_set_behaviour(&mut self, behavior: ButtonBehaviour) {
+    self.button_behviour = behavior;
+  }
+
+  pub fn button_push_behavior(&mut self, _behavior: ButtonBehaviour) -> bool {
+    // TODO: add support for this
+    false
+  }
+
+  pub fn button_pop_behaviour(&mut self, _behavior: ButtonBehaviour) -> bool {
+    // TODO: add support for this
+    false
+  }
+
+  pub fn button_text_styled(&self, style: &StyleButton, title: &str) -> bool {
+    debug_assert!(self.current_win.borrow().is_some());
+
+    self
+      .current_win
+      .borrow()
+      .as_ref()
+      .map_or(false, |curr_win| {
+        let (state, bounds) =
+          self.widget(&RectangleF32::new(0f32, 0f32, 0f32, 0f32));
+        if state == WidgetLayoutStates::Invalid {
+          return false;
+        }
+
+        use crate::hmi::button::do_button_text;
+
+        let input = self.input.borrow();
+
+        do_button_text(
+          &mut self.last_widget_state.borrow_mut(),
+          &mut curr_win.borrow().buffer.borrow_mut(),
+          bounds,
+          title,
+          style.text_alignment,
+          self.button_behviour,
+          style,
+          if state == WidgetLayoutStates::Rom
+            || curr_win
+              .borrow()
+              .layout
+              .borrow()
+              .flags
+              .intersects(PanelFlags::WindowRom)
+          {
+            None
+          } else {
+            Some(&*input)
+          },
+          self.style.font,
+        )
+      })
+  }
+
+  pub fn button_text(&self, title: &str) -> bool {
+    let style_btn = self.style.button;
+    self.button_text_styled(&style_btn, title)
+  }
+
+  pub fn button_label_styled(&self, style: &StyleButton, title: &str) -> bool {
+    self.button_text_styled(style, title)
+  }
+
+  pub fn button_label(&self, title: &str) -> bool {
+    self.button_text(title)
+  }
+
+  pub fn button_color(&self, color: RGBAColor) -> bool {
+    debug_assert!(self.current_win.borrow().is_some());
+
+    let (state, bounds) =
+      self.widget(&RectangleF32::new(0f32, 0f32, 0f32, 0f32));
+
+    if state == WidgetLayoutStates::Invalid {
+      return false;
+    }
+
+    let input = self.input.borrow();
+
+    let style = StyleButton {
+      normal: StyleItem::Color(color),
+      hover: StyleItem::Color(color),
+      active: StyleItem::Color(color),
+      ..self.style.button
+    };
+
+    self
+      .current_win
+      .borrow()
+      .as_ref()
+      .map_or(false, |curr_win| {
+        use crate::hmi::button::do_button;
+        let (res, _content) = do_button(
+          &mut self.last_widget_state.borrow_mut(),
+          &mut curr_win.borrow().buffer.borrow_mut(),
+          bounds,
+          &style,
+          if state == WidgetLayoutStates::Rom
+            || curr_win
+              .borrow()
+              .layout
+              .borrow()
+              .flags
+              .intersects(PanelFlags::WindowRom)
+          {
+            None
+          } else {
+            Some(&*input)
+          },
+          self.button_behviour,
+        );
+
+        use crate::hmi::button::draw_button;
+        draw_button(
+          &mut curr_win.borrow().buffer.borrow_mut(),
+          &bounds,
+          *self.last_widget_state.borrow(),
+          &style,
+        );
+
+        res
+      })
+  }
+
+  pub fn button_symbol_styled(
+    &self,
+    style: &StyleButton,
+    symbol: SymbolType,
+  ) -> bool {
+    debug_assert!(self.current_win.borrow().is_some());
+
+    self
+      .current_win
+      .borrow()
+      .as_ref()
+      .map_or(false, |curr_win| {
+        let (state, bounds) =
+          self.widget(&RectangleF32::new(0f32, 0f32, 0f32, 0f32));
+        if state == WidgetLayoutStates::Invalid {
+          return false;
+        }
+
+        let input = self.input.borrow();
+        use crate::hmi::button::do_button_symbol;
+        do_button_symbol(
+          &mut self.last_widget_state.borrow_mut(),
+          &mut curr_win.borrow().buffer.borrow_mut(),
+          bounds,
+          symbol,
+          self.button_behviour,
+          style,
+          if state == WidgetLayoutStates::Rom
+            || curr_win
+              .borrow()
+              .layout
+              .borrow()
+              .flags
+              .intersects(PanelFlags::WindowRom)
+          {
+            None
+          } else {
+            Some(&*input)
+          },
+          self.style.font,
+        )
+      })
+  }
+
+  pub fn button_symbol(&self, symbol: SymbolType) -> bool {
+    self.button_symbol_styled(&self.style.button, symbol)
+  }
+
+  pub fn button_image_styled(&self, style: &StyleButton, img: Image) -> bool {
+    debug_assert!(self.current_win.borrow().is_some());
+
+    self
+      .current_win
+      .borrow()
+      .as_ref()
+      .map_or(false, |curr_win| {
+        let (state, bounds) =
+          self.widget(&RectangleF32::new(0f32, 0f32, 0f32, 0f32));
+        if state == WidgetLayoutStates::Invalid {
+          return false;
+        }
+
+        let input = self.input.borrow();
+        use crate::hmi::button::do_button_image;
+
+        do_button_image(
+          &mut self.last_widget_state.borrow_mut(),
+          &mut curr_win.borrow().buffer.borrow_mut(),
+          bounds,
+          img,
+          self.button_behviour,
+          style,
+          if state == WidgetLayoutStates::Rom
+            || curr_win
+              .borrow()
+              .layout
+              .borrow()
+              .flags
+              .intersects(PanelFlags::WindowRom)
+          {
+            None
+          } else {
+            Some(&*input)
+          },
+        )
+      })
+  }
+
+  pub fn button_image(&self, img: Image) -> bool {
+    self.button_image_styled(&self.style.button, img)
+  }
+
+  pub fn button_symbol_text_styled(
+    &self,
+    style: &StyleButton,
+    symbol: SymbolType,
+    text: &str,
+    align: BitFlags<TextAlign>,
+  ) -> bool {
+    debug_assert!(self.current_win.borrow().is_some());
+
+    self
+      .current_win
+      .borrow()
+      .as_ref()
+      .map_or(false, |curr_win| {
+        let (state, bounds) =
+          self.widget(&RectangleF32::new(0f32, 0f32, 0f32, 0f32));
+        if state == WidgetLayoutStates::Invalid {
+          return false;
+        }
+
+        let input = self.input.borrow();
+        use crate::hmi::button::do_button_text_symbol;
+        do_button_text_symbol(
+          &mut self.last_widget_state.borrow_mut(),
+          &mut curr_win.borrow().buffer.borrow_mut(),
+          bounds,
+          symbol,
+          text,
+          align,
+          self.button_behviour,
+          style,
+          self.style.font,
+          if state == WidgetLayoutStates::Rom
+            || curr_win
+              .borrow()
+              .layout
+              .borrow()
+              .flags
+              .intersects(PanelFlags::WindowRom)
+          {
+            None
+          } else {
+            Some(&*input)
+          },
+        )
+      })
+  }
+
+  pub fn button_symbol_text(
+    &self,
+    symbol: SymbolType,
+    text: &str,
+    align: BitFlags<TextAlign>,
+  ) -> bool {
+    self.button_symbol_text_styled(&self.style.button, symbol, text, align)
+  }
+
+  pub fn button_image_text_styled(
+    &self,
+    style: &StyleButton,
+    img: Image,
+    text: &str,
+    align: BitFlags<TextAlign>,
+  ) -> bool {
+    debug_assert!(self.current_win.borrow().is_some());
+
+    self
+      .current_win
+      .borrow()
+      .as_ref()
+      .map_or(false, |curr_win| {
+        let (state, bounds) =
+          self.widget(&RectangleF32::new(0f32, 0f32, 0f32, 0f32));
+        if state == WidgetLayoutStates::Invalid {
+          return false;
+        }
+
+        let input = self.input.borrow();
+        use crate::hmi::button::do_button_text_image;
+        do_button_text_image(
+          &mut self.last_widget_state.borrow_mut(),
+          &mut curr_win.borrow().buffer.borrow_mut(),
+          bounds,
+          img,
+          text,
+          align,
+          self.button_behviour,
+          style,
+          self.style.font,
+          if state == WidgetLayoutStates::Rom
+            || curr_win
+              .borrow()
+              .layout
+              .borrow()
+              .flags
+              .intersects(PanelFlags::WindowRom)
+          {
+            None
+          } else {
+            Some(&*input)
+          },
+        )
+      })
+  }
+
+  pub fn button_image_text(
+    &self,
+    img: Image,
+    text: &str,
+    align: BitFlags<TextAlign>,
+  ) -> bool {
+    self.button_image_text_styled(&self.style.button, img, text, align)
   }
 }

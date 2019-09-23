@@ -1,4 +1,10 @@
-use crate::{hmi::base::GenericHandle, math::rectangle::RectangleF32};
+use crate::{
+  hmi::{
+    base::GenericHandle, commands::CommandBuffer, ui_context::WindowPtr,
+    window::Window,
+  },
+  math::{colors::RGBAColor, rectangle::RectangleF32},
+};
 
 #[derive(Copy, Debug, Clone)]
 pub struct Image {

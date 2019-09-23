@@ -193,6 +193,20 @@ impl std::convert::From<RGBAColorF32> for u32 {
   }
 }
 
+impl<T> std::fmt::Display for TColorRGBA<T>
+where
+  T: Copy
+    + Clone
+    + std::fmt::Display
+    + std::fmt::Debug
+    + Num
+    + NumColorComponent,
+{
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "[RGBA color {} {} {} {}", self.r, self.g, self.b, self.a)
+  }
+}
+
 impl<T> std::ops::AddAssign for TColorRGBA<T>
 where
   T: Copy
