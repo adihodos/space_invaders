@@ -27,17 +27,6 @@ impl TextAlign {
   }
 }
 
-// pub struct TextAlignment {}
-
-// impl TextAlignment {
-//   pub const CENTERED: u32 =
-//     TextAlign::AlignMiddle as u32 | TextAlign::AlignCentered as u32;
-//   pub const LEFT: u32 =
-//     TextAlign::AlignMiddle as u32 | TextAlign::AlignLeft as u32;
-//   pub const RIGHT: u32 =
-//     TextAlign::AlignMiddle as u32 | TextAlign::AlignRight as u32;
-// }
-
 #[derive(Copy, Debug, Clone, Eq, PartialEq)]
 pub enum Heading {
   Right,

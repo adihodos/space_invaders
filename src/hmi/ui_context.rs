@@ -1171,7 +1171,55 @@ impl UiContext {
             header.w -= button.w
               + self.style.window.header.spacing.x
               + self.style.window.header.padding.x;
+          } else {
+            button.x = header.x + self.style.window.header.padding.x;
+            header.x += button.w
+              + self.style.window.header.spacing.x
+              + self.style.window.header.padding.x;
           }
+
+          use crate::hmi::button::do_button_symbol;
+          let result = do_button_symbol(
+            &mut BitFlags::default(),
+            &mut win.buffer.borrow_mut(),
+            button,
+            self.style.window.header.close_symbol,
+            ButtonBehaviour::ButtonDefault,
+            &self.style.window.header.close_button,
+            Some(&*self.input.borrow()),
+            self.style.font,
+          );
+
+          if result {
+            layout.flags.insert(PanelFlags::WindowHidden);
+            layout.flags.remove(PanelFlags::WindowMinimized);
+          }
+        }
+
+        // window minimize button
+        if win_flags.intersects(PanelFlags::WindowMinimizable) {
+          if self.style.window.header.align == StyleHeaderAlign::Right {
+            button.x = header.w + header.x - button.w;
+            if !win_flags.intersects(PanelFlags::WindowClosable) {
+              button.x -= self.style.window.header.padding.x;
+              header.w -= self.style.window.header.padding.x;
+            }
+            header.w -= button.w + self.style.window.header.spacing.x;
+          } else {
+            button.x = header.x;
+            header.x += button.w
+              + self.style.window.header.spacing.x
+              + self.style.window.header.padding.x;
+          }
+
+          use crate::hmi::button::do_button_symbol;
+          // let result = do_button_symbol(
+          //   &mut BitFlags::default(),
+          //   &win.buffer.borrow_mut(),
+          //   buttons,
+          //   if layout.flags.intersects(PanelFlags::WindowMinimized) {
+          //   }
+          // );
         }
 
         {}
@@ -2119,19 +2167,17 @@ impl UiContext {
 
   pub fn layout_widget_space(
     &self,
-    bounds: &RectangleF32,
+    // bounds: &RectangleF32,
     modify: bool,
   ) -> RectangleF32 {
     debug_assert!(self.current_win.borrow().is_some());
 
-    self
-      .current_win
-      .borrow()
-      .as_ref()
-      .map_or(*bounds, |winptr| {
+    self.current_win.borrow().as_ref().map_or(
+      RectangleF32::new(0f32, 0f32, 0f32, 0f32),
+      |winptr| {
         let win = winptr.borrow();
         let mut layout = win.layout.borrow_mut();
-        let mut bounds = *bounds;
+        // let mut bounds = RectangleF32;
 
         let spacing = self.style.window.spacing;
         let padding = self.style.get_panel_padding(layout.typ);
@@ -2142,6 +2188,15 @@ impl UiContext {
           layout.row.columns,
         );
 
+        enum CalcRectResult {
+          Finished(RectangleF32),
+          NeedsAdjusting {
+            item_offset:  f32,
+            item_width:   f32,
+            item_spacing: f32,
+          },
+        }
+
         struct ItemSpacingInfo {
           item_offset:  f32,
           item_width:   f32,
@@ -2151,7 +2206,7 @@ impl UiContext {
         let frac_fn = |x: f32| x - (x as i32) as f32;
         // calculate the width of one item inside the current layout space.
 
-        match layout.row.typ {
+        let calc_result = match layout.row.typ {
           PanelRowLayoutType::DynamicFixed => {
             // scaling fixed size widgets item width
             let w = panel_space.max(1f32) / layout.row.columns as f32;
@@ -2159,11 +2214,11 @@ impl UiContext {
             let item_width = w + frac_fn(item_offset);
             let item_spacing = layout.row.index as f32 + spacing.x;
 
-            Some(ItemSpacingInfo {
+            CalcRectResult::NeedsAdjusting {
               item_offset,
               item_spacing,
               item_width,
-            })
+            }
           }
 
           PanelRowLayoutType::DynamicRow => {
@@ -2179,15 +2234,16 @@ impl UiContext {
               layout.row.index = 0;
             }
 
-            Some(ItemSpacingInfo {
+            CalcRectResult::NeedsAdjusting {
               item_offset,
               item_spacing,
               item_width,
-            })
+            }
           }
 
           PanelRowLayoutType::DynamicFree => {
             // free widget placing
+            let mut bounds = RectangleF32::new(0f32, 0f32, 0f32, 0f32);
             bounds.x = layout.at_x + (layout.bounds.w * layout.row.item.x);
             bounds.x -= layout.offsets.borrow().scrollbar.x as f32;
             bounds.y = layout.at_y + (layout.row.height * layout.row.item.y);
@@ -2195,7 +2251,7 @@ impl UiContext {
             bounds.w = layout.bounds.w * layout.row.item.w + frac_fn(bounds.x);
             bounds.h =
               layout.row.height * layout.row.item.h + frac_fn(bounds.y);
-            None
+            CalcRectResult::Finished(bounds)
           }
 
           PanelRowLayoutType::Dynamic => {
@@ -2216,11 +2272,11 @@ impl UiContext {
               layout.row.filled += ratio;
             }
 
-            Some(ItemSpacingInfo {
+            CalcRectResult::NeedsAdjusting {
               item_spacing: layout.row.index as f32 * spacing.x,
               item_offset:  layout.row.item_offset,
               item_width:   w + frac_fn(layout.row.item_offset),
-            })
+            }
           }
 
           PanelRowLayoutType::StaticFixed => {
@@ -2229,11 +2285,11 @@ impl UiContext {
             let item_offset = layout.row.index as f32 * item_width;
             let item_spacing = layout.row.index as f32 * spacing.x;
 
-            Some(ItemSpacingInfo {
+            CalcRectResult::NeedsAdjusting {
               item_width,
               item_offset,
               item_spacing,
-            })
+            }
           }
 
           PanelRowLayoutType::StaticRow => {
@@ -2245,15 +2301,16 @@ impl UiContext {
               layout.row.item_offset += item_width;
             }
 
-            Some(ItemSpacingInfo {
+            CalcRectResult::NeedsAdjusting {
               item_width,
               item_offset,
               item_spacing,
-            })
+            }
           }
 
           PanelRowLayoutType::StaticFree => {
             // free widget placing
+            let mut bounds = RectangleF32::new(0f32, 0f32, 0f32, 0f32);
             bounds.x = layout.at_x + layout.row.item.x;
             bounds.w = layout.row.item.w;
             if (bounds.x + bounds.w) > layout.max_x && modify {
@@ -2264,7 +2321,7 @@ impl UiContext {
             bounds.y -= layout.offsets.borrow().scrollbar.y as f32;
             bounds.h = layout.row.item.h;
 
-            None
+            CalcRectResult::Finished(bounds)
           }
 
           PanelRowLayoutType::Static => {
@@ -2280,11 +2337,11 @@ impl UiContext {
               layout.row.item_offset += item_width;
             }
 
-            Some(ItemSpacingInfo {
+            CalcRectResult::NeedsAdjusting {
               item_spacing,
               item_width,
               item_offset,
-            })
+            }
           }
 
           PanelRowLayoutType::Template => {
@@ -2304,96 +2361,108 @@ impl UiContext {
               layout.row.item_offset += w;
             }
 
-            Some(ItemSpacingInfo {
+            CalcRectResult::NeedsAdjusting {
               item_offset,
               item_width,
               item_spacing,
-            })
+            }
           }
 
           _ => {
             debug_assert!(false, "No layout defined!");
-            None
+            CalcRectResult::Finished(RectangleF32::new(0f32, 0f32, 0f32, 0f32))
+          }
+        };
+
+        match calc_result {
+          CalcRectResult::Finished(bounds_rect) => bounds_rect,
+          CalcRectResult::NeedsAdjusting {
+            item_width,
+            item_spacing,
+            item_offset,
+          } => {
+            let bounds = RectangleF32 {
+              w: item_width,
+              h: layout.row.height - spacing.y,
+              y: layout.at_y - layout.offsets.borrow().scrollbar.y as f32,
+              x: layout.at_x + item_offset + item_spacing + padding.x,
+            };
+
+            if (bounds.x + bounds.w) > layout.max_x && modify {
+              layout.max_x = bounds.x + bounds.w
+            }
+
+            bounds
           }
         }
-        .and_then(|spc| {
-          bounds.w = spc.item_width;
-          bounds.h = layout.row.height - spacing.y;
-          bounds.y = layout.at_y - layout.offsets.borrow().scrollbar.y as f32;
-          bounds.x =
-            layout.at_x + spc.item_offset + spc.item_spacing + padding.x;
+      },
+    )
+  }
 
-          if (bounds.x + bounds.w) > layout.max_x && modify {
-            layout.max_x = bounds.x + bounds.w;
+  fn panel_alloc_space(&self) -> RectangleF32 {
+    debug_assert!(self.current_win.borrow().is_some());
+
+    self.current_win.borrow().as_ref().map_or(
+      RectangleF32::new(0f32, 0f32, 0f32, 0f32),
+      |winptr| {
+        // check if the end of the row was hit and begin a new row if true
+        let win = winptr.borrow();
+        let alloc_row = {
+          let layout = win.layout.borrow();
+          layout.row.index >= layout.row.columns
+        };
+
+        if alloc_row {
+          self.panel_alloc_row(&win);
+        }
+
+        let bounds = self.layout_widget_space(true);
+        win.layout.borrow_mut().row.index += 1;
+        bounds
+      },
+    )
+  }
+
+  fn layout_peek(&self) -> RectangleF32 {
+    debug_assert!(self.current_win.borrow().is_some());
+    self.current_win.borrow().as_ref().map_or(
+      RectangleF32::new(0f32, 0f32, 0f32, 0f32),
+      |winptr| {
+        let win = winptr.borrow();
+
+        let (y, index) = {
+          // make this go out of scope because it's mut borrowed by
+          // layout_widget_space() below
+          let mut layout = win.layout.borrow_mut();
+          if layout.row.index >= layout.row.columns {
+            layout.at_y += layout.row.height;
+            layout.row.index = 0;
           }
 
-          Some(())
-        });
+          (layout.at_y, layout.row.index)
+        };
+
+        let bounds = self.layout_widget_space(true);
+        let mut layout = win.layout.borrow_mut();
+        let bounds = RectangleF32 {
+          x: if layout.row.index == 0 {
+            bounds.x - layout.row.item_offset
+          } else {
+            bounds.x
+          },
+          ..bounds
+        };
+        layout.at_y = y;
+        layout.row.index = index;
 
         bounds
-      })
-  }
-
-  fn panel_alloc_space(&self, bounds: &mut RectangleF32) {
-    debug_assert!(self.current_win.borrow().is_some());
-
-    self.current_win.borrow().as_ref().map(|winptr| {
-      // check if the end of the row was hit and begin a new row if true
-      let win = winptr.borrow();
-      let alloc_row = {
-        let layout = win.layout.borrow();
-        layout.row.index >= layout.row.columns
-      };
-
-      if alloc_row {
-        self.panel_alloc_row(&win);
-      }
-
-      *bounds = self.layout_widget_space(&bounds, true);
-      win.layout.borrow_mut().row.index += 1;
-      Some(())
-    });
-  }
-
-  fn layout_peek(&self, bounds: &mut RectangleF32) {
-    debug_assert!(self.current_win.borrow().is_some());
-    self.current_win.borrow().as_ref().map(|winptr| {
-      let win = winptr.borrow();
-
-      let (y, index) = {
-        // make this go out of scope because it's mut borrowed by
-        // layout_widget_space() below
-        let mut layout = win.layout.borrow_mut();
-        if layout.row.index >= layout.row.columns {
-          layout.at_y += layout.row.height;
-          layout.row.index = 0;
-        }
-
-        (layout.at_y, layout.row.index)
-      };
-
-      *bounds = self.layout_widget_space(&bounds, true);
-      let mut layout = win.layout.borrow_mut();
-      if layout.row.index == 0 {
-        bounds.x -= layout.row.item_offset;
-      }
-      layout.at_y = y;
-      layout.row.index = index;
-
-      Some(())
-    });
+      },
+    )
   }
 
   fn widget_bounds(&self) -> RectangleF32 {
     debug_assert!(self.current_win.borrow().is_some());
-    self.current_win.borrow().as_ref().map_or(
-      RectangleF32::new(0f32, 0f32, 0f32, 0f32),
-      |_| {
-        let mut bounds = RectangleF32::new(0f32, 0f32, 0f32, 0f32);
-        self.layout_peek(&mut bounds);
-        bounds
-      },
-    )
+    self.layout_peek()
   }
 
   fn widget_position(&self) -> Vec2F32 {
@@ -2427,8 +2496,7 @@ impl UiContext {
         (clip.h as i32) as f32,
       );
 
-      let mut bounds = RectangleF32::new(0f32, 0f32, 0f32, 0f32);
-      self.layout_peek(&mut bounds);
+      let bounds = self.layout_peek();
 
       if !clip.intersect(&bounds) {
         false
@@ -2449,8 +2517,7 @@ impl UiContext {
         (clip.h as i32) as f32,
       );
 
-      let mut bounds = RectangleF32::new(0f32, 0f32, 0f32, 0f32);
-      self.layout_peek(&mut bounds);
+      let bounds = self.layout_peek();
 
       if !clip.intersect(&bounds) {
         false
@@ -2475,8 +2542,7 @@ impl UiContext {
         (clip.h as i32) as f32,
       );
 
-      let mut bounds = RectangleF32::new(0f32, 0f32, 0f32, 0f32);
-      self.layout_peek(&mut bounds);
+      let bounds = self.layout_peek();
 
       if !clip.intersect(&bounds) {
         false
@@ -2489,10 +2555,7 @@ impl UiContext {
     })
   }
 
-  fn widget(
-    &self,
-    bounds: &RectangleF32,
-  ) -> (WidgetLayoutStates, RectangleF32) {
+  fn widget(&self) -> (WidgetLayoutStates, RectangleF32) {
     debug_assert!(self.current_win.borrow().is_some());
 
     self.current_win.borrow().as_ref().map_or(
@@ -2501,10 +2564,9 @@ impl UiContext {
         RectangleF32::new(0f32, 0f32, 0f32, 0f32),
       ),
       |winptr| {
-        let mut bounds = *bounds;
-
         // allocate space and check if the widget needs to be updated and drawn
-        self.panel_alloc_space(&mut bounds);
+        let mut bounds = self.panel_alloc_space();
+
         let win = winptr.borrow();
         let layout = win.layout.borrow();
 
@@ -2549,7 +2611,6 @@ impl UiContext {
 
   fn widget_fitting(
     &self,
-    bounds: &RectangleF32,
     item_padding: Vec2F32,
   ) -> (WidgetLayoutStates, RectangleF32) {
     debug_assert!(self.current_win.borrow().is_some());
@@ -2561,7 +2622,7 @@ impl UiContext {
       ),
       |winptr| {
         // update the bounds to have no padding
-        let (state, mut bounds) = self.widget(bounds);
+        let (state, mut bounds) = self.widget();
 
         let win = winptr.borrow();
         let layout = win.layout.borrow();
@@ -2610,8 +2671,9 @@ impl UiContext {
       if layout_type != PanelRowLayoutType::DynamicFixed
         && layout_type != PanelRowLayoutType::StaticFixed
       {
-        let mut none = RectangleF32::new(0f32, 0f32, 0f32, 0f32);
-        (0 .. cols).for_each(|_| self.panel_alloc_space(&mut none));
+        (0 .. cols).for_each(|_| {
+          self.panel_alloc_space();
+        });
       } else {
         win.layout.borrow_mut().row.index = index;
       }
@@ -2635,8 +2697,7 @@ impl UiContext {
     debug_assert!(self.current_win.borrow().is_some());
 
     self.current_win.borrow().as_ref().map(|curr_win| {
-      let mut bounds = RectangleF32::new(0f32, 0f32, 0f32, 0f32);
-      self.panel_alloc_space(&mut bounds);
+      let bounds = self.panel_alloc_space();
 
       use crate::hmi::text::text_colored;
       text_colored(
@@ -2658,8 +2719,7 @@ impl UiContext {
     debug_assert!(self.current_win.borrow().is_some());
 
     self.current_win.borrow().as_ref().map(|curr_win| {
-      let mut bounds = RectangleF32::new(0f32, 0f32, 0f32, 0f32);
-      self.panel_alloc_space(&mut bounds);
+      let bounds = self.panel_alloc_space();
 
       use crate::hmi::text::text_wrap_colored;
       text_wrap_colored(Rc::clone(curr_win), &self.style, bounds, txt, color);
@@ -2695,8 +2755,7 @@ impl UiContext {
     debug_assert!(self.current_win.borrow().is_some());
 
     self.current_win.borrow().as_ref().map(|curr_win| {
-      let (widget_states, bounds) =
-        self.widget(&RectangleF32::new(0f32, 0f32, 0f32, 0f32));
+      let (widget_states, bounds) = self.widget();
       if widget_states == WidgetLayoutStates::Invalid {
         return;
       }
@@ -2736,8 +2795,7 @@ impl UiContext {
       .borrow()
       .as_ref()
       .map_or(false, |curr_win| {
-        let (state, bounds) =
-          self.widget(&RectangleF32::new(0f32, 0f32, 0f32, 0f32));
+        let (state, bounds) = self.widget();
         if state == WidgetLayoutStates::Invalid {
           return false;
         }
@@ -2787,8 +2845,7 @@ impl UiContext {
   pub fn button_color(&self, color: RGBAColor) -> bool {
     debug_assert!(self.current_win.borrow().is_some());
 
-    let (state, bounds) =
-      self.widget(&RectangleF32::new(0f32, 0f32, 0f32, 0f32));
+    let (state, bounds) = self.widget();
 
     if state == WidgetLayoutStates::Invalid {
       return false;
@@ -2853,8 +2910,7 @@ impl UiContext {
       .borrow()
       .as_ref()
       .map_or(false, |curr_win| {
-        let (state, bounds) =
-          self.widget(&RectangleF32::new(0f32, 0f32, 0f32, 0f32));
+        let (state, bounds) = self.widget();
         if state == WidgetLayoutStates::Invalid {
           return false;
         }
@@ -2897,8 +2953,7 @@ impl UiContext {
       .borrow()
       .as_ref()
       .map_or(false, |curr_win| {
-        let (state, bounds) =
-          self.widget(&RectangleF32::new(0f32, 0f32, 0f32, 0f32));
+        let (state, bounds) = self.widget();
         if state == WidgetLayoutStates::Invalid {
           return false;
         }
@@ -2947,8 +3002,7 @@ impl UiContext {
       .borrow()
       .as_ref()
       .map_or(false, |curr_win| {
-        let (state, bounds) =
-          self.widget(&RectangleF32::new(0f32, 0f32, 0f32, 0f32));
+        let (state, bounds) = self.widget();
         if state == WidgetLayoutStates::Invalid {
           return false;
         }
@@ -3004,8 +3058,7 @@ impl UiContext {
       .borrow()
       .as_ref()
       .map_or(false, |curr_win| {
-        let (state, bounds) =
-          self.widget(&RectangleF32::new(0f32, 0f32, 0f32, 0f32));
+        let (state, bounds) = self.widget();
         if state == WidgetLayoutStates::Invalid {
           return false;
         }
