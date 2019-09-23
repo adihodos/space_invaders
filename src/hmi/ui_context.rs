@@ -1213,20 +1213,62 @@ impl UiContext {
           }
 
           use crate::hmi::button::do_button_symbol;
-          // let result = do_button_symbol(
-          //   &mut BitFlags::default(),
-          //   &win.buffer.borrow_mut(),
-          //   buttons,
-          //   if layout.flags.intersects(PanelFlags::WindowMinimized) {
-          //   }
-          // );
-        }
+          let result = do_button_symbol(
+            &mut BitFlags::default(),
+            &mut win.buffer.borrow_mut(),
+            button,
+            if layout.flags.intersects(PanelFlags::WindowMinimized) {
+              self.style.window.header.maximize_symbol
+            } else {
+              self.style.window.header.minimize_symbol
+            },
+            ButtonBehaviour::ButtonDefault,
+            &self.style.window.header.minimize_button,
+            Some(&*self.input.borrow()),
+            self.style.font,
+          );
 
-        {}
+          if result && !win_flags.intersects(PanelFlags::WindowRom) {
+            if layout.flags.contains(PanelFlags::WindowMinimized) {
+              layout.flags.remove(PanelFlags::WindowMinimized);
+            } else {
+              layout.flags.insert(PanelFlags::WindowMinimized);
+            }
+          }
+        }
       }
 
       {
         // window header title
+        let t = self.style.font.text_width(title);
+        let x = header.x
+          + self.style.window.header.padding.x
+          + self.style.window.header.label_padding.x;
+        let label = RectangleF32 {
+          x,
+          y: header.y + self.style.window.header.label_padding.y,
+          h: self.style.font.scale
+            + 2f32 * self.style.window.header.label_padding.y,
+          w: clamp(
+            0f32,
+            t + 2f32 * self.style.window.header.spacing.x,
+            header.x + header.w - x,
+          ),
+        };
+
+        use crate::hmi::text::{widget_text, Text};
+        widget_text(
+          &mut win.buffer.borrow_mut(),
+          label,
+          title,
+          &Text {
+            padding:    Vec2F32::same(0f32),
+            background: txt_bk,
+            text:       txt_color,
+          },
+          TextAlign::left(),
+          self.style.font,
+        );
       }
     }
 
