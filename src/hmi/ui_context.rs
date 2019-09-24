@@ -681,13 +681,17 @@ impl UiContext {
       "If this triggers you forgot to call begin()"
     );
 
-    let end_panel =
-      self.current_win.borrow().as_ref().map_or(true, |curr_win| {
-        curr_win.borrow().flags.contains(PanelFlags::WindowHidden)
-          && curr_win.borrow().layout.borrow().typ == PanelType::Window
-      });
+    let call_end_panel =
+      self
+        .current_win
+        .borrow()
+        .as_ref()
+        .map_or(false, |curr_win| {
+          !(curr_win.borrow().layout.borrow().typ == PanelType::Window
+            && curr_win.borrow().flags.intersects(PanelFlags::WindowHidden))
+        });
 
-    if end_panel {
+    if call_end_panel {
       self.panel_end();
     }
 
@@ -1407,33 +1411,35 @@ impl UiContext {
         // TODO: hide scroll if no user input
 
         // window border
-        if layout.flags.contains(PanelFlags::WindowBorder) {
-          let padding_y = if layout.flags.contains(PanelFlags::WindowMinimized)
-          {
-            self.style.window.border
-              + win.bounds.borrow().y
-              + layout.header_height
-          } else {
-            if layout.flags.contains(PanelFlags::WindowDynamic) {
-              layout.bounds.y + layout.bounds.h + layout.footer_height
+        if layout.flags.intersects(PanelFlags::WindowBorder) {
+          let padding_y =
+            if layout.flags.intersects(PanelFlags::WindowMinimized) {
+              self.style.window.border
+                + win.bounds.borrow().y
+                + layout.header_height
             } else {
-              win.bounds.borrow().y + win.bounds.borrow().h
-            }
-          };
+              if layout.flags.intersects(PanelFlags::WindowDynamic) {
+                layout.bounds.y + layout.bounds.h + layout.footer_height
+              } else {
+                win.bounds.borrow().y + win.bounds.borrow().h
+              }
+            };
 
           let border = RectangleF32 {
             h: padding_y - win.bounds.borrow().y,
             ..*win.bounds.borrow()
           };
-          win.buffer.borrow_mut().fill_rect(
+
+          win.buffer.borrow_mut().stroke_rect(
             border,
             0f32,
+            layout.border,
             self.style.get_panel_border_color(layout.typ),
           );
         }
 
         // scaler
-        let draw_scaler = layout.flags.contains(PanelFlags::WindowScalable)
+        let draw_scaler = layout.flags.intersects(PanelFlags::WindowScalable)
           && !layout.flags.intersects(
             PanelFlags::WindowMinimized
               | PanelFlags::WindowRom

@@ -14,12 +14,12 @@ use crate::math::{
 
 use crate::{
   hmi::{
-    base::{AntialiasingType, ConvertConfig, DrawNullTexture, GenericHandle},
-    commands::{
-      CmdArc, CmdCircle, CmdCircleFilled, CmdLine, CmdPolygon, CmdPolyline,
-      CmdRect, CmdText, CmdTriangleFilled, Command,
+    base::{
+      AntialiasingType, ConvertConfig, DrawNullTexture, GenericHandle,
+      TextAlign,
     },
     panel::PanelFlags,
+    style::SymbolType,
     text_engine::{
       Font, FontAtlas, FontAtlasBuilder, FontConfig, FontConfigBuilder,
       TTFDataSource,
@@ -366,17 +366,17 @@ fn main() {
 
     // UI here
     ui_ctx.begin(
-      "Simple window v 0.1.0.0.1",
-      RectangleF32::new(20f32, 20f32, 255f32, 255f32),
-      PanelFlags::WindowBorder
-        | PanelFlags::WindowMovable
-        | PanelFlags::WindowClosable
-        | PanelFlags::WindowMinimizable,
+      "Demo",
+      RectangleF32::new(50f32, 50f32, 230f32, 250f32),
+      PanelFlags::WindowBorder.into()
+        // | PanelFlags::WindowMovable
+        // | PanelFlags::WindowClosable, // | PanelFlags::WindowMinimizable,
     );
+
 
     ui_ctx.end();
 
-    println!("Draw commands {}", buff_draw_commands.len());
+    // println!("Draw commands {}", buff_draw_commands.len());
 
     buff_draw_commands.clear();
     buff_indices.clear();
@@ -437,7 +437,7 @@ fn main() {
       let _gl_state_save_restore = OpenGLStateSaveSetRestore::new();
 
       buff_draw_commands.iter().for_each(|cmd| {
-        dbg!(cmd);
+        // dbg!(cmd);
         if cmd.element_count == 0 {
           return;
         }
