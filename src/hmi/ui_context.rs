@@ -1145,7 +1145,7 @@ impl UiContext {
       let txt_bk = match bk {
         StyleItem::Img(ref img) => {
           // draw image
-          win.buffer.borrow_mut().draw_image(
+          win.buffer_mut().draw_image(
             header,
             *img,
             RGBAColor::new(255, 255, 255),
@@ -1155,7 +1155,7 @@ impl UiContext {
 
         StyleItem::Color(clr) => {
           // fill rect
-          win.buffer.borrow_mut().fill_rect(header, 0f32, clr);
+          win.buffer_mut().fill_rect(header, 0f32, clr);
           clr
         }
       };
@@ -1185,7 +1185,7 @@ impl UiContext {
           use crate::hmi::button::do_button_symbol;
           let result = do_button_symbol(
             &mut BitFlags::default(),
-            &mut win.buffer.borrow_mut(),
+            &mut win.buffer_mut(),
             button,
             self.style.window.header.close_symbol,
             ButtonBehaviour::ButtonDefault,
@@ -1219,7 +1219,7 @@ impl UiContext {
           use crate::hmi::button::do_button_symbol;
           let result = do_button_symbol(
             &mut BitFlags::default(),
-            &mut win.buffer.borrow_mut(),
+            &mut win.buffer_mut(),
             button,
             if layout.flags.intersects(PanelFlags::WindowMinimized) {
               self.style.window.header.maximize_symbol
@@ -1262,7 +1262,7 @@ impl UiContext {
 
         use crate::hmi::text::{widget_text, Text};
         widget_text(
-          &mut win.buffer.borrow_mut(),
+          &mut win.buffer_mut(),
           label,
           title,
           &Text {
@@ -1291,14 +1291,12 @@ impl UiContext {
       };
 
       match self.style.window.fixed_background {
-        StyleItem::Img(ref img) => win.buffer.borrow_mut().draw_image(
-          body,
-          *img,
-          RGBAColor::new(255, 255, 255),
-        ),
-        StyleItem::Color(clr) => {
-          win.buffer.borrow_mut().fill_rect(body, 0f32, clr)
+        StyleItem::Img(ref img) => {
+          win
+            .buffer_mut()
+            .draw_image(body, *img, RGBAColor::new(255, 255, 255))
         }
+        StyleItem::Color(clr) => win.buffer_mut().fill_rect(body, 0f32, clr),
       }
     }
 
@@ -1307,7 +1305,7 @@ impl UiContext {
       let buffer_clip = winptr.borrow().buffer.borrow().clip();
       let layout_clip = winptr.borrow().layout.borrow().bounds;
       let clip = RectangleF32::union(&buffer_clip, &layout_clip);
-      winptr.borrow().buffer.borrow_mut().push_scissor(clip);
+      winptr.borrow().buffer_mut().push_scissor(clip);
       winptr.borrow().layout.borrow_mut().clip = clip;
     }
 
@@ -1328,7 +1326,7 @@ impl UiContext {
         let win = win.borrow();
         let mut layout = win.layout.borrow_mut();
         if !layout.is_sub() {
-          win.buffer.borrow_mut().push_scissor(Consts::null_rect());
+          win.buffer_mut().push_scissor(Consts::null_rect());
         }
 
         let scrollbar_size = self.style.window.scrollbar_size;
@@ -1352,7 +1350,7 @@ impl UiContext {
             h: panel_padding.y,
             ..*win.bounds.borrow()
           };
-          win.buffer.borrow_mut().fill_rect(
+          win.buffer_mut().fill_rect(
             empty_space,
             0f32,
             self.style.window.background,
@@ -1365,7 +1363,7 @@ impl UiContext {
             w: panel_padding.x + layout.border,
             h: layout.bounds.h,
           };
-          win.buffer.borrow_mut().fill_rect(
+          win.buffer_mut().fill_rect(
             empty_space,
             0f32,
             self.style.window.background,
@@ -1386,7 +1384,7 @@ impl UiContext {
             w: panel_padding.x + layout.border + adjust_for_scrollbar,
             h: layout.bounds.h,
           };
-          win.buffer.borrow_mut().fill_rect(
+          win.buffer_mut().fill_rect(
             empty_space,
             0f32,
             self.style.window.background,
@@ -1399,7 +1397,7 @@ impl UiContext {
               h: layout.footer_height,
               ..*win.bounds.borrow()
             };
-            win.buffer.borrow_mut().fill_rect(
+            win.buffer_mut().fill_rect(
               empty_space,
               0f32,
               self.style.window.background,
@@ -1467,7 +1465,7 @@ impl UiContext {
           // draw scaler
           match self.style.window.scaler {
             StyleItem::Img(ref img) => {
-              win.buffer.borrow_mut().draw_image(
+              win.buffer_mut().draw_image(
                 scaler,
                 *img,
                 RGBAColor::new(255, 255, 255),
@@ -1476,7 +1474,7 @@ impl UiContext {
 
             StyleItem::Color(c) => {
               if layout.flags.contains(PanelFlags::WindowScaleLeft) {
-                win.buffer.borrow_mut().fill_triangle(
+                win.buffer_mut().fill_triangle(
                   scaler.x,
                   scaler.y,
                   scaler.x,
@@ -1486,7 +1484,7 @@ impl UiContext {
                   c,
                 );
               } else {
-                win.buffer.borrow_mut().fill_triangle(
+                win.buffer_mut().fill_triangle(
                   scaler.x + scaler.w,
                   scaler.y,
                   scaler.x + scaler.w,
@@ -1567,7 +1565,7 @@ impl UiContext {
         if !layout.is_sub() {
           // window is hidden so clear command buffer
           if layout.flags.intersects(PanelFlags::WindowHidden) {
-            win.buffer.borrow_mut().clear();
+            win.buffer_mut().clear();
           } else {
             // TODO: clarify if this is needed: finish(win)
           }
@@ -2856,7 +2854,7 @@ impl UiContext {
 
         do_button_text(
           &mut self.last_widget_state.borrow_mut(),
-          &mut curr_win.borrow().buffer.borrow_mut(),
+          &mut curr_win.borrow().buffer_mut(),
           bounds,
           title,
           style.text_alignment,
@@ -2918,7 +2916,7 @@ impl UiContext {
         use crate::hmi::button::do_button;
         let (res, _content) = do_button(
           &mut self.last_widget_state.borrow_mut(),
-          &mut curr_win.borrow().buffer.borrow_mut(),
+          &mut curr_win.borrow().buffer_mut(),
           bounds,
           &style,
           if state == WidgetLayoutStates::Rom
@@ -2938,7 +2936,7 @@ impl UiContext {
 
         use crate::hmi::button::draw_button;
         draw_button(
-          &mut curr_win.borrow().buffer.borrow_mut(),
+          &mut curr_win.borrow().buffer_mut(),
           &bounds,
           *self.last_widget_state.borrow(),
           &style,
@@ -2969,7 +2967,7 @@ impl UiContext {
         use crate::hmi::button::do_button_symbol;
         do_button_symbol(
           &mut self.last_widget_state.borrow_mut(),
-          &mut curr_win.borrow().buffer.borrow_mut(),
+          &mut curr_win.borrow().buffer_mut(),
           bounds,
           symbol,
           self.button_behviour,
@@ -3013,7 +3011,7 @@ impl UiContext {
 
         do_button_image(
           &mut self.last_widget_state.borrow_mut(),
-          &mut curr_win.borrow().buffer.borrow_mut(),
+          &mut curr_win.borrow().buffer_mut(),
           bounds,
           img,
           self.button_behviour,
@@ -3061,7 +3059,7 @@ impl UiContext {
         use crate::hmi::button::do_button_text_symbol;
         do_button_text_symbol(
           &mut self.last_widget_state.borrow_mut(),
-          &mut curr_win.borrow().buffer.borrow_mut(),
+          &mut curr_win.borrow().buffer_mut(),
           bounds,
           symbol,
           text,
@@ -3117,7 +3115,7 @@ impl UiContext {
         use crate::hmi::button::do_button_text_image;
         do_button_text_image(
           &mut self.last_widget_state.borrow_mut(),
-          &mut curr_win.borrow().buffer.borrow_mut(),
+          &mut curr_win.borrow().buffer_mut(),
           bounds,
           img,
           text,
