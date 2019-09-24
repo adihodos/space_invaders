@@ -226,6 +226,10 @@ impl Window {
     buf.last = self.buffer.borrow().len();
     buf.end = self.buffer.borrow().len();
   }
+
+  pub fn buffer_mut(&self) -> std::cell::RefMut<CommandBuffer> {
+    self.buffer.borrow_mut()
+  }
 }
 
 impl std::cmp::PartialEq for Window {

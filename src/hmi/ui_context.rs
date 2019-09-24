@@ -1015,8 +1015,8 @@ impl UiContext {
     let panel_padding = self.style.get_panel_padding(panel_type);
 
     // window movement
-    if win_flags.contains(PanelFlags::WindowMovable)
-      && !win_flags.contains(PanelFlags::WindowRom)
+    if win_flags.intersects(PanelFlags::WindowMovable)
+      && !win_flags.intersects(PanelFlags::WindowRom)
     {
       let mut header = *winptr.borrow().bounds.borrow();
       if Panel::has_header(win_flags, Some(title)) {
@@ -1091,9 +1091,8 @@ impl UiContext {
 
       if !layout.is_nonblock() {
         layout.footer_height = 0f32;
-        if !win_flags
-          .intersects(PanelFlags::WindowNoScrollbar) || 
-          win_flags.intersects(PanelFlags::WindowScalable)
+        if !win_flags.intersects(PanelFlags::WindowNoScrollbar)
+          || win_flags.intersects(PanelFlags::WindowScalable)
         {
           layout.footer_height = scrollbar_size.y;
         }
@@ -1234,7 +1233,7 @@ impl UiContext {
           );
 
           if result && !win_flags.intersects(PanelFlags::WindowRom) {
-            if layout.flags.contains(PanelFlags::WindowMinimized) {
+            if layout.flags.intersects(PanelFlags::WindowMinimized) {
               layout.flags.remove(PanelFlags::WindowMinimized);
             } else {
               layout.flags.insert(PanelFlags::WindowMinimized);
@@ -1340,8 +1339,8 @@ impl UiContext {
         layout.at_y += layout.row.height;
 
         // dynamic panels
-        if layout.flags.contains(PanelFlags::WindowDynamic)
-          && !layout.flags.contains(PanelFlags::WindowMinimized)
+        if layout.flags.intersects(PanelFlags::WindowDynamic)
+          && !layout.flags.intersects(PanelFlags::WindowMinimized)
         {
           // update panel height to fit dynamic growth
           if layout.at_y < (layout.bounds.y + layout.bounds.h) {
@@ -1374,7 +1373,7 @@ impl UiContext {
 
           // fill right empty space
           let adjust_for_scrollbar = if layout.offsets.borrow().scrollbar.y == 0
-            && !layout.flags.contains(PanelFlags::WindowNoScrollbar)
+            && !layout.flags.intersects(PanelFlags::WindowNoScrollbar)
           {
             scrollbar_size.x
           } else {
@@ -1431,7 +1430,7 @@ impl UiContext {
             ..*win.bounds.borrow()
           };
 
-          win.buffer.borrow_mut().stroke_rect(
+          win.buffer_mut().stroke_rect(
             border,
             0f32,
             layout.border,
