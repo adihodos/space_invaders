@@ -649,7 +649,7 @@ impl CommandBuffer {
       y: r.y as i16,
       w: r.w as u16,
       h: r.h as u16,
-      height: 0f32,
+      height: font.scale,
       text: font.clamped_string(s, r.w),
     };
 

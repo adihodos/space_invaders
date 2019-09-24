@@ -232,10 +232,10 @@ fn main() {
   };
 
   let mut fonts = vec![];
-  let font_atlas = FontAtlasBuilder::new(300)
+  let font_atlas = FontAtlasBuilder::new(96)
     .ok_or("Failed to create font atlas")
     .and_then(|mut atlas_builder| {
-      let cfg = FontConfigBuilder::new().size(14f32).build();
+      let cfg = FontConfigBuilder::new().size(10f32).build();
 
       let _f01 = atlas_builder
         .add_font(
@@ -246,7 +246,7 @@ fn main() {
 
       fonts.push(_f01);
 
-      let cfg = FontConfigBuilder::new().size(16f32).build();
+      let cfg = FontConfigBuilder::new().size(14f32).build();
       let _f02 = atlas_builder
         .add_font(
           &cfg,
