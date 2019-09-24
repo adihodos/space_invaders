@@ -139,8 +139,10 @@ fn main() {
     )
     .expect("Failed to create GLFW window.");
 
-  window.set_key_polling(true);
   window.make_current();
+  // window.set_all_polling(true);
+  window.set_key_polling(true);
+  // window.set_framebuffer_size_polling(true);
 
   gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
 
@@ -198,13 +200,9 @@ fn main() {
   };
 
   unsafe {
-    gl::Viewport(0, 0, 900, 700);
     let cc = RGBAColorF32::from(HsvColor::new(217f32, 87f32, 46f32));
     gl::ClearColor(cc.r, cc.g, cc.b, cc.a);
   }
-
-  let world_view_prof_mtx =
-    orthographic_projection(0_f32, 0_f32, 900_f32, 700_f32, 0_f32, 1_f32);
 
   unsafe {
     gl::BindTextures(0, 1, &white_pixel_tex as *const _);
@@ -357,8 +355,10 @@ fn main() {
     for (_, event) in glfw::flush_messages(&events) {
       match event {
         glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
+          println!("ESC pressed -> quitting ...");
           window.set_should_close(true)
         }
+
         _ => {}
       }
     }
@@ -375,8 +375,6 @@ fn main() {
     );
 
     ui_ctx.end();
-
-    // println!("Draw commands {}", buff_draw_commands.len());
 
     buff_draw_commands.clear();
     buff_indices.clear();
@@ -417,12 +415,21 @@ fn main() {
       (dpy_w as f32 / wnd_w as f32, dpy_h as f32 / wnd_h as f32);
 
     unsafe {
-      gl::Viewport(0, 0, wnd_w, wnd_h);
+      gl::ViewportIndexedf(0, 0f32, 0f32, dpy_w as f32, dpy_h as f32);
       gl::Clear(gl::COLOR_BUFFER_BIT);
       gl::BindVertexArray(nk_vao);
     }
 
     shader_program.set_used();
+
+    let world_view_prof_mtx = orthographic_projection(
+      0_f32,
+      0_f32,
+      dpy_w as f32,
+      dpy_h as f32,
+      0_f32,
+      1_f32,
+    );
 
     unsafe {
       gl::ProgramUniformMatrix4fv(
