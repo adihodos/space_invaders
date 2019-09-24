@@ -1022,7 +1022,7 @@ impl FontAtlas {
       .chars()
       .take_while(|codepoint| {
         let glyph_info = self.query(font, *codepoint);
-        if (width + glyph_info.xadvance) < max_width {
+        if (width + glyph_info.xadvance) <= max_width {
           width += glyph_info.xadvance;
           true
         } else {
