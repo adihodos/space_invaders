@@ -1244,7 +1244,10 @@ impl UiContext {
 
       {
         // window header title
-        let t = self.style.font.text_width(title);
+        let t = self
+          .style
+          .font
+          .query_text_width(self.style.font.scale, title);
         let x = header.x
           + self.style.window.header.padding.x
           + self.style.window.header.label_padding.x;

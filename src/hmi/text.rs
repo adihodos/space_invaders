@@ -43,7 +43,7 @@ pub fn widget_text(
     h: f.scale.min(b.h - 2f32 * t.padding.y),
   };
 
-  let text_width = f.text_width(s) + 2f32 * t.padding.x;
+  let text_width = f.query_text_width(f.scale, s) + 2f32 * t.padding.x;
 
   // align in x-axis
   let label = if align.intersects(TextAlign::AlignLeft) {

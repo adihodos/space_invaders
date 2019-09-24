@@ -9,7 +9,7 @@ use crate::hmi::{
   base::{AntialiasingType, Consts, ConvertConfig, GenericHandle},
   commands::Command,
   image::Image,
-  text_engine::Font,
+  text_engine::{Font, UserFontGlyph},
 };
 
 pub type DrawIndexType = u16;
@@ -734,7 +734,7 @@ impl DrawList {
     font: Font,
     rect: RectangleF32,
     text: &str,
-    _font_height: f32,
+    font_height: f32,
     fg: RGBAColorF32,
   ) {
     if !rect.intersect(&self.clip_rect) {
@@ -746,21 +746,23 @@ impl DrawList {
     // process each codepoint end emit draw info
     text.chars().for_each(|codepoint| {
       // query glyph info for this codepoint
-      let glyph_info = font.query(codepoint);
+      let glyph_info = font.query_glyph(font_height, codepoint);
       // compute quad for the codepoint's glyph
-      let gx = x + glyph_info.bearing_x;
-      let gy = rect.y + glyph_info.bearing_y;
-      let gw = glyph_info.bbox.w as f32;
-      let gh = glyph_info.bbox.h as f32;
+      let gx = x + glyph_info.offset.x;
+      let gy = rect.y + glyph_info.offset.y;
+      let gw = glyph_info.width;
+      let gh = glyph_info.height;
 
       self.push_rect_uv(
         outbuff,
         Vec2F32::new(gx, gy),
         Vec2F32::new(gx + gw, gy + gh),
-        glyph_info.uv_top_left,
-        glyph_info.uv_bottom_right,
+        glyph_info.uv[0],
+        glyph_info.uv[1],
         RGBAColor::from(fg),
       );
+
+      println!("{} - {:?}", codepoint, glyph_info);
 
       x += glyph_info.xadvance;
     });

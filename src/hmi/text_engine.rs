@@ -302,7 +302,7 @@ impl FontMetrics {
 
 #[derive(Copy, Clone, Debug)]
 pub struct Font {
-  pub scale:     f32,
+  pub scale: f32,
   glyph_tbl: u32,
   face_tbl:  u32,
   atlas:     *const FontAtlas,
@@ -340,16 +340,16 @@ impl Font {
       .map_or(DrawNullTexture::default(), |atlas| atlas.draw_null_texture)
   }
 
-  pub fn query(&self, codept: char) -> FontGlyph {
-    self
-      .atlas_ref()
-      .map_or(FontGlyph::default(), |atlas| atlas.query(self, codept))
+  pub fn query_glyph(&self, height: f32, codept: char) -> UserFontGlyph {
+    self.atlas_ref().map_or(UserFontGlyph::default(), |atlas| {
+      atlas.query_font_glyph(self, height, codept)
+    })
   }
 
-  pub fn text_width(&self, text: &str) -> f32 {
+  pub fn query_text_width(&self, height: f32, text: &str) -> f32 {
     self
       .atlas_ref()
-      .map_or(0f32, |atlas| atlas.text_width(self, text))
+      .map_or(0f32, |atlas| atlas.font_text_width(self, height, text))
   }
 
   pub fn clamp_text(&self, text: &str, max_width: f32) -> (i32, f32) {
@@ -366,7 +366,32 @@ impl Font {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct FontGlyph {
+pub struct UserFontGlyph {
+  // texture coordinates
+  pub uv: [Vec2F32; 2],
+  // offset between top left and glyph
+  pub offset: Vec2F32,
+  // dimensions
+  pub width:  f32,
+  pub height: f32,
+  // offset to next glyph
+  pub xadvance: f32,
+}
+
+impl std::default::Default for UserFontGlyph {
+  fn default() -> UserFontGlyph {
+    UserFontGlyph {
+      uv:       [Vec2F32::same(0f32); 2],
+      offset:   Vec2F32::same(0f32),
+      width:    0f32,
+      height:   0f32,
+      xadvance: 0f32,
+    }
+  }
+}
+
+#[derive(Copy, Clone, Debug)]
+struct FontGlyph {
   pub codepoint:       u32,
   pub xadvance:        f32,
   pub bearing_x:       f32,
@@ -917,19 +942,49 @@ impl FontAtlas {
   }
 
   /// Query the properties of a font's glyph.
-  pub fn query(&self, font: &Font, codepoint: char) -> FontGlyph {
+  pub fn query_font_glyph(
+    &self,
+    font: &Font,
+    height: f32,
+    codepoint: char,
+  ) -> UserFontGlyph {
+    let glyph_table = &self.glyphs[font.glyph_tbl as usize];
+    glyph_table.get(&(codepoint as u32)).map_or(
+      UserFontGlyph {
+        uv:       [Vec2F32::same(0f32); 2],
+        offset:   Vec2F32::same(0f32),
+        width:    0f32,
+        height:   0f32,
+        xadvance: 0f32,
+      },
+      |glyph| {
+        let scale = height / font.scale;
+        UserFontGlyph {
+          uv:       [glyph.uv_top_left, glyph.uv_bottom_right],
+          offset:   Vec2F32::new(glyph.bearing_x, glyph.bearing_y) * scale,
+          width:    glyph.bbox.w as f32 * scale,
+          height:   glyph.bbox.h as f32 * scale,
+          xadvance: glyph.xadvance * scale,
+        }
+      },
+    )
+  }
+
+  /// Compute the length of a string using a certain font in the atlas.
+  pub fn font_text_width(&self, font: &Font, height: f32, text: &str) -> f32 {
+    let scale = height / font.scale;
+
+    text.chars().fold(0f32, |curr_width, codepoint| {
+      let glyph = self.query(font, codepoint);
+      curr_width + glyph.xadvance * scale
+    })
+  }
+
+  fn query(&self, font: &Font, codepoint: char) -> FontGlyph {
     let glyph_table = &self.glyphs[font.glyph_tbl as usize];
     glyph_table
       .get(&(codepoint as u32))
       .map_or(FontGlyph::default(), |glyph_entry| *glyph_entry)
-  }
-
-  /// Compute the length of a string using a certain font in the atlas.
-  pub fn text_width(&self, font: &Font, text: &str) -> f32 {
-    text.chars().fold(0f32, |curr_len, curr_char| {
-      let glyph = self.query(font, curr_char);
-      curr_len + glyph.xadvance
-    })
   }
 
   pub fn clamp_text(
