@@ -210,23 +210,23 @@ impl Panel {
 
   pub fn has_header(flags: BitFlags<PanelFlags>, title: Option<&str>) -> bool {
     let active = flags
-      .contains(PanelFlags::WindowClosable | PanelFlags::WindowMinimizable);
-    let active = active || flags.contains(PanelFlags::WindowTitle);
+      .intersects(PanelFlags::WindowClosable | PanelFlags::WindowMinimizable);
+    let active = active || flags.intersects(PanelFlags::WindowTitle);
     let active =
-      active && !flags.contains(PanelFlags::WindowHidden) && title.is_some();
+      active && !flags.intersects(PanelFlags::WindowHidden) && title.is_some();
     active
   }
 
   pub fn is_nonblock(&self) -> bool {
-    self.typ.contains(PanelType::non_block())
+    self.typ.intersects(PanelType::non_block())
   }
 
   pub fn is_popup(&self) -> bool {
-    self.typ.contains(PanelType::popup())
+    self.typ.intersects(PanelType::popup())
   }
 
   pub fn is_sub(&self) -> bool {
-    self.typ.contains(PanelType::sub())
+    self.typ.intersects(PanelType::sub())
   }
 
   pub fn reset_min_row_height(&mut self, style: &Style) {

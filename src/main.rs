@@ -368,11 +368,11 @@ fn main() {
     ui_ctx.begin(
       "Demo",
       RectangleF32::new(50f32, 50f32, 230f32, 250f32),
-      PanelFlags::WindowBorder.into()
-        // | PanelFlags::WindowMovable
-        // | PanelFlags::WindowClosable, // | PanelFlags::WindowMinimizable,
+      PanelFlags::WindowBorder
+        | PanelFlags::WindowMovable
+        | PanelFlags::WindowScalable
+        | PanelFlags::WindowMinimizable, // | PanelFlags::WindowClosable, // ,
     );
-
 
     ui_ctx.end();
 

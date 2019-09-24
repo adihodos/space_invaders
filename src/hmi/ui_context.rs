@@ -1064,7 +1064,7 @@ impl UiContext {
       layout.bounds = *winptr.borrow().bounds.borrow();
       layout.bounds.x += panel_padding.x;
       layout.bounds.w -= 2f32 * panel_padding.x;
-      if win_flags.contains(PanelFlags::WindowBorder) {
+      if win_flags.intersects(PanelFlags::WindowBorder) {
         layout.border = self.style.get_panel_border(panel_type, win_flags);
         layout.bounds = RectangleF32::shrink(&layout.bounds, layout.border);
       } else {
@@ -1085,14 +1085,15 @@ impl UiContext {
       layout.row.height = panel_padding.y;
       layout.has_scrolling = true;
 
-      if !win_flags.contains(PanelFlags::WindowNoScrollbar) {
+      if !win_flags.intersects(PanelFlags::WindowNoScrollbar) {
         layout.bounds.w -= scrollbar_size.x;
       }
 
       if !layout.is_nonblock() {
         layout.footer_height = 0f32;
         if !win_flags
-          .contains(PanelFlags::WindowNoScrollbar | PanelFlags::WindowScalable)
+          .intersects(PanelFlags::WindowNoScrollbar) || 
+          win_flags.intersects(PanelFlags::WindowScalable)
         {
           layout.footer_height = scrollbar_size.y;
         }
@@ -1500,7 +1501,7 @@ impl UiContext {
           }
 
           // do window scaling
-          if !win.flags.contains(PanelFlags::WindowRom) {
+          if !win.flags.intersects(PanelFlags::WindowRom) {
             let mut scaler = scaler;
             let left_mouse_down = self
               .input
@@ -1566,13 +1567,15 @@ impl UiContext {
 
         if !layout.is_sub() {
           // window is hidden so clear command buffer
-          if layout.flags.contains(PanelFlags::WindowHidden) {
+          if layout.flags.intersects(PanelFlags::WindowHidden) {
             win.buffer.borrow_mut().clear();
+          } else {
+            // TODO: clarify if this is needed: finish(win)
           }
         }
 
         // remove window read only mode flag was set so remove read only mode
-        if layout.flags.contains(PanelFlags::WindowRemoveRom) {
+        if layout.flags.intersects(PanelFlags::WindowRemoveRom) {
           layout
             .flags
             .remove(PanelFlags::WindowRom | PanelFlags::WindowRemoveRom);
