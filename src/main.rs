@@ -235,7 +235,7 @@ fn main() {
   let font_atlas = FontAtlasBuilder::new(96)
     .ok_or("Failed to create font atlas")
     .and_then(|mut atlas_builder| {
-      let cfg = FontConfigBuilder::new().size(24f32).build();
+      let cfg = FontConfigBuilder::new().size(10f32).build();
 
       let _f01 = atlas_builder
         .add_font(
@@ -341,92 +341,77 @@ fn main() {
     vao
   };
 
-  // let mut ui_ctx = UiContext::new(
-  //   fonts[0],
-  //   convert_cfg,
-  //   AntialiasingType::Off,
-  //   AntialiasingType::Off,
-  // );
+  let mut ui_ctx = UiContext::new(
+    fonts[0],
+    convert_cfg,
+    AntialiasingType::Off,
+    AntialiasingType::Off,
+  );
 
-  // use crate::hmi::commands::CommandBuffer;
-  // let mut cmd_buff = CommandBuffer::new(None, 64);
+  // // use crate::hmi::commands::CommandBuffer;
+  // // let mut cmd_buff = CommandBuffer::new(None, 64);
 
-  // let btn_bounds = RectangleF32 {
-  //   x: 20f32,
-  //   y: 20f32,
-  //   w: 255f32,
-  //   h: 64f32,
-  // };
+  // // let btn_bounds = RectangleF32 {
+  // //   x: 20f32,
+  // //   y: 20f32,
+  // //   w: 255f32,
+  // //   h: 64f32,
+  // // };
 
-  // cmd_buff.stroke_rect(btn_bounds, 0f32, 2f32, RGBAColor::new(200, 200,
-  // 200));
+  // // cmd_buff.stroke_rect(btn_bounds, 0f32, 2f32, RGBAColor::new(200, 200,
+  // // 200));
 
-  // let content_bounds = RectangleF32::shrink(&btn_bounds, 2f32);
-  // cmd_buff.fill_rect(content_bounds, 0f32, RGBAColor::new(64, 64, 64));
+  // // let content_bounds = RectangleF32::shrink(&btn_bounds, 2f32);
+  // // cmd_buff.fill_rect(content_bounds, 0f32, RGBAColor::new(64, 64, 64));
 
-  // cmd_buff.draw_text(
-  //   content_bounds,
-  //   "Demo",
-  //   fonts[0],
-  //   RGBAColor::new(20, 20, 20),
-  //   RGBAColor::new(255, 0, 0),
-  // );
+  // // cmd_buff.draw_text(
+  // //   content_bounds,
+  // //   "Demo",
+  // //   fonts[0],
+  // //   RGBAColor::new(20, 20, 20),
+  // //   RGBAColor::new(255, 0, 0),
+  // // );
 
-  use crate::hmi::commands::*;
-  let mut cmd_buff: Vec<Command> = vec![];
-  // cmd_buff.push(Command::RectFilled(CmdRectFilled {
-  //   rounding: 0,
-  //   x:        50,
-  //   y:        50,
-  //   w:        230,
-  //   h:        41,
-  //   color:    RGBAColor {
+  // use crate::hmi::commands::*;
+  // let mut cmd_buff: Vec<Command> = vec![];
+  // // cmd_buff.push(Command::RectFilled(CmdRectFilled {
+  // //   rounding: 0,
+  // //   x:        50,
+  // //   y:        50,
+  // //   w:        230,
+  // //   h:        41,
+  // //   color:    RGBAColor {
+  // //     r: 40,
+  // //     g: 40,
+  // //     b: 40,
+  // //     a: 255,
+  // //   },
+  // // }));
+
+  // cmd_buff.push(Command::Text(CmdText {
+  //   font:       fonts[0],
+  //   background: RGBAColor {
   //     r: 40,
   //     g: 40,
   //     b: 40,
   //     a: 255,
   //   },
+  //   foreground: RGBAColor {
+  //     r: 175,
+  //     g: 175,
+  //     b: 175,
+  //     a: 255,
+  //   },
+  //   x:          58,
+  //   y:          58,
+  //   w:          86,
+  //   h:          16,
+  //   height:     24.0,
+  //   text:       String::from("Demo"),
   // }));
 
-  cmd_buff.push(Command::Text(CmdText {
-    font:       fonts[0],
-    background: RGBAColor {
-      r: 40,
-      g: 40,
-      b: 40,
-      a: 255,
-    },
-    foreground: RGBAColor {
-      r: 175,
-      g: 175,
-      b: 175,
-      a: 255,
-    },
-    x:          58,
-    y:          58,
-    w:          86,
-    h:          16,
-    height:     24.0,
-    text:       String::from("Demo"),
-  }));
-
-  cmd_buff.push(Command::RectFilled(CmdRectFilled {
-    rounding: 0,
-    x:        50,
-    y:        90,
-    w:        230,
-    h:        210,
-    color:    RGBAColor {
-      r: 45,
-      g: 45,
-      b: 45,
-      a: 255,
-    },
-  }));
-
-  //   cmd_buff.push(Command::Rect(CmdRect {
+  // cmd_buff.push(Command::RectFilled(CmdRectFilled {
   //   rounding: 0,
-  //   line_thickness: 1,
   //   x:        50,
   //   y:        90,
   //   w:        230,
@@ -439,39 +424,53 @@ fn main() {
   //   },
   // }));
 
-  // cmd_buff.push(Command::Scissor(CmdScissor {
-  //   x: -8192,
-  //   y: -8192,
-  //   w: 16834,
-  //   h: 16834,
-  // }));
-  // cmd_buff.push(Command::Scissor(CmdScissor {
-  //   x: -8192,
-  //   y: -8192,
-  //   w: 16834,
-  //   h: 16834,
-  // }));
+  // //   cmd_buff.push(Command::Rect(CmdRect {
+  // //   rounding: 0,
+  // //   line_thickness: 1,
+  // //   x:        50,
+  // //   y:        90,
+  // //   w:        230,
+  // //   h:        210,
+  // //   color:    RGBAColor {
+  // //     r: 45,
+  // //     g: 45,
+  // //     b: 45,
+  // //     a: 255,
+  // //   },
+  // // }));
 
-  use crate::hmi::vertex_output::DrawList;
-  let mut draw_list =
-    DrawList::new(convert_cfg, AntialiasingType::Off, AntialiasingType::Off);
+  // // cmd_buff.push(Command::Scissor(CmdScissor {
+  // //   x: -8192,
+  // //   y: -8192,
+  // //   w: 16834,
+  // //   h: 16834,
+  // // }));
+  // // cmd_buff.push(Command::Scissor(CmdScissor {
+  // //   x: -8192,
+  // //   y: -8192,
+  // //   w: 16834,
+  // //   h: 16834,
+  // // }));
 
-  draw_list.convert_commands_range(
-    &cmd_buff,
-    &mut buff_vertices,
-    &mut buff_indices,
-    &mut buff_draw_commands,
-  );
+  // use crate::hmi::vertex_output::DrawList;
+  // let mut draw_list =
+  //   DrawList::new(convert_cfg, AntialiasingType::Off, AntialiasingType::Off);
+
+  // draw_list.convert_commands_range(
+  //   &cmd_buff,
+  //   &mut buff_vertices,
+  //   &mut buff_indices,
+  //   &mut buff_draw_commands,
+  // );
 
   while !window.should_close() {
     glfw.poll_events();
     // pass input to UI
-    // ui_ctx.input_mut().begin();
+    ui_ctx.input_mut().begin();
 
     for (_, event) in glfw::flush_messages(&events) {
       match event {
         glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
-          println!("ESC pressed -> quitting ...");
           window.set_should_close(true)
         }
 
@@ -479,26 +478,31 @@ fn main() {
       }
     }
 
-    // ui_ctx.input_mut().end();
+    ui_ctx.input_mut().end();
 
-    // UI here
-    // ui_ctx.begin(
-    //   "Demo",
-    //   RectangleF32::new(50f32, 50f32, 230f32, 250f32),
-    //   PanelFlags::WindowTitle.into(),
-    // );
+    // do the UI here
+    ui_ctx.begin(
+      "Demo",
+      RectangleF32::new(50f32, 50f32, 230f32, 250f32),
+      PanelFlags::WindowBorder
+        | PanelFlags::WindowMovable
+        | PanelFlags::WindowScalable
+        | PanelFlags::WindowClosable
+        | PanelFlags::WindowMinimizable
+        | PanelFlags::WindowTitle,
+    );
 
-    // ui_ctx.end();
+    ui_ctx.end();
 
-    // buff_draw_commands.clear();
-    // buff_indices.clear();
-    // buff_vertices.clear();
+    buff_draw_commands.clear();
+    buff_indices.clear();
+    buff_vertices.clear();
 
-    // ui_ctx.convert(
-    //   &mut buff_draw_commands,
-    //   &mut buff_vertices,
-    //   &mut buff_indices,
-    // );
+    ui_ctx.convert(
+      &mut buff_draw_commands,
+      &mut buff_vertices,
+      &mut buff_indices,
+    );
 
     unsafe {
       // upload data to GPU
@@ -554,11 +558,10 @@ fn main() {
         world_view_prof_mtx.as_ptr() as *const _,
       );
 
-      let mut offset = 0;
+      let mut indices_offset: *const DrawIndexType = std::ptr::null();
       let _gl_state_save_restore = OpenGLStateSaveSetRestore::new();
 
       buff_draw_commands.iter().for_each(|cmd| {
-        // dbg!(cmd);
         if cmd.element_count == 0 {
           return;
         }
@@ -584,12 +587,12 @@ fn main() {
           gl::TRIANGLES,
           cmd.element_count as GLsizei,
           gl::UNSIGNED_SHORT,
-          offset as *const GLvoid,
+          indices_offset as *const GLvoid,
         );
-        offset += cmd.element_count;
+        indices_offset = indices_offset.offset(cmd.element_count as isize);
       });
 
-      // ui_ctx.clear();
+      ui_ctx.clear();
     }
 
     window.swap_buffers();

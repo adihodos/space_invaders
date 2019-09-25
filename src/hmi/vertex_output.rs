@@ -9,7 +9,7 @@ use crate::hmi::{
   base::{AntialiasingType, Consts, ConvertConfig, GenericHandle},
   commands::Command,
   image::Image,
-  text_engine::{Font, UserFontGlyph},
+  text_engine::Font,
 };
 
 pub type DrawIndexType = u16;
@@ -90,7 +90,7 @@ impl DrawList {
           last_cmd.clip_rect = rect;
         }
         last_cmd.texture
-      }, // use texture from the last command)
+      }, // use texture from the last command
     );
 
     self.push_command(outbuff, rect, texture);
@@ -180,10 +180,6 @@ impl DrawList {
 
       let (dx, dy) = (normalize(p2 - p1) * thickness * 0.5_f32).into();
 
-      // let diff = normalize(p2 - p1);
-      // let dx = diff.x * (thickness * 0.5_f32);
-      // let dy = diff.y * (thickness * 0.5_f32);
-
       let idx = outbuff.vertex_buff.len();
 
       [
@@ -201,7 +197,6 @@ impl DrawList {
         outbuff.index_buff.push((idx + offset) as DrawIndexType);
       });
 
-      // update element count of the last command
       outbuff
         .cmds_buff
         .last_mut()
@@ -536,8 +531,6 @@ impl DrawList {
         .push(idx as DrawIndexType + offset as DrawIndexType)
     });
 
-    // let element_count = outbuff.index_buff.len() as u32;
-
     outbuff
       .cmds_buff
       .last_mut()
@@ -670,8 +663,6 @@ impl DrawList {
         .push(offset as DrawIndexType + idx as u16)
     });
 
-    // let element_count = outbuff.index_buff.len() as u32;
-
     outbuff
       .cmds_buff
       .last_mut()
@@ -762,7 +753,6 @@ impl DrawList {
     outbuff: &'a mut BufferOutput,
     cmd: &Command,
   ) {
-    println!("{:?}", *cmd);
     match *cmd {
       Command::Scissor(ref s) => {
         self.add_clip(
@@ -964,7 +954,7 @@ impl DrawList {
       }
 
       _ => {
-        println!("Unhandled command");
+        panic!("Unhandled command");
       }
     }
   }
