@@ -280,7 +280,9 @@ impl UiContext {
     elements: &'a mut Vec<DrawIndexType>,
   ) {
     let commands = self.build();
-    self.draw_list.convert(&commands, vertices, elements, cmds);
+    self
+      .draw_list
+      .convert_commands_ptr_range(&commands, vertices, elements, cmds);
   }
 
   fn alloc_win_handle(&mut self) -> usize {
@@ -1264,6 +1266,7 @@ impl UiContext {
         };
 
         use crate::hmi::text::{widget_text, Text};
+
         widget_text(
           &mut win.buffer_mut(),
           label,
@@ -1353,6 +1356,7 @@ impl UiContext {
             h: panel_padding.y,
             ..*win.bounds.borrow()
           };
+
           win.buffer_mut().fill_rect(
             empty_space,
             0f32,

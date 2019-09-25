@@ -25,7 +25,7 @@ use crate::{
       TTFDataSource,
     },
     ui_context::UiContext,
-    vertex_output::{DrawCommand, DrawIndexType, DrawList},
+    vertex_output::{DrawCommand, DrawIndexType},
   },
   render_gl::OpenGLStateSaveSetRestore,
   sys::memory_mapped_file::MemoryMappedFile,
@@ -235,7 +235,7 @@ fn main() {
   let font_atlas = FontAtlasBuilder::new(96)
     .ok_or("Failed to create font atlas")
     .and_then(|mut atlas_builder| {
-      let cfg = FontConfigBuilder::new().size(14f32).build();
+      let cfg = FontConfigBuilder::new().size(24f32).build();
 
       let _f01 = atlas_builder
         .add_font(
@@ -348,10 +348,46 @@ fn main() {
     vao
   };
 
+  // use crate::hmi::commands::CommandBuffer;
+  // let mut cmd_buff = CommandBuffer::new(None, 64);
+
+  // let btn_bounds = RectangleF32 {
+  //   x: 20f32,
+  //   y: 20f32,
+  //   w: 255f32,
+  //   h: 64f32,
+  // };
+
+  // cmd_buff.stroke_rect(btn_bounds, 0f32, 2f32, RGBAColor::new(200, 200,
+  // 200));
+
+  // let content_bounds = RectangleF32::shrink(&btn_bounds, 2f32);
+  // cmd_buff.fill_rect(content_bounds, 0f32, RGBAColor::new(64, 64, 64));
+
+  // cmd_buff.draw_text(
+  //   content_bounds,
+  //   "Demo",
+  //   fonts[0],
+  //   RGBAColor::new(20, 20, 20),
+  //   RGBAColor::new(255, 0, 0),
+  // );
+
+  // use crate::hmi::vertex_output::DrawList;
+  // let mut draw_list =
+  //   DrawList::new(convert_cfg, AntialiasingType::Off, AntialiasingType::Off);
+
+  // draw_list.convert_commands_range(
+  //   cmd_buff.commands(),
+  //   &mut buff_vertices,
+  //   &mut buff_indices,
+  //   &mut buff_draw_commands,
+  // );
+
   while !window.should_close() {
     glfw.poll_events();
     // pass input to UI
     ui_ctx.input_mut().begin();
+
     for (_, event) in glfw::flush_messages(&events) {
       match event {
         glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
@@ -362,6 +398,7 @@ fn main() {
         _ => {}
       }
     }
+
     ui_ctx.input_mut().end();
 
     // UI here
@@ -371,7 +408,8 @@ fn main() {
       PanelFlags::WindowBorder
         | PanelFlags::WindowMovable
         | PanelFlags::WindowScalable
-        | PanelFlags::WindowMinimizable, // | PanelFlags::WindowClosable, // ,
+        | PanelFlags::WindowTitle, /* | PanelFlags::WindowMinimizable
+                                    * | PanelFlags::WindowClosable, */
     );
 
     ui_ctx.end();

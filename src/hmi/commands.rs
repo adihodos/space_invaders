@@ -214,6 +214,10 @@ impl CommandBuffer {
     }
   }
 
+  pub fn commands(&self) -> &[Command] {
+    self.base.as_slice()
+  }
+
   pub fn clear(&mut self) {
     self.base.clear();
     self.clip = None;

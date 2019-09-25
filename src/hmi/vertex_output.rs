@@ -44,10 +44,6 @@ pub struct DrawList {
 }
 
 impl DrawList {
-  // fn null_rect() -> RectangleF32 {
-  //   RectangleF32::new(-8192_f32, -8192_f32, 16834_f32, 16834_f32)
-  // }
-
   pub fn new(
     config: ConvertConfig,
     line_aa: AntialiasingType,
@@ -88,6 +84,7 @@ impl DrawList {
 
   fn add_clip(&mut self, outbuff: &mut BufferOutput, rect: RectangleF32) {
     let null_texture = self.config.null.texture;
+
     outbuff
       .cmds_buff
       .last_mut()
@@ -762,13 +759,240 @@ impl DrawList {
         RGBAColor::from(fg),
       );
 
-      println!("{} - {:?}", codepoint, glyph_info);
-
       x += glyph_info.xadvance;
     });
   }
 
-  pub fn convert<'a>(
+  fn convert_command<'a>(
+    &mut self,
+    outbuff: &'a mut BufferOutput,
+    cmd: &Command,
+  ) {
+    match *cmd {
+      Command::Scissor(ref s) => {
+        self.add_clip(
+          outbuff,
+          RectangleF32::new(
+            s.x as f32,
+            s.y as f32,
+            s.x as f32 + s.w as f32,
+            s.y as f32 + s.h as f32,
+          ),
+        );
+      }
+
+      Command::Line(ref l) => {
+        self.stroke_line(
+          outbuff,
+          Vec2F32::new(l.begin.x as f32, l.begin.y as f32),
+          Vec2F32::new(l.end.x as f32, l.end.y as f32),
+          l.color,
+          l.line_thickness as f32,
+        );
+      }
+
+      Command::Curve(ref c) => {
+        self.stroke_curve(
+          outbuff,
+          Vec2F32::new(c.begin.x as f32, c.begin.y as f32),
+          Vec2F32::new(c.ctrl[0].x as f32, c.ctrl[0].y as f32),
+          Vec2F32::new(c.ctrl[1].x as f32, c.ctrl[1].y as f32),
+          Vec2F32::new(c.end.x as f32, c.end.y as f32),
+          c.color,
+          self.config.curve_segment_count,
+          c.line_thickness as f32,
+        );
+      }
+
+      Command::Rect(ref r) => {
+        self.stroke_rect(
+          outbuff,
+          RectangleF32::new(r.x as f32, r.y as f32, r.w as f32, r.h as f32),
+          r.color,
+          r.rounding as f32,
+          r.line_thickness as f32,
+        );
+      }
+
+      Command::RectFilled(ref r) => {
+        self.fill_rect(
+          outbuff,
+          RectangleF32::new(r.x as f32, r.y as f32, r.w as f32, r.h as f32),
+          r.color,
+          r.rounding as f32,
+        );
+      }
+
+      Command::RectMulticolor(ref r) => {
+        self.fill_rect_multi_color(
+          outbuff,
+          RectangleF32::new(r.x as f32, r.y as f32, r.w as f32, r.h as f32),
+          r.left,
+          r.top,
+          r.right,
+          r.bottom,
+        );
+      }
+
+      Command::Circle(ref c) => {
+        self.stroke_circle(
+          outbuff,
+          Vec2F32::new(
+            c.x as f32 + (c.w / 2) as f32,
+            c.y as f32 + (c.h / 2) as f32,
+          ),
+          (c.w / 2) as f32,
+          c.color,
+          self.config.circle_segment_count,
+          c.line_thickness as f32,
+        );
+      }
+
+      Command::CircleFilled(ref c) => {
+        self.fill_circle(
+          outbuff,
+          Vec2F32::new(
+            c.x as f32 + (c.w / 2) as f32,
+            c.y as f32 + (c.h / 2) as f32,
+          ),
+          (c.w / 2) as f32,
+          c.color,
+          self.config.circle_segment_count,
+        );
+      }
+
+      Command::Arc(ref a) => {
+        self.path_line_to(outbuff, Vec2F32::new(a.cx as f32, a.cy as f32));
+        self.path_arc_to(
+          outbuff,
+          Vec2F32::new(a.cx as f32, a.cy as f32),
+          a.r as f32,
+          a.a[0],
+          a.a[1],
+          self.config.arc_segment_count,
+        );
+        self.path_stroke(
+          outbuff,
+          a.color,
+          DrawListStroke::Closed,
+          a.line_thickness as f32,
+        );
+      }
+
+      Command::ArcFilled(ref a) => {
+        self.path_line_to(outbuff, Vec2F32::new(a.cx as f32, a.cy as f32));
+        self.path_arc_to(
+          outbuff,
+          Vec2F32::new(a.cx as f32, a.cy as f32),
+          a.r as f32,
+          a.a[0],
+          a.a[1],
+          self.config.arc_segment_count,
+        );
+        self.path_fill(outbuff, a.color);
+      }
+
+      Command::Triangle(ref t) => {
+        self.stroke_triangle(
+          outbuff,
+          Vec2F32::new(t.a.x as f32, t.a.y as f32),
+          Vec2F32::new(t.b.x as f32, t.b.y as f32),
+          Vec2F32::new(t.c.x as f32, t.c.y as f32),
+          t.color,
+          t.line_thickness as f32,
+        );
+      }
+
+      Command::TriangleFilled(ref t) => {
+        self.fill_triangle(
+          outbuff,
+          Vec2F32::new(t.a.x as f32, t.a.y as f32),
+          Vec2F32::new(t.b.x as f32, t.b.y as f32),
+          Vec2F32::new(t.c.x as f32, t.c.y as f32),
+          t.color,
+        );
+      }
+
+      Command::Polygon(ref p) => {
+        p.points.iter().for_each(|p| {
+          let pnt = Vec2F32::new(p.x as f32, p.y as f32);
+          self.path_line_to(outbuff, pnt);
+        });
+        self.path_stroke(
+          outbuff,
+          p.color,
+          DrawListStroke::Closed,
+          p.line_thickness as f32,
+        );
+      }
+
+      Command::PolygonFilled(ref p) => {
+        p.points.iter().for_each(|p| {
+          let pnt = Vec2F32::new(p.x as f32, p.y as f32);
+          self.path_line_to(outbuff, pnt);
+        });
+
+        self.path_fill(outbuff, p.color);
+      }
+
+      Command::Polyline(ref p) => {
+        p.points.iter().for_each(|p| {
+          let pnt = Vec2F32::new(p.x as f32, p.y as f32);
+          self.path_line_to(outbuff, pnt);
+        });
+        self.path_stroke(
+          outbuff,
+          p.color,
+          DrawListStroke::Open,
+          p.line_thickness as f32,
+        );
+      }
+
+      Command::Text(ref t) => {
+        self.add_text(
+          outbuff,
+          t.font,
+          RectangleF32::new(t.x as f32, t.y as f32, t.w as f32, t.h as f32),
+          &t.text,
+          t.height,
+          RGBAColorF32::from(t.foreground),
+        );
+      }
+
+      Command::Image(ref i) => {
+        self.add_image(
+          outbuff,
+          i.img,
+          RectangleF32::new(i.x as f32, i.y as f32, i.w as f32, i.h as f32),
+          i.color,
+        );
+      }
+
+      _ => {
+        println!("Unhandled command");
+      }
+    }
+  }
+
+  pub fn convert_commands_range<'a>(
+    &mut self,
+    cmds: &[Command],
+    vertex_buffer: &'a mut Vec<VertexPTC>,
+    index_buffer: &'a mut Vec<DrawIndexType>,
+    draw_commands: &'a mut Vec<DrawCommand>,
+  ) {
+    let mut outbuff = BufferOutput {
+      cmds_buff:   draw_commands,
+      vertex_buff: vertex_buffer,
+      index_buff:  index_buffer,
+    };
+
+    cmds.iter().for_each(|cmd| {
+      self.convert_command(&mut outbuff, cmd);
+    })
+  }
+
+  pub fn convert_commands_ptr_range<'a>(
     &mut self,
     cmds: &[*const Command],
     vertex_buffer: &'a mut Vec<VertexPTC>,
@@ -782,212 +1006,7 @@ impl DrawList {
     };
     cmds.iter().for_each(|input_cmd| {
       let input_cmd = unsafe { &**input_cmd };
-      match input_cmd {
-        Command::Scissor(ref s) => {
-          self.add_clip(
-            &mut outbuff,
-            RectangleF32::new(
-              s.x as f32,
-              s.y as f32,
-              s.x as f32 + s.w as f32,
-              s.y as f32 + s.h as f32,
-            ),
-          );
-        }
-
-        Command::Line(ref l) => {
-          self.stroke_line(
-            &mut outbuff,
-            Vec2F32::new(l.begin.x as f32, l.begin.y as f32),
-            Vec2F32::new(l.end.x as f32, l.end.y as f32),
-            l.color,
-            l.line_thickness as f32,
-          );
-        }
-
-        Command::Curve(ref c) => {
-          self.stroke_curve(
-            &mut outbuff,
-            Vec2F32::new(c.begin.x as f32, c.begin.y as f32),
-            Vec2F32::new(c.ctrl[0].x as f32, c.ctrl[0].y as f32),
-            Vec2F32::new(c.ctrl[1].x as f32, c.ctrl[1].y as f32),
-            Vec2F32::new(c.end.x as f32, c.end.y as f32),
-            c.color,
-            self.config.curve_segment_count,
-            c.line_thickness as f32,
-          );
-        }
-
-        Command::Rect(ref r) => {
-          self.stroke_rect(
-            &mut outbuff,
-            RectangleF32::new(r.x as f32, r.y as f32, r.w as f32, r.h as f32),
-            r.color,
-            r.rounding as f32,
-            r.line_thickness as f32,
-          );
-        }
-
-        Command::RectFilled(ref r) => {
-          self.fill_rect(
-            &mut outbuff,
-            RectangleF32::new(r.x as f32, r.y as f32, r.w as f32, r.h as f32),
-            r.color,
-            r.rounding as f32,
-          );
-        }
-
-        Command::RectMulticolor(ref r) => {
-          self.fill_rect_multi_color(
-            &mut outbuff,
-            RectangleF32::new(r.x as f32, r.y as f32, r.w as f32, r.h as f32),
-            r.left,
-            r.top,
-            r.right,
-            r.bottom,
-          );
-        }
-
-        Command::Circle(ref c) => {
-          self.stroke_circle(
-            &mut outbuff,
-            Vec2F32::new(
-              c.x as f32 + (c.w / 2) as f32,
-              c.y as f32 + (c.h / 2) as f32,
-            ),
-            (c.w / 2) as f32,
-            c.color,
-            self.config.circle_segment_count,
-            c.line_thickness as f32,
-          );
-        }
-
-        Command::CircleFilled(ref c) => {
-          self.fill_circle(
-            &mut outbuff,
-            Vec2F32::new(
-              c.x as f32 + (c.w / 2) as f32,
-              c.y as f32 + (c.h / 2) as f32,
-            ),
-            (c.w / 2) as f32,
-            c.color,
-            self.config.circle_segment_count,
-          );
-        }
-
-        Command::Arc(ref a) => {
-          self
-            .path_line_to(&mut outbuff, Vec2F32::new(a.cx as f32, a.cy as f32));
-          self.path_arc_to(
-            &mut outbuff,
-            Vec2F32::new(a.cx as f32, a.cy as f32),
-            a.r as f32,
-            a.a[0],
-            a.a[1],
-            self.config.arc_segment_count,
-          );
-          self.path_stroke(
-            &mut outbuff,
-            a.color,
-            DrawListStroke::Closed,
-            a.line_thickness as f32,
-          );
-        }
-
-        Command::ArcFilled(ref a) => {
-          self
-            .path_line_to(&mut outbuff, Vec2F32::new(a.cx as f32, a.cy as f32));
-          self.path_arc_to(
-            &mut outbuff,
-            Vec2F32::new(a.cx as f32, a.cy as f32),
-            a.r as f32,
-            a.a[0],
-            a.a[1],
-            self.config.arc_segment_count,
-          );
-          self.path_fill(&mut outbuff, a.color);
-        }
-
-        Command::Triangle(ref t) => {
-          self.stroke_triangle(
-            &mut outbuff,
-            Vec2F32::new(t.a.x as f32, t.a.y as f32),
-            Vec2F32::new(t.b.x as f32, t.b.y as f32),
-            Vec2F32::new(t.c.x as f32, t.c.y as f32),
-            t.color,
-            t.line_thickness as f32,
-          );
-        }
-
-        Command::TriangleFilled(ref t) => {
-          self.fill_triangle(
-            &mut outbuff,
-            Vec2F32::new(t.a.x as f32, t.a.y as f32),
-            Vec2F32::new(t.b.x as f32, t.b.y as f32),
-            Vec2F32::new(t.c.x as f32, t.c.y as f32),
-            t.color,
-          );
-        }
-
-        Command::Polygon(ref p) => {
-          p.points.iter().for_each(|p| {
-            let pnt = Vec2F32::new(p.x as f32, p.y as f32);
-            self.path_line_to(&mut outbuff, pnt);
-          });
-          self.path_stroke(
-            &mut outbuff,
-            p.color,
-            DrawListStroke::Closed,
-            p.line_thickness as f32,
-          );
-        }
-
-        Command::PolygonFilled(ref p) => {
-          p.points.iter().for_each(|p| {
-            let pnt = Vec2F32::new(p.x as f32, p.y as f32);
-            self.path_line_to(&mut outbuff, pnt);
-          });
-
-          self.path_fill(&mut outbuff, p.color);
-        }
-
-        Command::Polyline(ref p) => {
-          p.points.iter().for_each(|p| {
-            let pnt = Vec2F32::new(p.x as f32, p.y as f32);
-            self.path_line_to(&mut outbuff, pnt);
-          });
-          self.path_stroke(
-            &mut outbuff,
-            p.color,
-            DrawListStroke::Open,
-            p.line_thickness as f32,
-          );
-        }
-
-        Command::Text(ref t) => {
-          self.add_text(
-            &mut outbuff,
-            t.font,
-            RectangleF32::new(t.x as f32, t.y as f32, t.w as f32, t.h as f32),
-            &t.text,
-            t.height,
-            RGBAColorF32::from(t.foreground),
-          );
-        }
-
-        Command::Image(ref i) => {
-          self.add_image(
-            &mut outbuff,
-            i.img,
-            RectangleF32::new(i.x as f32, i.y as f32, i.w as f32, i.h as f32),
-            i.color,
-          );
-        }
-
-        _ => {
-          println!("Unhandled command");
-        }
-      }
+      self.convert_command(&mut outbuff, input_cmd);
     });
   }
 }
