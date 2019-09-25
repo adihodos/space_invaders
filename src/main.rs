@@ -289,13 +289,6 @@ fn main() {
     })
     .expect("Failed to initialize font engine!");
 
-  let mut ui_ctx = UiContext::new(
-    fonts[0],
-    convert_cfg,
-    AntialiasingType::Off,
-    AntialiasingType::Off,
-  );
-
   let nk_vbuff = unsafe {
     let mut buffid: gl::types::GLuint = 0;
     gl::CreateBuffers(1, &mut buffid as *mut _);
@@ -348,6 +341,13 @@ fn main() {
     vao
   };
 
+  // let mut ui_ctx = UiContext::new(
+  //   fonts[0],
+  //   convert_cfg,
+  //   AntialiasingType::Off,
+  //   AntialiasingType::Off,
+  // );
+
   // use crate::hmi::commands::CommandBuffer;
   // let mut cmd_buff = CommandBuffer::new(None, 64);
 
@@ -372,21 +372,101 @@ fn main() {
   //   RGBAColor::new(255, 0, 0),
   // );
 
-  // use crate::hmi::vertex_output::DrawList;
-  // let mut draw_list =
-  //   DrawList::new(convert_cfg, AntialiasingType::Off, AntialiasingType::Off);
+  use crate::hmi::commands::*;
+  let mut cmd_buff: Vec<Command> = vec![];
+  // cmd_buff.push(Command::RectFilled(CmdRectFilled {
+  //   rounding: 0,
+  //   x:        50,
+  //   y:        50,
+  //   w:        230,
+  //   h:        41,
+  //   color:    RGBAColor {
+  //     r: 40,
+  //     g: 40,
+  //     b: 40,
+  //     a: 255,
+  //   },
+  // }));
 
-  // draw_list.convert_commands_range(
-  //   cmd_buff.commands(),
-  //   &mut buff_vertices,
-  //   &mut buff_indices,
-  //   &mut buff_draw_commands,
-  // );
+  cmd_buff.push(Command::Text(CmdText {
+    font:       fonts[0],
+    background: RGBAColor {
+      r: 40,
+      g: 40,
+      b: 40,
+      a: 255,
+    },
+    foreground: RGBAColor {
+      r: 175,
+      g: 175,
+      b: 175,
+      a: 255,
+    },
+    x:          58,
+    y:          58,
+    w:          86,
+    h:          16,
+    height:     24.0,
+    text:       String::from("Demo"),
+  }));
+
+  cmd_buff.push(Command::RectFilled(CmdRectFilled {
+    rounding: 0,
+    x:        50,
+    y:        90,
+    w:        230,
+    h:        210,
+    color:    RGBAColor {
+      r: 45,
+      g: 45,
+      b: 45,
+      a: 255,
+    },
+  }));
+
+  //   cmd_buff.push(Command::Rect(CmdRect {
+  //   rounding: 0,
+  //   line_thickness: 1,
+  //   x:        50,
+  //   y:        90,
+  //   w:        230,
+  //   h:        210,
+  //   color:    RGBAColor {
+  //     r: 45,
+  //     g: 45,
+  //     b: 45,
+  //     a: 255,
+  //   },
+  // }));
+
+  // cmd_buff.push(Command::Scissor(CmdScissor {
+  //   x: -8192,
+  //   y: -8192,
+  //   w: 16834,
+  //   h: 16834,
+  // }));
+  // cmd_buff.push(Command::Scissor(CmdScissor {
+  //   x: -8192,
+  //   y: -8192,
+  //   w: 16834,
+  //   h: 16834,
+  // }));
+
+  use crate::hmi::vertex_output::DrawList;
+  let mut draw_list =
+    DrawList::new(convert_cfg, AntialiasingType::Off, AntialiasingType::Off);
+
+  draw_list.convert_commands_range(
+    &cmd_buff,
+    &mut buff_vertices,
+    &mut buff_indices,
+    &mut buff_draw_commands,
+  );
 
   while !window.should_close() {
     glfw.poll_events();
     // pass input to UI
-    ui_ctx.input_mut().begin();
+    // ui_ctx.input_mut().begin();
 
     for (_, event) in glfw::flush_messages(&events) {
       match event {
@@ -399,30 +479,26 @@ fn main() {
       }
     }
 
-    ui_ctx.input_mut().end();
+    // ui_ctx.input_mut().end();
 
     // UI here
-    ui_ctx.begin(
-      "Demo",
-      RectangleF32::new(50f32, 50f32, 230f32, 250f32),
-      PanelFlags::WindowBorder
-        | PanelFlags::WindowMovable
-        | PanelFlags::WindowScalable
-        | PanelFlags::WindowTitle, /* | PanelFlags::WindowMinimizable
-                                    * | PanelFlags::WindowClosable, */
-    );
+    // ui_ctx.begin(
+    //   "Demo",
+    //   RectangleF32::new(50f32, 50f32, 230f32, 250f32),
+    //   PanelFlags::WindowTitle.into(),
+    // );
 
-    ui_ctx.end();
+    // ui_ctx.end();
 
-    buff_draw_commands.clear();
-    buff_indices.clear();
-    buff_vertices.clear();
+    // buff_draw_commands.clear();
+    // buff_indices.clear();
+    // buff_vertices.clear();
 
-    ui_ctx.convert(
-      &mut buff_draw_commands,
-      &mut buff_vertices,
-      &mut buff_indices,
-    );
+    // ui_ctx.convert(
+    //   &mut buff_draw_commands,
+    //   &mut buff_vertices,
+    //   &mut buff_indices,
+    // );
 
     unsafe {
       // upload data to GPU
@@ -513,7 +589,7 @@ fn main() {
         offset += cmd.element_count;
       });
 
-      ui_ctx.clear();
+      // ui_ctx.clear();
     }
 
     window.swap_buffers();

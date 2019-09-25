@@ -83,27 +83,23 @@ impl DrawList {
   }
 
   fn add_clip(&mut self, outbuff: &mut BufferOutput, rect: RectangleF32) {
-    let null_texture = self.config.null.texture;
+    let texture = outbuff.cmds_buff.last_mut().map_or(
+      self.config.null.texture, // no previous commands in the buffer
+      |last_cmd| {
+        if last_cmd.element_count == 0 {
+          last_cmd.clip_rect = rect;
+        }
+        last_cmd.texture
+      }, // use texture from the last command)
+    );
 
-    outbuff
-      .cmds_buff
-      .last_mut()
-      .map_or(
-        Some(null_texture), // no previous commands in the buffer
-        |last_cmd| {
-          if last_cmd.element_count == 0 {
-            last_cmd.clip_rect = rect;
-          }
-          Some(last_cmd.texture)
-        }, // use texture from the last command)
-      )
-      .map(|texture| self.push_command(outbuff, rect, texture));
+    self.push_command(outbuff, rect, texture);
   }
 
   fn push_image(&mut self, outbuff: &mut BufferOutput, texture: GenericHandle) {
-    // if the command buffer is empty push a new command.
     if outbuff.cmds_buff.is_empty() {
       self.push_command(outbuff, Consts::null_rect(), texture);
+      return;
     }
 
     outbuff
@@ -205,13 +201,11 @@ impl DrawList {
         outbuff.index_buff.push((idx + offset) as DrawIndexType);
       });
 
-      let element_count = outbuff.index_buff.len();
-
       // update element count of the last command
       outbuff
         .cmds_buff
         .last_mut()
-        .map(|last_cmd| last_cmd.element_count = element_count as u32);
+        .map(|last_cmd| last_cmd.element_count += 6);
     });
   }
 
@@ -237,18 +231,18 @@ impl DrawList {
         .push(Self::draw_vertex(vertex, null_uv, col));
     });
 
+    let mut element_count = 0;
     (2 .. points.len()).into_iter().for_each(|offset| {
       outbuff.index_buff.push(idx as DrawIndexType);
       outbuff.index_buff.push((idx + offset - 1) as DrawIndexType);
       outbuff.index_buff.push((idx + offset) as DrawIndexType);
+      element_count += 3;
     });
-
-    let element_count = outbuff.index_buff.len();
 
     outbuff
       .cmds_buff
       .last_mut()
-      .map(|last_cmd| last_cmd.element_count = element_count as u32);
+      .map(|last_cmd| last_cmd.element_count += element_count);
   }
 
   fn path_line_to(&mut self, outbuff: &mut BufferOutput, pos: Vec2F32) {
@@ -542,12 +536,12 @@ impl DrawList {
         .push(idx as DrawIndexType + offset as DrawIndexType)
     });
 
-    let element_count = outbuff.index_buff.len() as u32;
+    // let element_count = outbuff.index_buff.len() as u32;
 
     outbuff
       .cmds_buff
       .last_mut()
-      .map(|last_cmd| last_cmd.element_count = element_count);
+      .map(|last_cmd| last_cmd.element_count += 6);
   }
 
   fn stroke_triangle(
@@ -676,12 +670,12 @@ impl DrawList {
         .push(offset as DrawIndexType + idx as u16)
     });
 
-    let element_count = outbuff.index_buff.len() as u32;
+    // let element_count = outbuff.index_buff.len() as u32;
 
     outbuff
       .cmds_buff
       .last_mut()
-      .map(|last_cmd| last_cmd.element_count = element_count);
+      .map(|last_cmd| last_cmd.element_count += 6);
   }
 
   fn add_image(
@@ -768,6 +762,7 @@ impl DrawList {
     outbuff: &'a mut BufferOutput,
     cmd: &Command,
   ) {
+    println!("{:?}", *cmd);
     match *cmd {
       Command::Scissor(ref s) => {
         self.add_clip(
