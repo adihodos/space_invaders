@@ -1267,6 +1267,10 @@ impl UiContext {
 
         use crate::hmi::text::{widget_text, Text};
 
+        // win
+        //   .buffer_mut()
+        //   .fill_rect(label, 0f32, RGBAColor::new(255, 0, 0));
+
         widget_text(
           &mut win.buffer_mut(),
           label,

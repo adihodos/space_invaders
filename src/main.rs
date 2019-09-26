@@ -235,7 +235,7 @@ fn main() {
   let font_atlas = FontAtlasBuilder::new(96)
     .ok_or("Failed to create font atlas")
     .and_then(|mut atlas_builder| {
-      let cfg = FontConfigBuilder::new().size(10f32).build();
+      let cfg = FontConfigBuilder::new().size(48f32).build();
 
       let _f01 = atlas_builder
         .add_font(
@@ -348,8 +348,8 @@ fn main() {
     AntialiasingType::Off,
   );
 
-  // // use crate::hmi::commands::CommandBuffer;
-  // // let mut cmd_buff = CommandBuffer::new(None, 64);
+  // use crate::hmi::commands::CommandBuffer;
+  // let mut cmd_buff = CommandBuffer::new(None, 64);
 
   // // let btn_bounds = RectangleF32 {
   // //   x: 20f32,
@@ -364,13 +364,30 @@ fn main() {
   // // let content_bounds = RectangleF32::shrink(&btn_bounds, 2f32);
   // // cmd_buff.fill_rect(content_bounds, 0f32, RGBAColor::new(64, 64, 64));
 
-  // // cmd_buff.draw_text(
-  // //   content_bounds,
-  // //   "Demo",
-  // //   fonts[0],
-  // //   RGBAColor::new(20, 20, 20),
-  // //   RGBAColor::new(255, 0, 0),
-  // // );
+  // let content_bounds = RectangleF32 {
+  //   x: 58f32,
+  //   y: 58f32,
+  //   w: 304f32,
+  //   h: 104f32,
+  // };
+
+  // cmd_buff.fill_rect(content_bounds, 0f32, RGBAColor::new(0, 255, 0));
+  // cmd_buff.stroke_line(
+  //   58f32,
+  //   117f32,
+  //   304f32,
+  //   117f32,
+  //   1f32,
+  //   RGBAColor::new(0, 0, 255),
+  // );
+
+  // cmd_buff.draw_text(
+  //   content_bounds,
+  //   "Demo",
+  //   fonts[0],
+  //   RGBAColor::new(20, 20, 20),
+  //   RGBAColor::new(255, 0, 0),
+  // );
 
   // use crate::hmi::commands::*;
   // let mut cmd_buff: Vec<Command> = vec![];
@@ -457,7 +474,7 @@ fn main() {
   //   DrawList::new(convert_cfg, AntialiasingType::Off, AntialiasingType::Off);
 
   // draw_list.convert_commands_range(
-  //   &cmd_buff,
+  //   cmd_buff.commands_slice(),
   //   &mut buff_vertices,
   //   &mut buff_indices,
   //   &mut buff_draw_commands,

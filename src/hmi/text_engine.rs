@@ -257,6 +257,23 @@ pub struct FontMetrics {
   pub underline_thickness: f32,
 }
 
+impl std::ops::Mul<f32> for FontMetrics {
+  type Output = Self;
+
+  fn mul(self, k: f32) -> Self::Output {
+    FontMetrics {
+      size:                self.size * k,
+      height:              self.height * k,
+      ascender:            self.ascender * k,
+      descender:           self.descender * k,
+      max_advance_width:   self.max_advance_width * k,
+      max_advance_height:  self.max_advance_height * k,
+      underline_pos:       self.underline_pos * k,
+      underline_thickness: self.underline_thickness * k,
+    }
+  }
+}
+
 impl FontMetrics {
   /// Extracts face metrics from a Freetype FT_Face handle.
   fn extract(face: FT_Face, font_size: f32, dpi: u32) -> FontMetrics {
@@ -296,6 +313,21 @@ impl FontMetrics {
       underline_thickness: unsafe {
         (*face).underline_thickness as i32 * pixel_size / units_per_em
       } as f32,
+    }
+  }
+}
+
+impl std::default::Default for FontMetrics {
+  fn default() -> FontMetrics {
+    FontMetrics {
+      size:                0f32,
+      height:              0f32,
+      ascender:            0f32,
+      descender:           0f32,
+      max_advance_width:   0f32,
+      max_advance_height:  0f32,
+      underline_pos:       0f32,
+      underline_thickness: 0f32,
     }
   }
 }
@@ -363,6 +395,12 @@ impl Font {
       atlas.clamped_string(self, text, max_width)
     })
   }
+
+  pub fn query_metrics(&self, height: f32) -> FontMetrics {
+    self.atlas_ref().map_or(FontMetrics::default(), |atlas| {
+      atlas.query_font_metrics(self, height)
+    })
+  }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -387,6 +425,25 @@ impl std::default::Default for UserFontGlyph {
       height:   0f32,
       xadvance: 0f32,
     }
+  }
+}
+
+impl std::fmt::Display for UserFontGlyph {
+  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    write!(
+      f,
+      "UserFontGlyph {{\n uv[0] : ({}, {}), uv[1] : ({}, {})\n offset: (x: \
+       {}, y: {})\n width: {}, height: {}\n xadvance: {}\n }}",
+      self.uv[0].x,
+      self.uv[0].y,
+      self.uv[1].x,
+      self.uv[1].y,
+      self.offset.x,
+      self.offset.y,
+      self.width,
+      self.height,
+      self.xadvance
+    )
   }
 }
 
@@ -746,13 +803,12 @@ impl FontAtlasBuilder {
 
     baked_glyphs.iter().for_each(|baked_glyph| {
       let font_glyphs_table = &mut self.glyphs[baked_glyph.font as usize];
-      let font_metrics = &self.faces[baked_glyph.font as usize];
 
       let new_glyph = FontGlyph {
         codepoint:       baked_glyph.codepoint,
         xadvance:        baked_glyph.advance_x,
         bearing_x:       baked_glyph.bearing_x,
-        bearing_y:       font_metrics.ascender - baked_glyph.bearing_y,
+        bearing_y:       baked_glyph.bearing_y,
         bbox:            RectangleI32::new(
           0,
           0,
@@ -985,6 +1041,10 @@ impl FontAtlas {
     glyph_table
       .get(&(codepoint as u32))
       .map_or(FontGlyph::default(), |glyph_entry| *glyph_entry)
+  }
+
+  fn query_font_metrics(&self, font: &Font, height: f32) -> FontMetrics {
+    self.faces[font.face_tbl as usize] * (height / font.scale)
   }
 
   pub fn clamp_text(

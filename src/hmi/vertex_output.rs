@@ -723,15 +723,18 @@ impl DrawList {
       return;
     }
 
+    // self.fill_rect(outbuff, rect, RGBAColor::new(0, 255, 0), 0f32);
+
     self.push_image(outbuff, font.texture());
-    let mut x = rect.x;
-    // process each codepoint end emit draw info
-    text.chars().for_each(|codepoint| {
-      // query glyph info for this codepoint
-      let glyph_info = font.query_glyph(font_height, codepoint);
+
+    let metrics = font.query_metrics(font_height);
+    let baseline = rect.y + metrics.ascender;
+
+    text.chars().fold(rect.x, |pen_x, codepoint| {
       // compute quad for the codepoint's glyph
-      let gx = x + glyph_info.offset.x;
-      let gy = rect.y + glyph_info.offset.y;
+      let glyph_info = font.query_glyph(font_height, codepoint);
+      let gx = pen_x + glyph_info.offset.x;
+      let gy = baseline - glyph_info.offset.y;
       let gw = glyph_info.width;
       let gh = glyph_info.height;
 
@@ -744,7 +747,7 @@ impl DrawList {
         RGBAColor::from(fg),
       );
 
-      x += glyph_info.xadvance;
+      pen_x + glyph_info.xadvance
     });
   }
 

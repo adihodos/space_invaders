@@ -214,6 +214,11 @@ impl CommandBuffer {
     }
   }
 
+  pub fn commands_slice(&self) -> &[Command] {
+    debug_assert!(!self.is_empty(), "Command buffer is empty!");
+    self.base.as_slice()
+  }
+
   pub fn commands(&self) -> &[Command] {
     self.base.as_slice()
   }
