@@ -25,15 +25,6 @@ pub struct Span {
 }
 
 impl Span {
-  fn new(x: i32, y: i32, width: i32, coverage: i32) -> Span {
-    Span {
-      x,
-      y,
-      width,
-      coverage,
-    }
-  }
-
   extern "C" fn raster_callback(
     y: i32,
     count: i32,
@@ -46,12 +37,12 @@ impl Span {
       let span_coll = user as *mut Vec<Span>;
       spans.iter().for_each(|s| {
         let s = *s;
-        (*span_coll).push(Span::new(
-          s.x as i32,
-          y,
-          s.len as i32,
-          s.coverage as i32,
-        ));
+        (*span_coll).push(Span {
+          x:        s.x as i32,
+          y:        y,
+          width:    s.len as i32,
+          coverage: s.coverage as i32,
+        });
       });
     }
   }
@@ -80,15 +71,33 @@ impl Span {
   }
 
   fn bounding_box(spans: &[Span]) -> RectangleI32 {
-    assert!(spans.len() != 0);
+    if spans.is_empty() {
+      RectangleI32 {
+        x: 0,
+        y: 0,
+        w: 0,
+        h: 0,
+      }
+    } else {
+      spans.iter().skip(1).fold(
+        RectangleI32 {
+          x: spans[0].x,
+          y: spans[0].y,
+          w: spans[0].width,
+          h: 1,
+        },
+        |prev_box, span| {
+          let span_box = RectangleI32 {
+            x: span.x,
+            y: span.y,
+            w: span.width,
+            h: 1,
+          };
 
-    let start_bbox =
-      RectangleI32::new(spans[0].x, spans[0].y, spans[0].width, 1);
-
-    spans.iter().fold(start_bbox, |current_bbox, span| {
-      let span_bbox = RectangleI32::new(span.x, span.y, span.width, 1);
-      RectangleI32::union(&current_bbox, &span_bbox)
-    })
+          RectangleI32::union(&span_box, &prev_box)
+        },
+      )
+    }
   }
 
   fn convert_to_pixels(spans: &[Span]) -> (RectangleI32, Vec<RGBAColor>) {
@@ -103,14 +112,14 @@ impl Span {
     ];
 
     spans.iter().for_each(|span| {
-      for x in 0 .. span.width {
+      (0 .. span.width).for_each(|x| {
         let dst_idx = ((img_height - 1 - (span.y - glyph_bbox.y)) * img_width
           + span.x
           - glyph_bbox.x
           + x) as usize;
         glyph_pixels[dst_idx] =
           RGBAColor::new_with_alpha(255, 255, 255, span.coverage as u8);
-      }
+      });
     });
 
     (glyph_bbox, glyph_pixels)
@@ -119,7 +128,12 @@ impl Span {
 
 impl ::std::default::Default for Span {
   fn default() -> Span {
-    Span::new(0, 0, 0, 0)
+    Span {
+      x:        0,
+      y:        0,
+      width:    0,
+      coverage: 0,
+    }
   }
 }
 
@@ -289,6 +303,8 @@ impl FontMetrics {
 
     let pixel_size = font_size as i32 * dpi as i32 / 72;
     let units_per_em = unsafe { (*face).units_per_EM as i32 };
+
+    let scale = dbg!(unsafe { font_size / (*face).height as f32 });
 
     FontMetrics {
       size:                font_size,
@@ -827,6 +843,14 @@ impl FontAtlasBuilder {
 
       font_glyphs_table.insert(baked_glyph.codepoint, new_glyph);
     });
+
+    // std::fs::File::create("font_stats.txt").map(|mut outfile| {
+    //   use std::io::Write;
+    //   let tbl = &self.glyphs[0];
+    //   for (codept, glyph) in tbl.iter() {
+    //     write!(outfile, "{} -> {:?}\n", *codept as u8 as char, *glyph);
+    //   }
+    // });
 
     // copy glyph pixels into the atlas texture
     let mut atlas_pixels = vec![
