@@ -341,15 +341,32 @@ fn main() {
     vao
   };
 
-  let mut ui_ctx = UiContext::new(
-    fonts[0],
-    convert_cfg,
-    AntialiasingType::Off,
-    AntialiasingType::Off,
-  );
+  // let mut ui_ctx = UiContext::new(
+  //   fonts[0],
+  //   convert_cfg,
+  //   AntialiasingType::Off,
+  //   AntialiasingType::Off,
+  // );
 
-  // use crate::hmi::commands::CommandBuffer;
-  // let mut cmd_buff = CommandBuffer::new(None, 64);
+  use crate::hmi::commands::CommandBuffer;
+  let mut cmd_buff = CommandBuffer::new(None, 64);
+
+  use crate::hmi::{button::draw_button, style::Style};
+  let default_style = Style::new(fonts[0]);
+  let button_bounds = RectangleF32 {
+    x: 64f32,
+    y: 120f32,
+    w: 98f32,
+    h: 32f32,
+  };
+
+  use crate::hmi::base::WidgetStates;
+  draw_button(
+    &mut cmd_buff,
+    &button_bounds,
+    WidgetStates::Inactive.into(),
+    &default_style.button,
+  );
 
   // // let btn_bounds = RectangleF32 {
   // //   x: 20f32,
@@ -469,21 +486,21 @@ fn main() {
   // //   h: 16834,
   // // }));
 
-  // use crate::hmi::vertex_output::DrawList;
-  // let mut draw_list =
-  //   DrawList::new(convert_cfg, AntialiasingType::Off, AntialiasingType::Off);
+  use crate::hmi::vertex_output::DrawList;
+  let mut draw_list =
+    DrawList::new(convert_cfg, AntialiasingType::Off, AntialiasingType::Off);
 
-  // draw_list.convert_commands_range(
-  //   cmd_buff.commands_slice(),
-  //   &mut buff_vertices,
-  //   &mut buff_indices,
-  //   &mut buff_draw_commands,
-  // );
+  draw_list.convert_commands_range(
+    cmd_buff.commands_slice(),
+    &mut buff_vertices,
+    &mut buff_indices,
+    &mut buff_draw_commands,
+  );
 
   while !window.should_close() {
     glfw.poll_events();
     // pass input to UI
-    ui_ctx.input_mut().begin();
+    // ui_ctx.input_mut().begin();
 
     for (_, event) in glfw::flush_messages(&events) {
       match event {
@@ -495,31 +512,49 @@ fn main() {
       }
     }
 
-    ui_ctx.input_mut().end();
+    // ui_ctx.input_mut().end();
 
     // do the UI here
-    ui_ctx.begin(
-      "Demo",
-      RectangleF32::new(50f32, 50f32, 230f32, 250f32),
-      PanelFlags::WindowBorder
-        | PanelFlags::WindowMovable
-        | PanelFlags::WindowScalable
-        | PanelFlags::WindowClosable
-        | PanelFlags::WindowMinimizable
-        | PanelFlags::WindowTitle,
-    );
+    // ui_ctx.begin(
+    //   "Demo",
+    //   RectangleF32::new(50f32, 50f32, 230f32, 250f32),
+    //   PanelFlags::WindowBorder
+    //     | PanelFlags::WindowMovable
+    //     | PanelFlags::WindowScalable
+    //     | PanelFlags::WindowClosable
+    //     | PanelFlags::WindowMinimizable
+    //     | PanelFlags::WindowTitle,
+    // );
 
-    ui_ctx.end();
+    // ui_ctx.layout_row_dynamic(32f32, 2);
 
-    buff_draw_commands.clear();
-    buff_indices.clear();
-    buff_vertices.clear();
+    // // use crate::hmi::style::SymbolType;
+    // ui_ctx.button_symbol(SymbolType::TriangleUp);
+    // ui_ctx.button_symbol(SymbolType::CircleSolid);
 
-    ui_ctx.convert(
-      &mut buff_draw_commands,
-      &mut buff_vertices,
-      &mut buff_indices,
-    );
+    // ui_ctx.label_colored(
+    //   "Label #1",
+    //   TextAlign::left(),
+    //   RGBAColor::new(255, 64, 128),
+    // );
+
+    // ui_ctx.label_colored(
+    //   "Label #2",
+    //   TextAlign::left(),
+    //   RGBAColor::new(64, 64, 128),
+    // );
+
+    // ui_ctx.end();
+
+    // buff_draw_commands.clear();
+    // buff_indices.clear();
+    // buff_vertices.clear();
+
+    // ui_ctx.convert(
+    //   &mut buff_draw_commands,
+    //   &mut buff_vertices,
+    //   &mut buff_indices,
+    // );
 
     unsafe {
       // upload data to GPU
@@ -609,7 +644,7 @@ fn main() {
         indices_offset = indices_offset.offset(cmd.element_count as isize);
       });
 
-      ui_ctx.clear();
+      // ui_ctx.clear();
     }
 
     window.swap_buffers();

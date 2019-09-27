@@ -351,10 +351,10 @@ impl DrawList {
       self.path_line_to(outbuff, b);
       self.path_line_to(outbuff, Vec2F32::new(a.x, b.y));
     } else {
-      self.path_arc_to_fast(outbuff, a + Vec2F32::same(r), r, 6, 9);
-      self.path_arc_to_fast(outbuff, b + Vec2F32::new(-r, r), r, 9, 12);
-      self.path_arc_to_fast(outbuff, b - Vec2F32::same(r), r, 0, 3);
-      self.path_arc_to_fast(outbuff, a + Vec2F32::new(r, -r), r, 3, 6);
+      self.path_arc_to_fast(outbuff, Vec2F32::new(a.x + r, a.y + r), r, 6, 9);
+      self.path_arc_to_fast(outbuff, Vec2F32::new(b.x - r, a.y + r), r, 9, 12);
+      self.path_arc_to_fast(outbuff, Vec2F32::new(b.x - r, b.y - r), r, 0, 3);
+      self.path_arc_to_fast(outbuff, Vec2F32::new(a.x + r, b.y - r), r, 3, 6);
     }
   }
 
