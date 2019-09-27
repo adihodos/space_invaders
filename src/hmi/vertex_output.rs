@@ -843,10 +843,10 @@ impl DrawList {
         self.stroke_circle(
           outbuff,
           Vec2F32::new(
-            c.x as f32 + (c.w / 2) as f32,
-            c.y as f32 + (c.h / 2) as f32,
+            c.x as f32 + (c.w as f32 * 0.5f32),
+            c.y as f32 + (c.h as f32 * 0.5f32),
           ),
-          (c.w / 2) as f32,
+          c.w.min(c.h) as f32 * 0.5f32,
           c.color,
           self.config.circle_segment_count,
           c.line_thickness as f32,
@@ -857,10 +857,10 @@ impl DrawList {
         self.fill_circle(
           outbuff,
           Vec2F32::new(
-            c.x as f32 + (c.w / 2) as f32,
-            c.y as f32 + (c.h / 2) as f32,
+            c.x as f32 + (c.w as f32 * 0.5f32),
+            c.y as f32 + (c.h as f32 * 0.5f32),
           ),
-          (c.w / 2) as f32,
+          c.w.min(c.h) as f32 * 0.5f32,
           c.color,
           self.config.circle_segment_count,
         );
