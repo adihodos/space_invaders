@@ -351,6 +351,21 @@ fn main() {
   // use crate::hmi::commands::CommandBuffer;
   // let mut cmd_buff = CommandBuffer::new(None, 64);
 
+  // let r = RectangleF32 {
+  //   x: 20f32,
+  //   y: 20f32,
+  //   w: 200f32,
+  //   h: 100f32,
+  // };
+
+  // cmd_buff.fill_rect(r, 0f32, RGBAColor::new(255, 0, 0));
+  // cmd_buff.fill_rect(
+  //   RectangleF32::shrink(&r, 1f32),
+  //   0f32,
+  //   RGBAColor::new(0, 0, 255),
+  // );
+  // cmd_buff.fill_circle(r, RGBAColor::new(0, 255, 0));
+
   // use crate::hmi::{button::draw_button, style::Style};
   // let default_style = Style::new(fonts[0]);
   // let button_bounds = RectangleF32 {
@@ -520,29 +535,28 @@ fn main() {
       RectangleF32::new(50f32, 50f32, 230f32, 250f32),
       PanelFlags::WindowBorder
         | PanelFlags::WindowMovable
-        | PanelFlags::WindowScalable
-        | PanelFlags::WindowClosable
-        | PanelFlags::WindowMinimizable
-        | PanelFlags::WindowTitle,
+        // | PanelFlags::WindowScalable
+        // | PanelFlags::WindowClosable
+        // | PanelFlags::WindowMinimizable
+        // | PanelFlags::WindowTitle,
     );
 
     ui_ctx.layout_row_dynamic(32f32, 2);
 
-    // use crate::hmi::style::SymbolType;
     ui_ctx.button_symbol(SymbolType::TriangleUp);
-    ui_ctx.button_symbol(SymbolType::CircleSolid);
+    // ui_ctx.button_symbol(SymbolType::CircleSolid);
 
-    ui_ctx.label_colored(
-      "Label #1",
-      TextAlign::left(),
-      RGBAColor::new(255, 64, 128),
-    );
+    // ui_ctx.label_colored(
+    //   "Label #1",
+    //   TextAlign::left(),
+    //   RGBAColor::new(255, 64, 128),
+    // );
 
-    ui_ctx.label_colored(
-      "Label #2",
-      TextAlign::left(),
-      RGBAColor::new(64, 64, 128),
-    );
+    // ui_ctx.label_colored(
+    //   "Label #2",
+    //   TextAlign::left(),
+    //   RGBAColor::new(64, 64, 128),
+    // );
 
     ui_ctx.end();
 

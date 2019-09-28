@@ -36,7 +36,7 @@ pub struct BufferOutput<'a> {
 #[derive(Debug)]
 pub struct DrawList {
   clip_rect:  RectangleF32,
-  circle_vtx: Vec<Vec2F32>,
+  circle_vtx: [Vec2F32; 12],
   config:     ConvertConfig,
   path:       std::cell::RefCell<Vec<Vec2F32>>,
   line_aa:    AntialiasingType,
@@ -49,17 +49,58 @@ impl DrawList {
     line_aa: AntialiasingType,
     shape_aa: AntialiasingType,
   ) -> Self {
-    const GEN_CIRCLE_VERTICES_COUNT: i32 = 12;
-
     DrawList {
       clip_rect: Consts::null_rect(),
-      circle_vtx: (0 .. GEN_CIRCLE_VERTICES_COUNT)
-        .map(|idx| {
-          let a = idx as f32
-            / (GEN_CIRCLE_VERTICES_COUNT as f32 * 2_f32 * std::f32::consts::PI);
-          Vec2F32::new(a.cos(), a.sin())
-        })
-        .collect(),
+      circle_vtx: [
+        Vec2F32 {
+          x: 0.999960005f32,
+          y: 1.91059303e-31f32,
+        },
+        Vec2F32 {
+          x: 0.865989566f32,
+          y: 0.499655396f32,
+        },
+        Vec2F32 {
+          x: 0.500019908f32,
+          y: 0.866467774f32,
+        },
+        Vec2F32 {
+          x: 2.0980835e-05f32,
+          y: 1.00083995f32,
+        },
+        Vec2F32 {
+          x: -0.500038445f32,
+          y: 0.86623776f32,
+        },
+        Vec2F32 {
+          x: -0.866029441f32,
+          y: 0.499733895f32,
+        },
+        Vec2F32 {
+          x: -0.999960244f32,
+          y: 1.91059303e-31f32,
+        },
+        Vec2F32 {
+          x: -0.866030991f32,
+          y: -0.499733239f32,
+        },
+        Vec2F32 {
+          x: -0.500038922f32,
+          y: -0.866237283f32,
+        },
+        Vec2F32 {
+          x: 2.11596489e-05f32,
+          y: -1.00084162f32,
+        },
+        Vec2F32 {
+          x: 0.50001508f32,
+          y: -0.866467535f32,
+        },
+        Vec2F32 {
+          x: 0.86599189f32,
+          y: -0.499652565f32,
+        },
+      ],
       config,
       path: std::cell::RefCell::new(vec![]),
       line_aa,
@@ -328,22 +369,20 @@ impl DrawList {
     b: Vec2F32,
     rounding: f32,
   ) {
-    let r = {
-      let r = rounding;
-      let dist = b - a;
-      let r = if dist.x < 0_f32 {
-        r.min(-dist.x)
-      } else {
-        r.min(dist.x)
-      };
-      let r = if dist.y < 0_f32 {
-        r.min(-dist.y)
-      } else {
-        r.min(dist.y)
-      };
+    let r = rounding;
+    let r = (if (b.x - a.x) < 0f32 {
+      -(b.x - a.x)
+    } else {
+      b.x - a.x
+    })
+    .min(r);
 
-      r
-    };
+    let r = (if (b.y - a.y) < 0f32 {
+      -(b.y - a.y)
+    } else {
+      (b.y - a.y)
+    })
+    .min(r);
 
     if r == 0_f32 {
       self.path_line_to(outbuff, a);
