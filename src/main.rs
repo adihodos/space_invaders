@@ -235,7 +235,7 @@ fn main() {
   let font_atlas = FontAtlasBuilder::new(96)
     .ok_or("Failed to create font atlas")
     .and_then(|mut atlas_builder| {
-      let cfg = FontConfigBuilder::new().size(48f32).build();
+      let cfg = FontConfigBuilder::new().size(12f32).build();
 
       let _f01 = atlas_builder
         .add_font(
@@ -535,10 +535,10 @@ fn main() {
       RectangleF32::new(50f32, 50f32, 230f32, 250f32),
       PanelFlags::WindowBorder
         | PanelFlags::WindowMovable
-        // | PanelFlags::WindowScalable
-        // | PanelFlags::WindowClosable
-        // | PanelFlags::WindowMinimizable
-        // | PanelFlags::WindowTitle,
+        | PanelFlags::WindowScalable
+        | PanelFlags::WindowClosable
+        | PanelFlags::WindowMinimizable
+        | PanelFlags::WindowTitle,
     );
 
     ui_ctx.layout_row_dynamic(32f32, 2);
@@ -546,17 +546,17 @@ fn main() {
     ui_ctx.button_symbol(SymbolType::TriangleUp);
     ui_ctx.button_symbol(SymbolType::CircleSolid);
 
-    // ui_ctx.label_colored(
-    //   "Label #1",
-    //   TextAlign::left(),
-    //   RGBAColor::new(255, 64, 128),
-    // );
+    ui_ctx.label_colored(
+      "Label #1",
+      TextAlign::centered(),
+      RGBAColor::new(255, 64, 128),
+    );
 
-    // ui_ctx.label_colored(
-    //   "Label #2",
-    //   TextAlign::left(),
-    //   RGBAColor::new(64, 64, 128),
-    // );
+    ui_ctx.label_colored(
+      "Label #2",
+      TextAlign::left(),
+      RGBAColor::new(64, 64, 128),
+    );
 
     ui_ctx.end();
 

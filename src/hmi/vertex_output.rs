@@ -762,28 +762,8 @@ impl DrawList {
       return;
     }
 
-    // self.fill_rect(outbuff, rect, RGBAColor::new(0, 255, 0), 0f32);
-
     let metrics = font.query_metrics(font_height);
     let baseline = rect.y + metrics.ascender;
-
-    text.chars().fold(rect.x, |pen_x, codepoint| {
-      // compute quad for the codepoint's glyph
-      let glyph_info = font.query_glyph(font_height, codepoint);
-      let gx = pen_x + glyph_info.offset.x;
-      let gy = baseline - glyph_info.offset.y;
-      let gw = glyph_info.width;
-      let gh = glyph_info.height;
-
-      self.fill_rect(
-        outbuff,
-        RectangleF32::new(gx, gy, gw, gh),
-        RGBAColor::new(0, 0, 255),
-        0f32,
-      );
-
-      pen_x + glyph_info.xadvance
-    });
 
     self.push_image(outbuff, font.texture());
     text.chars().fold(rect.x, |pen_x, codepoint| {

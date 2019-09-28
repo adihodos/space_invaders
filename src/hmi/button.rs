@@ -2,7 +2,7 @@ use crate::{
   hmi::{
     base::{
       triangle_from_direction, ButtonBehaviour, Heading, TextAlign,
-      WidgetLayoutStates, WidgetStates,
+      WidgetStates,
     },
     commands::CommandBuffer,
     image::Image,
@@ -11,9 +11,7 @@ use crate::{
     text::{widget_text, Text},
     text_engine::Font,
   },
-  math::{
-    colors::RGBAColor, rectangle::RectangleF32, utility::clamp, vec2::Vec2F32,
-  },
+  math::{colors::RGBAColor, rectangle::RectangleF32, vec2::Vec2F32},
 };
 use enumflags2::BitFlags;
 
