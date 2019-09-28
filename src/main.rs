@@ -544,7 +544,7 @@ fn main() {
     ui_ctx.layout_row_dynamic(32f32, 2);
 
     ui_ctx.button_symbol(SymbolType::TriangleUp);
-    // ui_ctx.button_symbol(SymbolType::CircleSolid);
+    ui_ctx.button_symbol(SymbolType::CircleSolid);
 
     // ui_ctx.label_colored(
     //   "Label #1",
