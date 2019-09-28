@@ -43,7 +43,7 @@ pub fn widget_text(
     h: f.scale.min(b.h - 2f32 * t.padding.y),
   };
 
-  let text_width = f.text_width(s) + 2f32 * t.padding.x;
+  let text_width = f.query_text_width(f.scale, s) + 2f32 * t.padding.x;
 
   // align in x-axis
   let label = if align.intersects(TextAlign::AlignLeft) {
@@ -54,14 +54,14 @@ pub fn widget_text(
     }
   } else if align.intersects(TextAlign::AlignCentered) {
     let w = 1f32.max(2f32 * t.padding.x + text_width);
-    let x = b.x + t.padding.x + ((b.w - 2f32 * t.padding.x) - label.w) / 2f32;
+    let x = b.x + t.padding.x + ((b.w - 2f32 * t.padding.x) - w) / 2f32;
     let x = x.max(b.x + t.padding.x);
     let w = (x + w).min(b.x + b.w);
     let w = if w >= x { w - x } else { w };
     RectangleF32 { x, w, ..label }
   } else if align.intersects(TextAlign::AlignRight) {
     let x =
-      (b.x + t.padding.x).max(b.x + b.w - 2f32 * t.padding.x + text_width);
+      (b.x + t.padding.x).max(b.x + b.w - (2f32 * t.padding.x + text_width));
     let w = text_width + 2f32 * t.padding.x;
     RectangleF32 { x, w, ..label }
   } else {

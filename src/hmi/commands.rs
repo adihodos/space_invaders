@@ -214,6 +214,15 @@ impl CommandBuffer {
     }
   }
 
+  pub fn commands_slice(&self) -> &[Command] {
+    debug_assert!(!self.is_empty(), "Command buffer is empty!");
+    self.base.as_slice()
+  }
+
+  pub fn commands(&self) -> &[Command] {
+    self.base.as_slice()
+  }
+
   pub fn clear(&mut self) {
     self.base.clear();
     self.clip = None;
@@ -649,7 +658,7 @@ impl CommandBuffer {
       y: r.y as i16,
       w: r.w as u16,
       h: r.h as u16,
-      height: 0f32,
+      height: font.scale,
       text: font.clamped_string(s, r.w),
     };
 

@@ -25,15 +25,6 @@ pub struct Span {
 }
 
 impl Span {
-  fn new(x: i32, y: i32, width: i32, coverage: i32) -> Span {
-    Span {
-      x,
-      y,
-      width,
-      coverage,
-    }
-  }
-
   extern "C" fn raster_callback(
     y: i32,
     count: i32,
@@ -46,12 +37,12 @@ impl Span {
       let span_coll = user as *mut Vec<Span>;
       spans.iter().for_each(|s| {
         let s = *s;
-        (*span_coll).push(Span::new(
-          s.x as i32,
-          y,
-          s.len as i32,
-          s.coverage as i32,
-        ));
+        (*span_coll).push(Span {
+          x:        s.x as i32,
+          y:        y,
+          width:    s.len as i32,
+          coverage: s.coverage as i32,
+        });
       });
     }
   }
@@ -80,15 +71,33 @@ impl Span {
   }
 
   fn bounding_box(spans: &[Span]) -> RectangleI32 {
-    assert!(spans.len() != 0);
+    if spans.is_empty() {
+      RectangleI32 {
+        x: 0,
+        y: 0,
+        w: 0,
+        h: 0,
+      }
+    } else {
+      spans.iter().skip(1).fold(
+        RectangleI32 {
+          x: spans[0].x,
+          y: spans[0].y,
+          w: spans[0].width,
+          h: 1,
+        },
+        |prev_box, span| {
+          let span_box = RectangleI32 {
+            x: span.x,
+            y: span.y,
+            w: span.width,
+            h: 1,
+          };
 
-    let start_bbox =
-      RectangleI32::new(spans[0].x, spans[0].y, spans[0].width, 1);
-
-    spans.iter().fold(start_bbox, |current_bbox, span| {
-      let span_bbox = RectangleI32::new(span.x, span.y, span.width, 1);
-      RectangleI32::union(&current_bbox, &span_bbox)
-    })
+          RectangleI32::union(&span_box, &prev_box)
+        },
+      )
+    }
   }
 
   fn convert_to_pixels(spans: &[Span]) -> (RectangleI32, Vec<RGBAColor>) {
@@ -103,14 +112,14 @@ impl Span {
     ];
 
     spans.iter().for_each(|span| {
-      for x in 0 .. span.width {
+      (0 .. span.width).for_each(|x| {
         let dst_idx = ((img_height - 1 - (span.y - glyph_bbox.y)) * img_width
           + span.x
           - glyph_bbox.x
           + x) as usize;
         glyph_pixels[dst_idx] =
           RGBAColor::new_with_alpha(255, 255, 255, span.coverage as u8);
-      }
+      });
     });
 
     (glyph_bbox, glyph_pixels)
@@ -119,7 +128,12 @@ impl Span {
 
 impl ::std::default::Default for Span {
   fn default() -> Span {
-    Span::new(0, 0, 0, 0)
+    Span {
+      x:        0,
+      y:        0,
+      width:    0,
+      coverage: 0,
+    }
   }
 }
 
@@ -257,6 +271,23 @@ pub struct FontMetrics {
   pub underline_thickness: f32,
 }
 
+impl std::ops::Mul<f32> for FontMetrics {
+  type Output = Self;
+
+  fn mul(self, k: f32) -> Self::Output {
+    FontMetrics {
+      size:                self.size * k,
+      height:              self.height * k,
+      ascender:            self.ascender * k,
+      descender:           self.descender * k,
+      max_advance_width:   self.max_advance_width * k,
+      max_advance_height:  self.max_advance_height * k,
+      underline_pos:       self.underline_pos * k,
+      underline_thickness: self.underline_thickness * k,
+    }
+  }
+}
+
 impl FontMetrics {
   /// Extracts face metrics from a Freetype FT_Face handle.
   fn extract(face: FT_Face, font_size: f32, dpi: u32) -> FontMetrics {
@@ -272,6 +303,8 @@ impl FontMetrics {
 
     let pixel_size = font_size as i32 * dpi as i32 / 72;
     let units_per_em = unsafe { (*face).units_per_EM as i32 };
+
+    let scale = dbg!(unsafe { font_size / (*face).height as f32 });
 
     FontMetrics {
       size:                font_size,
@@ -300,9 +333,24 @@ impl FontMetrics {
   }
 }
 
+impl std::default::Default for FontMetrics {
+  fn default() -> FontMetrics {
+    FontMetrics {
+      size:                0f32,
+      height:              0f32,
+      ascender:            0f32,
+      descender:           0f32,
+      max_advance_width:   0f32,
+      max_advance_height:  0f32,
+      underline_pos:       0f32,
+      underline_thickness: 0f32,
+    }
+  }
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct Font {
-  pub scale:     f32,
+  pub scale: f32,
   glyph_tbl: u32,
   face_tbl:  u32,
   atlas:     *const FontAtlas,
@@ -340,16 +388,16 @@ impl Font {
       .map_or(DrawNullTexture::default(), |atlas| atlas.draw_null_texture)
   }
 
-  pub fn query(&self, codept: char) -> FontGlyph {
-    self
-      .atlas_ref()
-      .map_or(FontGlyph::default(), |atlas| atlas.query(self, codept))
+  pub fn query_glyph(&self, height: f32, codept: char) -> UserFontGlyph {
+    self.atlas_ref().map_or(UserFontGlyph::default(), |atlas| {
+      atlas.query_font_glyph(self, height, codept)
+    })
   }
 
-  pub fn text_width(&self, text: &str) -> f32 {
+  pub fn query_text_width(&self, height: f32, text: &str) -> f32 {
     self
       .atlas_ref()
-      .map_or(0f32, |atlas| atlas.text_width(self, text))
+      .map_or(0f32, |atlas| atlas.font_text_width(self, height, text))
   }
 
   pub fn clamp_text(&self, text: &str, max_width: f32) -> (i32, f32) {
@@ -363,10 +411,60 @@ impl Font {
       atlas.clamped_string(self, text, max_width)
     })
   }
+
+  pub fn query_metrics(&self, height: f32) -> FontMetrics {
+    self.atlas_ref().map_or(FontMetrics::default(), |atlas| {
+      atlas.query_font_metrics(self, height)
+    })
+  }
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct FontGlyph {
+pub struct UserFontGlyph {
+  // texture coordinates
+  pub uv: [Vec2F32; 2],
+  // offset between top left and glyph
+  pub offset: Vec2F32,
+  // dimensions
+  pub width:  f32,
+  pub height: f32,
+  // offset to next glyph
+  pub xadvance: f32,
+}
+
+impl std::default::Default for UserFontGlyph {
+  fn default() -> UserFontGlyph {
+    UserFontGlyph {
+      uv:       [Vec2F32::same(0f32); 2],
+      offset:   Vec2F32::same(0f32),
+      width:    0f32,
+      height:   0f32,
+      xadvance: 0f32,
+    }
+  }
+}
+
+impl std::fmt::Display for UserFontGlyph {
+  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    write!(
+      f,
+      "UserFontGlyph {{\n uv[0] : ({}, {}), uv[1] : ({}, {})\n offset: (x: \
+       {}, y: {})\n width: {}, height: {}\n xadvance: {}\n }}",
+      self.uv[0].x,
+      self.uv[0].y,
+      self.uv[1].x,
+      self.uv[1].y,
+      self.offset.x,
+      self.offset.y,
+      self.width,
+      self.height,
+      self.xadvance
+    )
+  }
+}
+
+#[derive(Copy, Clone, Debug)]
+struct FontGlyph {
   pub codepoint:       u32,
   pub xadvance:        f32,
   pub bearing_x:       f32,
@@ -721,13 +819,12 @@ impl FontAtlasBuilder {
 
     baked_glyphs.iter().for_each(|baked_glyph| {
       let font_glyphs_table = &mut self.glyphs[baked_glyph.font as usize];
-      let font_metrics = &self.faces[baked_glyph.font as usize];
 
       let new_glyph = FontGlyph {
         codepoint:       baked_glyph.codepoint,
         xadvance:        baked_glyph.advance_x,
         bearing_x:       baked_glyph.bearing_x,
-        bearing_y:       font_metrics.ascender - baked_glyph.bearing_y,
+        bearing_y:       baked_glyph.bearing_y,
         bbox:            RectangleI32::new(
           0,
           0,
@@ -746,6 +843,14 @@ impl FontAtlasBuilder {
 
       font_glyphs_table.insert(baked_glyph.codepoint, new_glyph);
     });
+
+    // std::fs::File::create("font_stats.txt").map(|mut outfile| {
+    //   use std::io::Write;
+    //   let tbl = &self.glyphs[0];
+    //   for (codept, glyph) in tbl.iter() {
+    //     write!(outfile, "{} -> {:?}\n", *codept as u8 as char, *glyph);
+    //   }
+    // });
 
     // copy glyph pixels into the atlas texture
     let mut atlas_pixels = vec![
@@ -917,19 +1022,53 @@ impl FontAtlas {
   }
 
   /// Query the properties of a font's glyph.
-  pub fn query(&self, font: &Font, codepoint: char) -> FontGlyph {
+  pub fn query_font_glyph(
+    &self,
+    font: &Font,
+    height: f32,
+    codepoint: char,
+  ) -> UserFontGlyph {
+    let glyph_table = &self.glyphs[font.glyph_tbl as usize];
+    glyph_table.get(&(codepoint as u32)).map_or(
+      UserFontGlyph {
+        uv:       [Vec2F32::same(0f32); 2],
+        offset:   Vec2F32::same(0f32),
+        width:    0f32,
+        height:   0f32,
+        xadvance: 0f32,
+      },
+      |glyph| {
+        let scale = height / font.scale;
+        UserFontGlyph {
+          uv:       [glyph.uv_top_left, glyph.uv_bottom_right],
+          offset:   Vec2F32::new(glyph.bearing_x, glyph.bearing_y) * scale,
+          width:    glyph.bbox.w as f32 * scale,
+          height:   glyph.bbox.h as f32 * scale,
+          xadvance: glyph.xadvance * scale,
+        }
+      },
+    )
+  }
+
+  /// Compute the length of a string using a certain font in the atlas.
+  pub fn font_text_width(&self, font: &Font, height: f32, text: &str) -> f32 {
+    let scale = height / font.scale;
+
+    text.chars().fold(0f32, |curr_width, codepoint| {
+      let glyph = self.query(font, codepoint);
+      curr_width + glyph.xadvance * scale
+    })
+  }
+
+  fn query(&self, font: &Font, codepoint: char) -> FontGlyph {
     let glyph_table = &self.glyphs[font.glyph_tbl as usize];
     glyph_table
       .get(&(codepoint as u32))
       .map_or(FontGlyph::default(), |glyph_entry| *glyph_entry)
   }
 
-  /// Compute the length of a string using a certain font in the atlas.
-  pub fn text_width(&self, font: &Font, text: &str) -> f32 {
-    text.chars().fold(0f32, |curr_len, curr_char| {
-      let glyph = self.query(font, curr_char);
-      curr_len + glyph.xadvance
-    })
+  fn query_font_metrics(&self, font: &Font, height: f32) -> FontMetrics {
+    self.faces[font.face_tbl as usize] * (height / font.scale)
   }
 
   pub fn clamp_text(
@@ -967,7 +1106,7 @@ impl FontAtlas {
       .chars()
       .take_while(|codepoint| {
         let glyph_info = self.query(font, *codepoint);
-        if (width + glyph_info.xadvance) < max_width {
+        if (width + glyph_info.xadvance) <= max_width {
           width += glyph_info.xadvance;
           true
         } else {

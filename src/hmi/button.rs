@@ -2,7 +2,7 @@ use crate::{
   hmi::{
     base::{
       triangle_from_direction, ButtonBehaviour, Heading, TextAlign,
-      WidgetLayoutStates, WidgetStates,
+      WidgetStates,
     },
     commands::CommandBuffer,
     image::Image,
@@ -11,9 +11,7 @@ use crate::{
     text::{widget_text, Text},
     text_engine::Font,
   },
-  math::{
-    colors::RGBAColor, rectangle::RectangleF32, utility::clamp, vec2::Vec2F32,
-  },
+  math::{colors::RGBAColor, rectangle::RectangleF32, vec2::Vec2F32},
 };
 use enumflags2::BitFlags;
 
@@ -392,8 +390,9 @@ pub fn do_button_text_symbol(
     w: f.scale,
     h: f.scale,
     x: if align.intersects(TextAlign::AlignLeft) {
-      0f32
-        .max(content_rect.x + content_rect.w - 2f32 * style.padding.x + f.scale)
+      0f32.max(
+        content_rect.x + content_rect.w - (2f32 * style.padding.x + f.scale),
+      )
     } else {
       content_rect.x + 2f32 * style.padding.x
     },
