@@ -390,8 +390,9 @@ pub fn do_button_text_symbol(
     w: f.scale,
     h: f.scale,
     x: if align.intersects(TextAlign::AlignLeft) {
-      0f32
-        .max(content_rect.x + content_rect.w - 2f32 * style.padding.x + f.scale)
+      0f32.max(
+        content_rect.x + content_rect.w - (2f32 * style.padding.x + f.scale),
+      )
     } else {
       content_rect.x + 2f32 * style.padding.x
     },

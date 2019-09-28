@@ -558,6 +558,38 @@ fn main() {
       RGBAColor::new(64, 64, 128),
     );
 
+    ui_ctx.layout_row_dynamic(48f32, 1);
+    ui_ctx.button_text("Button #1");
+    ui_ctx.button_color(RGBAColor::new(0, 92, 32));
+
+    // ui_ctx.button_symbol_text(
+    //   SymbolType::RectSolid,
+    //   "Play left",
+    //   TextAlign::left(),
+    // );
+    // ui_ctx.button_symbol_text(
+    //   SymbolType::RectSolid,
+    //   "Play center",
+    //   TextAlign::centered(),
+    // );
+    // ui_ctx.button_symbol_text(
+    //   SymbolType::RectSolid,
+    //   "Play right",
+    //   TextAlign::right(),
+    // );
+
+    ui_ctx.button_symbol_text(
+      SymbolType::CircleOutline,
+      "Stop",
+      TextAlign::right(),
+    );
+
+    ui_ctx.button_symbol_text(
+      SymbolType::CircleSolid,
+      "Really Stop",
+      TextAlign::left(),
+    );
+
     ui_ctx.end();
 
     buff_draw_commands.clear();
