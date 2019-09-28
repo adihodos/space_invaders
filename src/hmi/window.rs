@@ -166,6 +166,8 @@ pub struct Window {
 }
 
 impl Window {
+  pub const SCROLLBAR_HIDING_TIMEOUT: f32 = 4.0f32;
+
   pub fn new(
     handle: usize,
     name: HashType,
