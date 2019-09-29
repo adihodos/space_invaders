@@ -1417,6 +1417,7 @@ impl UiContext {
           && !layout.flags.intersects(PanelFlags::WindowMinimized)
           && win.scrollbar_hide_timer() < Window::SCROLLBAR_HIDING_TIMEOUT
         {
+          let mut scrolling_has_scroll = false;
           // mouse wheel scrolling
           if layout.is_sub() {
             // sub-window mouse wheel scrolling
@@ -1454,11 +1455,47 @@ impl UiContext {
                 && root_panel_clip.intersect(&layout.bounds)
               {
                 // deactivate all parent scrolling
-                let root_panel = &winptr.borrow().layout;
+                unsafe {
+                  let mut root_panel = winptr.borrow().layout.as_ptr();
+                  while !(*root_panel).parent.is_null() {
+                    (*root_panel).has_scrolling = false;
+                    root_panel = (*root_panel).parent;
+                  }
+
+                  (*root_panel).has_scrolling = false;
+                  scrolling_has_scroll = true;
+                }
               }
             }
 
-            // let mut root_panel = ;
+          // let mut root_panel = ;
+          } else if !layout.is_sub() {
+            // window mouse wheel scrolling
+            scrolling_has_scroll =
+              self.is_active_window(&winptr) && layout.has_scrolling;
+            let input_borrow = self.input();
+            let input = if layout
+              .flags
+              .intersects(PanelFlags::WindowRom | PanelFlags::WindowNoInput)
+            {
+              None
+            } else {
+              Some(&input_borrow)
+            };
+
+            let window_scrolled = input.map_or(false, |inp| {
+              inp.mouse.scroll_delta.y > 0f32
+                || inp.mouse.scroll_delta.x > 0f32 && scrolling_has_scroll
+            });
+            win.scroll.borrow_mut().scrolled = window_scrolled;
+          }
+
+          {
+            // vertical scrollbar
+          }
+
+          {
+            // horizontal scrollbar
           }
         }
 

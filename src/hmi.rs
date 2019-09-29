@@ -7,6 +7,7 @@ pub mod image;
 pub mod input;
 pub mod panel;
 mod progress;
+pub mod scrollbar;
 pub mod style;
 pub mod text;
 pub mod text_engine;

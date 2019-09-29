@@ -2,6 +2,12 @@ use crate::math::{rectangle::RectangleF32, vec2::Vec2F32};
 use enumflags2::BitFlags;
 use enumflags2_derive::EnumFlags;
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum Orientation {
+  Horizontal,
+  Vertical,
+}
+
 #[derive(Copy, Clone, Debug, EnumFlags)]
 #[repr(u8)]
 pub enum TextAlign {
