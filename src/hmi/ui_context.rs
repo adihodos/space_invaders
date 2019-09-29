@@ -1000,7 +1000,7 @@ impl UiContext {
       .expect("Invalid current window!");
 
     // reset panel to default state
-    let layout = Box::new(RefCell::new(Panel::new(
+    let layout = Rc::new(RefCell::new(Panel::new(
       Rc::clone(&winptr.borrow().scroll),
       panel_type,
     )));
@@ -1413,6 +1413,55 @@ impl UiContext {
         }
 
         // TODO: scrollbars
+        if !layout.flags.intersects(PanelFlags::WindowNoScrollbar)
+          && !layout.flags.intersects(PanelFlags::WindowMinimized)
+          && win.scrollbar_hide_timer() < Window::SCROLLBAR_HIDING_TIMEOUT
+        {
+          // mouse wheel scrolling
+          if layout.is_sub() {
+            // sub-window mouse wheel scrolling
+            let mut root_window = Rc::clone(&winptr);
+
+            'find_window_root: loop {
+              let parent = {
+                if let Some(ref p) = root_window.borrow().parent {
+                  Some(Rc::clone(p))
+                } else {
+                  None
+                }
+              };
+
+              match parent {
+                Some(p) => root_window = p,
+                _ => break 'find_window_root,
+              }
+            }
+
+            let root_panel = unsafe {
+              let mut root_panel = win.layout.borrow().parent;
+              while !(*root_panel).parent.is_null() {
+                root_panel = (*root_panel).parent;
+              }
+              root_panel
+            };
+
+            // only allow scrolling if parent window is active
+            if self.is_active_window(&root_window) && layout.has_scrolling {
+              // and panel is being hovered and inside clip rect
+              let inp = self.input();
+              let root_panel_clip = unsafe { (*root_panel).clip };
+              if inp.is_mouse_hovering_rect(&layout.bounds)
+                && root_panel_clip.intersect(&layout.bounds)
+              {
+                // deactivate all parent scrolling
+                let root_panel = &winptr.borrow().layout;
+              }
+            }
+
+            // let mut root_panel = ;
+          }
+        }
+
         // TODO: hide scroll if no user input
 
         // window border
