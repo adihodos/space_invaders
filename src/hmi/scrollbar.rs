@@ -3,19 +3,15 @@ use crate::{
     base::{ButtonBehaviour, Orientation, WidgetStates},
     button::{button_behaviour, do_button_symbol},
     commands::CommandBuffer,
-    image::Image,
     input::{Input, KeyId, MouseButtonId},
-    style::{StyleItem, StyleScrollbar, SymbolType},
+    style::{StyleItem, StyleScrollbar},
     text_engine::Font,
   },
-  math::{
-    colors::RGBAColor, rectangle::RectangleF32, utility::clamp, vec2::Vec2F32,
-  },
+  math::{colors::RGBAColor, rectangle::RectangleF32, utility::clamp},
 };
 use enumflags2::BitFlags;
 
 fn scrollbar_behavior(
-  // inp: Option<&mut Input>,
   inp: Option<&std::cell::RefCell<Input>>,
   has_scrolling: bool,
   scroll: &RectangleF32,
@@ -201,6 +197,11 @@ pub fn draw_scrollbar(
   }
 }
 
+enum OffsetAdj {
+  CalcWithNoInput,
+  AdjustOffset,
+}
+
 pub fn do_scrollbarv(
   out: &mut CommandBuffer,
   scroll: RectangleF32,
@@ -240,42 +241,42 @@ pub fn do_scrollbarv(
     // decrement button
     input
       .as_ref()
-      .map_or_else(
-        || {
-          if do_button_symbol(
-            &mut BitFlags::default(),
-            out,
-            button,
-            style.dec_symbol,
-            ButtonBehaviour::ButtonRepeater,
-            &style.dec_button,
-            None,
-            *font,
-          ) {
-            Some(())
-          } else {
-            None
-          }
-        },
-        |cell_input| {
-          let inp = cell_input.borrow_mut();
-          if do_button_symbol(
-            &mut BitFlags::default(),
-            out,
-            button,
-            style.dec_symbol,
-            ButtonBehaviour::ButtonRepeater,
-            &style.dec_button,
-            Some(&mut inp),
-            *font,
-          ) {
-            Some(())
-          } else {
-            None
-          }
-        },
-      )
-      .map(|_| offset -= scroll_step);
+      .map_or(Some(OffsetAdj::CalcWithNoInput), |cell_input| {
+        let mut inp = cell_input.borrow_mut();
+        if do_button_symbol(
+          &mut BitFlags::default(),
+          out,
+          button,
+          style.dec_symbol,
+          ButtonBehaviour::ButtonRepeater,
+          &style.dec_button,
+          Some(&mut inp),
+          *font,
+        ) {
+          Some(OffsetAdj::AdjustOffset)
+        } else {
+          None
+        }
+      })
+      .and_then(|res| match res {
+        OffsetAdj::CalcWithNoInput => Some(do_button_symbol(
+          &mut BitFlags::default(),
+          out,
+          button,
+          style.dec_symbol,
+          ButtonBehaviour::ButtonRepeater,
+          &style.dec_button,
+          None,
+          *font,
+        )),
+
+        OffsetAdj::AdjustOffset => Some(true),
+      })
+      .map(|adjust| {
+        if adjust {
+          offset -= scroll_step
+        }
+      });
 
     // increment button
     let button = RectangleF32 {
@@ -285,42 +286,41 @@ pub fn do_scrollbarv(
 
     input
       .as_ref()
-      .map_or_else(
-        || {
-          if do_button_symbol(
-            &mut BitFlags::default(),
-            out,
-            button,
-            style.inc_symbol,
-            ButtonBehaviour::ButtonRepeater,
-            &style.inc_button,
-            None,
-            *font,
-          ) {
-            Some(())
-          } else {
-            None
-          }
-        },
-        |cell_input| {
-          let inp = cell_input.borrow_mut();
-          if do_button_symbol(
-            &mut BitFlags::default(),
-            out,
-            button,
-            style.inc_symbol,
-            ButtonBehaviour::ButtonRepeater,
-            &style.inc_button,
-            Some(&mut inp),
-            *font,
-          ) {
-            Some(())
-          } else {
-            None
-          }
-        },
-      )
-      .map(|_| offset += scroll_step);
+      .map_or(Some(OffsetAdj::CalcWithNoInput), |cell_input| {
+        let mut inp = cell_input.borrow_mut();
+        if do_button_symbol(
+          &mut BitFlags::default(),
+          out,
+          button,
+          style.inc_symbol,
+          ButtonBehaviour::ButtonRepeater,
+          &style.inc_button,
+          Some(&mut inp),
+          *font,
+        ) {
+          Some(OffsetAdj::AdjustOffset)
+        } else {
+          None
+        }
+      })
+      .and_then(|res| match res {
+        OffsetAdj::AdjustOffset => Some(true),
+        OffsetAdj::CalcWithNoInput => Some(do_button_symbol(
+          &mut BitFlags::default(),
+          out,
+          button,
+          style.inc_symbol,
+          ButtonBehaviour::ButtonRepeater,
+          &style.inc_button,
+          None,
+          *font,
+        )),
+      })
+      .map(|adjust| {
+        if adjust {
+          offset += scroll_step
+        }
+      });
 
     scroll.y += button.h;
     scroll.h = scroll_h;
@@ -424,36 +424,91 @@ pub fn do_scrollbarh(
     let scroll_step = step.min(button_pixel_inc);
 
     // decrement button
-    // if do_button_symbol(
-    //   &mut BitFlags::default(),
-    //   out,
-    //   button,
-    //   style.dec_symbol,
-    //   ButtonBehaviour::ButtonRepeater,
-    //   &style.dec_button,
-    //   input.as_ref().map_or(None, |i| Some(*i)),
-    //   *font,
-    // ) {
-    //   offset -= scroll_step;
-    // }
+    inp
+      .as_ref()
+      .map_or(Some(OffsetAdj::CalcWithNoInput), |cell_input| {
+        let mut input = cell_input.borrow_mut();
+
+        if do_button_symbol(
+          &mut BitFlags::default(),
+          out,
+          button,
+          style.dec_symbol,
+          ButtonBehaviour::ButtonRepeater,
+          &style.dec_button,
+          Some(&mut input),
+          *font,
+        ) {
+          Some(OffsetAdj::AdjustOffset)
+        } else {
+          None
+        }
+      })
+      .and_then(|action| match action {
+        OffsetAdj::CalcWithNoInput => Some(do_button_symbol(
+          &mut BitFlags::default(),
+          out,
+          button,
+          style.dec_symbol,
+          ButtonBehaviour::ButtonRepeater,
+          &style.dec_button,
+          None,
+          *font,
+        )),
+
+        OffsetAdj::AdjustOffset => Some(true),
+      })
+      .map(|adjust| {
+        if adjust {
+          offset -= scroll_step
+        }
+      });
 
     // increment button
     let button = RectangleF32 {
       x: scroll.x + scroll.w - button.w,
       ..button
     };
-    // if do_button_symbol(
-    //   &mut BitFlags::default(),
-    //   out,
-    //   button,
-    //   style.inc_symbol,
-    //   ButtonBehaviour::ButtonRepeater,
-    //   &style.inc_button,
-    //   input.as_ref().map_or(None, |i| Some(*i)),
-    //   *font,
-    // ) {
-    //   offset += scroll_step;
-    // }
+
+    inp
+      .as_ref()
+      .map_or(Some(OffsetAdj::CalcWithNoInput), |cell_input| {
+        let mut input = cell_input.borrow_mut();
+
+        if do_button_symbol(
+          &mut BitFlags::default(),
+          out,
+          button,
+          style.dec_symbol,
+          ButtonBehaviour::ButtonRepeater,
+          &style.dec_button,
+          Some(&mut input),
+          *font,
+        ) {
+          Some(OffsetAdj::AdjustOffset)
+        } else {
+          None
+        }
+      })
+      .and_then(|action| match action {
+        OffsetAdj::CalcWithNoInput => Some(do_button_symbol(
+          &mut BitFlags::default(),
+          out,
+          button,
+          style.dec_symbol,
+          ButtonBehaviour::ButtonRepeater,
+          &style.dec_button,
+          None,
+          *font,
+        )),
+
+        OffsetAdj::AdjustOffset => Some(true),
+      })
+      .map(|adjust| {
+        if adjust {
+          offset += scroll_step
+        }
+      });
 
     scroll.x += button.w;
     scroll.w = scroll_w;

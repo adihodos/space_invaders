@@ -161,7 +161,6 @@ pub struct Window {
 
   // pub prev:   *mut Window,
   // pub next:   *mut Window,
-  // pub parent: *mut Window,
   pub parent: Option<Rc<RefCell<Window>>>,
 }
 

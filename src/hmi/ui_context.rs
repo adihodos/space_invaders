@@ -1467,8 +1467,6 @@ impl UiContext {
                 }
               }
             }
-
-          // let mut root_panel = ;
           } else if !layout.is_sub() {
             // window mouse wheel scrolling
             scrolling_has_scroll =
@@ -1513,7 +1511,7 @@ impl UiContext {
             let scroll_inc = scroll.h * 0.01f32;
             let scroll_target = ((layout.at_y - scroll.y) as i32) as f32;
             use crate::hmi::scrollbar::do_scrollbarv;
-            let (widget_state, scroll_offset) = do_scrollbarv(
+            let (_, scroll_offset) = do_scrollbarv(
               &mut win.buffer.borrow_mut(),
               scroll,
               scrolling_has_scroll,
@@ -1531,10 +1529,66 @@ impl UiContext {
 
           {
             // horizontal scrollbar
+            let scroll = RectangleF32 {
+              x: layout.bounds.x,
+              y: layout.bounds.y + layout.bounds.h,
+              w: layout.bounds.w,
+              h: scrollbar_size.y,
+            };
+
+            let input = if layout
+              .flags
+              .intersects(PanelFlags::WindowRom | PanelFlags::WindowNoInput)
+            {
+              None
+            } else {
+              Some(&self.input)
+            };
+
+            let scroll_offset = layout.offsets.borrow().scrollbar.x as f32;
+            let scroll_target = ((layout.max_x - scroll.x) as i32) as f32;
+            let scroll_step = layout.max_x * 0.05f32;
+            let scroll_inc = layout.max_x * 0.005f32;
+            use crate::hmi::scrollbar::do_scrollbarh;
+            let (_, scroll_offset) = do_scrollbarh(
+              &mut win.buffer.borrow_mut(),
+              scroll,
+              scrolling_has_scroll,
+              scroll_offset,
+              scroll_target,
+              scroll_step,
+              scroll_inc,
+              &self.style.scrollh,
+              input,
+              &self.style.font,
+            );
+
+            layout.offsets.borrow_mut().scrollbar.y = scroll_offset as u32;
           }
         }
 
-        // TODO: hide scroll if no user input
+        // hide scroll if no user input
+        if win.flags.intersects(PanelFlags::WindowScrollAutoHide) {
+          let input = self.input();
+          let has_input = input.mouse.delta.x != 0f32
+            || input.mouse.delta.y != 0f32
+            || input.mouse.scroll_delta.y != 0f32;
+          let is_window_hovered = self.window_is_hovered();
+          let any_item_active = self
+            .last_widget_state
+            .borrow()
+            .intersects(WidgetStates::Modified);
+
+          if (!has_input && is_window_hovered)
+            || (!is_window_hovered && !any_item_active)
+          {
+            win.scroll.borrow_mut().hiding_timer += self.delta_time_sec;
+          } else {
+            win.scroll.borrow_mut().hiding_timer = 0f32;
+          }
+        } else {
+          win.scroll.borrow_mut().hiding_timer = 0f32;
+        }
 
         // window border
         if layout.flags.intersects(PanelFlags::WindowBorder) {
