@@ -1,17 +1,9 @@
 use crate::{
   hmi::{
-    base::{
-      ButtonBehaviour, Heading, TextAlign, WidgetLayoutStates, WidgetStates,
-    },
-    commands::CommandBuffer,
-    input::{Input, MouseButtonId},
-    style::{Style, StyleItem, SymbolType},
-    text_engine::Font,
+    base::TextAlign, commands::CommandBuffer, style::Style, text_engine::Font,
     ui_context::WindowPtr,
   },
-  math::{
-    colors::RGBAColor, rectangle::RectangleF32, utility::clamp, vec2::Vec2F32,
-  },
+  math::{colors::RGBAColor, rectangle::RectangleF32, vec2::Vec2F32},
 };
 
 use enumflags2::BitFlags;
@@ -142,7 +134,6 @@ pub fn text_colored(
   align: BitFlags<TextAlign>,
   color: RGBAColor,
 ) {
-  // let item_padding = style.text.padding;
   let text = Text {
     padding:    style.text.padding,
     background: style.window.background,
@@ -166,7 +157,6 @@ pub fn text_wrap_colored(
   s: &str,
   color: RGBAColor,
 ) {
-  // let item_padding = style.text.padding;
   let text = Text {
     padding:    style.text.padding,
     background: style.window.background,

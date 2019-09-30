@@ -127,7 +127,7 @@ impl std::default::Default for WindowId {
 pub struct ScrollState {
   pub scrollbar:    Vec2U32,
   pub hiding_timer: f32,
-  pub scrolled:     u32,
+  pub scrolled:     bool,
 }
 
 impl std::default::Default for ScrollState {
@@ -135,7 +135,7 @@ impl std::default::Default for ScrollState {
     ScrollState {
       scrollbar:    Vec2U32::same(0),
       hiding_timer: 0f32,
-      scrolled:     0,
+      scrolled:     false,
     }
   }
 }
@@ -148,7 +148,7 @@ pub struct Window {
   pub bounds: RefCell<RectangleF32>,
   pub scroll: Rc<RefCell<ScrollState>>,
   pub buffer: RefCell<CommandBuffer>,
-  pub layout: Box<RefCell<Panel>>,
+  pub layout: Rc<RefCell<Panel>>,
   // persistent widget state
   pub property: PropertyState,
   pub popup:    PopupState,
@@ -161,12 +161,23 @@ pub struct Window {
 
   // pub prev:   *mut Window,
   // pub next:   *mut Window,
-  // pub parent: *mut Window,
   pub parent: Option<Rc<RefCell<Window>>>,
 }
 
 impl Window {
   pub const SCROLLBAR_HIDING_TIMEOUT: f32 = 4.0f32;
+
+  pub fn scrollbar_hide_timer(&self) -> f32 {
+    self.scroll.borrow().hiding_timer
+  }
+
+  pub fn scrollbar_pos(&self) -> Vec2U32 {
+    self.scroll.borrow().scrollbar
+  }
+
+  pub fn scrollbar_is_scrolled(&self) -> bool {
+    self.scroll.borrow().scrolled
+  }
 
   pub fn new(
     handle: usize,
@@ -193,7 +204,7 @@ impl Window {
         )),
         128,
       )),
-      layout: Box::new(RefCell::new(Panel::new(
+      layout: Rc::new(RefCell::new(Panel::new(
         Rc::clone(&scroll_state),
         PanelType::Window.into(),
       ))),

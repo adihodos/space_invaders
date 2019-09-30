@@ -91,19 +91,18 @@ fn draw_symbol(
   };
 }
 
-fn button_behaviour(
-  state: &mut BitFlags<WidgetStates>,
+pub fn button_behaviour(
   r: RectangleF32,
   i: Option<&Input>,
   behavior: ButtonBehaviour,
-) -> bool {
-  *state = WidgetStates::reset(*state);
-  i.map_or(false, |i| {
+) -> (bool, BitFlags<WidgetStates>) {
+  i.map_or((false, BitFlags::default()), |i| {
+    let mut state = BitFlags::<WidgetStates>::default();
     let result = if i.is_mouse_hovering_rect(&r) {
-      *state = WidgetStates::Hover.into();
+      state = WidgetStates::Hover.into();
 
       if i.is_mouse_down(MouseButtonId::ButtonLeft) {
-        *state = WidgetStates::active();
+        state = WidgetStates::active();
       }
 
       if i.has_mouse_click_in_rect(MouseButtonId::ButtonLeft, &r) {
@@ -126,7 +125,7 @@ fn button_behaviour(
       state.insert(WidgetStates::Left);
     }
 
-    result
+    (result, state)
   })
 }
 
@@ -185,7 +184,10 @@ pub fn do_button(
     h: r.h - (2f32 * style.padding.y + style.border + 2f32 * style.rounding),
   };
 
-  (button_behaviour(state, bounds, i, behavior), content)
+  let (res, s) = button_behaviour(bounds, i, behavior);
+  *state = s;
+
+  (res, content)
 }
 
 fn draw_button_text(
