@@ -15,7 +15,8 @@ use crate::{
 use enumflags2::BitFlags;
 
 fn scrollbar_behavior(
-  inp: Option<&mut Input>,
+  // inp: Option<&mut Input>,
+  inp: Option<&std::cell::RefCell<Input>>,
   has_scrolling: bool,
   scroll: &RectangleF32,
   cursor: &RectangleF32,
@@ -32,19 +33,24 @@ fn scrollbar_behavior(
 
   let input = inp.unwrap();
 
-  let left_mouse_down = input.has_mouse_down(MouseButtonId::ButtonLeft);
-  let left_mouse_clicked = input.has_mouse_click(MouseButtonId::ButtonLeft);
-  let left_mouse_click_in_cursor =
-    input.has_mouse_click_down_in_rect(MouseButtonId::ButtonLeft, cursor, true);
+  let left_mouse_down =
+    input.borrow().has_mouse_down(MouseButtonId::ButtonLeft);
+  let left_mouse_clicked =
+    input.borrow().has_mouse_click(MouseButtonId::ButtonLeft);
+  let left_mouse_click_in_cursor = input.borrow().has_mouse_click_down_in_rect(
+    MouseButtonId::ButtonLeft,
+    cursor,
+    true,
+  );
 
   let mut state = BitFlags::<WidgetStates>::default();
-  if input.is_mouse_hovering_rect(scroll) {
+  if input.borrow().is_mouse_hovering_rect(scroll) {
     state.insert(WidgetStates::Hover);
   }
   let scroll_delta = if o == Orientation::Vertical {
-    input.mouse.scroll_delta.y
+    input.borrow().mouse.scroll_delta.y
   } else {
-    input.mouse.scroll_delta.x
+    input.borrow().mouse.scroll_delta.x
   };
 
   let scroll_offset = if left_mouse_down
@@ -54,28 +60,33 @@ fn scrollbar_behavior(
     // update cursor by mouse dragging
     state = WidgetStates::active();
     if o == Orientation::Vertical {
-      let pixel = input.mouse.delta.y;
+      let pixel = input.borrow().mouse.delta.y;
       let delta = (pixel / scroll.h) * target;
       let scroll_offset = clamp(0f32, scroll_offset + delta, target - scroll.h);
       let cursor_y = scroll.y + ((scroll_offset / target) * scroll.h);
-      input.mouse.buttons[MouseButtonId::ButtonLeft as usize]
+      input.borrow_mut().mouse.buttons[MouseButtonId::ButtonLeft as usize]
         .clicked_pos
         .y = cursor_y + cursor.h * 0.5f32;
       scroll_offset
     } else {
-      let pixel = input.mouse.delta.x;
+      let pixel = input.borrow().mouse.delta.x;
       let delta = (pixel / scroll.w) * target;
       let scroll_offset = clamp(0f32, scroll_offset + delta, target - scroll.w);
       let cursor_x = scroll.x + ((scroll_offset / target) * scroll.w);
-      input.mouse.buttons[MouseButtonId::ButtonLeft as usize]
+      input.borrow_mut().mouse.buttons[MouseButtonId::ButtonLeft as usize]
         .clicked_pos
         .x = cursor_x + cursor.w * 0.5f32;
       scroll_offset
     }
-  } else if (input.is_key_pressed(KeyId::KeyScrollUp)
+  } else if (input.borrow().is_key_pressed(KeyId::KeyScrollUp)
     && o == Orientation::Vertical
     && has_scrolling)
-    || button_behaviour(*empty0, Some(input), ButtonBehaviour::ButtonDefault).0
+    || button_behaviour(
+      *empty0,
+      Some(&input.borrow()),
+      ButtonBehaviour::ButtonDefault,
+    )
+    .0
   {
     // scroll page up click on empty space or shortcut
     if o == Orientation::Vertical {
@@ -83,10 +94,15 @@ fn scrollbar_behavior(
     } else {
       0f32.max(scroll_offset - scroll.w)
     }
-  } else if (input.is_key_pressed(KeyId::KeyScrollDown)
+  } else if (input.borrow().is_key_pressed(KeyId::KeyScrollDown)
     && o == Orientation::Vertical
     && has_scrolling)
-    || button_behaviour(*empty1, Some(input), ButtonBehaviour::ButtonDefault).0
+    || button_behaviour(
+      *empty1,
+      Some(&input.borrow()),
+      ButtonBehaviour::ButtonDefault,
+    )
+    .0
   {
     // scroll page down by click on empty space or shortcut
     if o == Orientation::Vertical {
@@ -103,14 +119,14 @@ fn scrollbar_behavior(
       } else {
         clamp(0f32, scroll_offset, target - scroll.w)
       }
-    } else if input.is_key_pressed(KeyId::KeyScrollStart) {
+    } else if input.borrow().is_key_pressed(KeyId::KeyScrollStart) {
       // update cursor to the beginning
       if o == Orientation::Vertical {
         0f32
       } else {
         scroll_offset
       }
-    } else if input.is_key_pressed(KeyId::KeyScrollEnd) {
+    } else if input.borrow().is_key_pressed(KeyId::KeyScrollEnd) {
       // update cursor to end
       if o == Orientation::Vertical {
         target - scroll.h
@@ -125,10 +141,10 @@ fn scrollbar_behavior(
   };
 
   if state.intersects(WidgetStates::Hover)
-    && !input.is_mouse_prev_hovering_rect(scroll)
+    && !input.borrow().is_mouse_prev_hovering_rect(scroll)
   {
     state.insert(WidgetStates::Entered);
-  } else if input.is_mouse_prev_hovering_rect(scroll) {
+  } else if input.borrow().is_mouse_prev_hovering_rect(scroll) {
     state.insert(WidgetStates::Left);
   }
 
@@ -194,7 +210,7 @@ pub fn do_scrollbarv(
   step: f32,
   button_pixel_inc: f32,
   style: &StyleScrollbar,
-  input: Option<&mut Input>,
+  input: Option<&std::cell::RefCell<Input>>,
   font: &Font,
 ) -> (BitFlags<WidgetStates>, f32) {
   let mut scroll = RectangleF32 {
@@ -222,36 +238,89 @@ pub fn do_scrollbarv(
     let scroll_step = step.min(button_pixel_inc);
 
     // decrement button
-    if do_button_symbol(
-      &mut BitFlags::default(),
-      out,
-      button,
-      style.dec_symbol,
-      ButtonBehaviour::ButtonRepeater,
-      &style.dec_button,
-      input.as_ref().map_or(None, |i| Some(*i)),
-      *font,
-    ) {
-      offset -= scroll_step;
-    }
+    input
+      .as_ref()
+      .map_or_else(
+        || {
+          if do_button_symbol(
+            &mut BitFlags::default(),
+            out,
+            button,
+            style.dec_symbol,
+            ButtonBehaviour::ButtonRepeater,
+            &style.dec_button,
+            None,
+            *font,
+          ) {
+            Some(())
+          } else {
+            None
+          }
+        },
+        |cell_input| {
+          let inp = cell_input.borrow_mut();
+          if do_button_symbol(
+            &mut BitFlags::default(),
+            out,
+            button,
+            style.dec_symbol,
+            ButtonBehaviour::ButtonRepeater,
+            &style.dec_button,
+            Some(&mut inp),
+            *font,
+          ) {
+            Some(())
+          } else {
+            None
+          }
+        },
+      )
+      .map(|_| offset -= scroll_step);
 
     // increment button
     let button = RectangleF32 {
       y: scroll.y + scroll.h - button.h,
       ..button
     };
-    if do_button_symbol(
-      &mut BitFlags::default(),
-      out,
-      button,
-      style.inc_symbol,
-      ButtonBehaviour::ButtonRepeater,
-      &style.inc_button,
-      input.as_ref().map_or(None, |i| Some(*i)),
-      *font,
-    ) {
-      offset += scroll_step;
-    }
+
+    input
+      .as_ref()
+      .map_or_else(
+        || {
+          if do_button_symbol(
+            &mut BitFlags::default(),
+            out,
+            button,
+            style.inc_symbol,
+            ButtonBehaviour::ButtonRepeater,
+            &style.inc_button,
+            None,
+            *font,
+          ) {
+            Some(())
+          } else {
+            None
+          }
+        },
+        |cell_input| {
+          let inp = cell_input.borrow_mut();
+          if do_button_symbol(
+            &mut BitFlags::default(),
+            out,
+            button,
+            style.inc_symbol,
+            ButtonBehaviour::ButtonRepeater,
+            &style.inc_button,
+            Some(&mut inp),
+            *font,
+          ) {
+            Some(())
+          } else {
+            None
+          }
+        },
+      )
+      .map(|_| offset += scroll_step);
 
     scroll.y += button.h;
     scroll.h = scroll_h;
@@ -326,7 +395,7 @@ pub fn do_scrollbarh(
   step: f32,
   button_pixel_inc: f32,
   style: &StyleScrollbar,
-  input: Option<&mut Input>,
+  inp: Option<&std::cell::RefCell<Input>>,
   font: &Font,
 ) -> (BitFlags<WidgetStates>, f32) {
   // scrollbar background
@@ -355,36 +424,36 @@ pub fn do_scrollbarh(
     let scroll_step = step.min(button_pixel_inc);
 
     // decrement button
-    if do_button_symbol(
-      &mut BitFlags::default(),
-      out,
-      button,
-      style.dec_symbol,
-      ButtonBehaviour::ButtonRepeater,
-      &style.dec_button,
-      input.as_ref().map_or(None, |i| Some(*i)),
-      *font,
-    ) {
-      offset -= scroll_step;
-    }
+    // if do_button_symbol(
+    //   &mut BitFlags::default(),
+    //   out,
+    //   button,
+    //   style.dec_symbol,
+    //   ButtonBehaviour::ButtonRepeater,
+    //   &style.dec_button,
+    //   input.as_ref().map_or(None, |i| Some(*i)),
+    //   *font,
+    // ) {
+    //   offset -= scroll_step;
+    // }
 
     // increment button
     let button = RectangleF32 {
       x: scroll.x + scroll.w - button.w,
       ..button
     };
-    if do_button_symbol(
-      &mut BitFlags::default(),
-      out,
-      button,
-      style.inc_symbol,
-      ButtonBehaviour::ButtonRepeater,
-      &style.inc_button,
-      input.as_ref().map_or(None, |i| Some(*i)),
-      *font,
-    ) {
-      offset += scroll_step;
-    }
+    // if do_button_symbol(
+    //   &mut BitFlags::default(),
+    //   out,
+    //   button,
+    //   style.inc_symbol,
+    //   ButtonBehaviour::ButtonRepeater,
+    //   &style.inc_button,
+    //   input.as_ref().map_or(None, |i| Some(*i)),
+    //   *font,
+    // ) {
+    //   offset += scroll_step;
+    // }
 
     scroll.x += button.w;
     scroll.w = scroll_w;
@@ -418,7 +487,7 @@ pub fn do_scrollbarh(
 
   // update scrollbar
   let (state, scroll_offset) = scrollbar_behavior(
-    input,
+    inp,
     has_scrolling,
     &scroll,
     &cursor,

@@ -1492,6 +1492,41 @@ impl UiContext {
 
           {
             // vertical scrollbar
+            let scroll = RectangleF32 {
+              x: layout.bounds.x + layout.bounds.w + panel_padding.x,
+              y: layout.bounds.y,
+              w: scrollbar_size.x,
+              h: layout.bounds.h,
+            };
+
+            let input = if layout
+              .flags
+              .intersects(PanelFlags::WindowRom | PanelFlags::WindowNoInput)
+            {
+              None
+            } else {
+              Some(&self.input)
+            };
+
+            let scroll_offset = layout.offsets.borrow().scrollbar.y as f32;
+            let scroll_step = scroll.h * 0.10f32;
+            let scroll_inc = scroll.h * 0.01f32;
+            let scroll_target = ((layout.at_y - scroll.y) as i32) as f32;
+            use crate::hmi::scrollbar::do_scrollbarv;
+            let (widget_state, scroll_offset) = do_scrollbarv(
+              &mut win.buffer.borrow_mut(),
+              scroll,
+              scrolling_has_scroll,
+              scroll_offset,
+              scroll_target,
+              scroll_step,
+              scroll_inc,
+              &self.style.scrollv,
+              input,
+              &self.style.font,
+            );
+
+            layout.offsets.borrow_mut().scrollbar.y = scroll_offset as u32;
           }
 
           {
